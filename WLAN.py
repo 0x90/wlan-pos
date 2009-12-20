@@ -26,27 +26,33 @@ def Run(cmd, include_stderr=False, return_pipe=False,
         return ""
     return fp.communicate()[0]
 
-cmd = 'sudo iwlist wlan0 scan'.split()
-result = Run(cmd)
-networks = result.split( 'Cell' )
-mac_rssi = []
-for cell in networks:
-    #TODO:exception handling.
-    found = patt_all.search(cell) 
-    # for re.findall's result - list
-    if isinstance(found, list):
-        mac_rssi.append(found)
-        print found
-    # For re.search's result - either MatchObject or None,
-    # and only the former has the attribute 'group'.
-    elif found is not None:
-        # groups - all matched results corresponding to '()' 
-        # field in the argument of re.compile().
-        # group(0/1/2) - the whole section matched the expression/
-        # the 1st/2nd matched field.
-        # group() = group(0)
-        mac_rssi.append(found.groups())
-        print found.groups()
-    else:
-        continue
-#print mac_rssi
+
+def wlanScan(cmd='sudo iwlist wlan0 scan'.split()):
+    result = Run(cmd)
+    networks = result.split( 'Cell' )
+    #mac_rssi = []
+    for cell in networks:
+        #TODO:exception handling.
+        found = patt_all.search(cell) 
+
+        # For re.findall's result - list
+        if isinstance(found, list):
+            mac_rssi = found 
+            #print found
+
+        # For re.search's result - either MatchObject or None,
+        # and only the former has the attribute 'group'.
+        elif found is not None:
+            # groups - all matched results corresponding to '()' 
+            # field in the argument of re.compile().
+            # group(0/1/2) - the whole section matched the expression/
+            # the 1st/2nd matched field.
+            # group() = group(0)
+            mac_rssi = list(found.groups())
+            #print found.groups()
+        else:
+            continue
+    return mac_rssi
+
+if __name__ == "__main__":
+    print wlanScan()
