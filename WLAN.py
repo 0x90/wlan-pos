@@ -30,7 +30,7 @@ def Run(cmd, include_stderr=False, return_pipe=False,
 def wlanScan(cmd='sudo iwlist wlan0 scan'.split()):
     result = Run(cmd)
     networks = result.split( 'Cell' )
-    #mac_rssi = []
+    mac_rssi = []
     for cell in networks:
         #TODO:exception handling.
         found = patt_all.search(cell) 
@@ -38,7 +38,6 @@ def wlanScan(cmd='sudo iwlist wlan0 scan'.split()):
         # For re.findall's result - list
         if isinstance(found, list):
             mac_rssi = found 
-            #print found
 
         # For re.search's result - either MatchObject or None,
         # and only the former has the attribute 'group'.
@@ -48,8 +47,7 @@ def wlanScan(cmd='sudo iwlist wlan0 scan'.split()):
             # group(0/1/2) - the whole section matched the expression/
             # the 1st/2nd matched field.
             # group() = group(0)
-            mac_rssi = list(found.groups())
-            #print found.groups()
+            mac_rssi.append(found.groups())
         else:
             continue
     return mac_rssi
