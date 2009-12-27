@@ -2,11 +2,13 @@
 #coding=utf-8
 #Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
 from __future__ import division
-from WLAN import wlanScan
-from GPS import getGLL
+from WLAN import scanWLAN
+from GPS import getGPS
+from pprint import pprint,PrettyPrinter
 
 #cmd='sudo iwlist wlan0 scan'.split()
-gps = getGLL()
-wlan = wlanScan()
+gps = getGPS()
+wlan = scanWLAN()
 gps.append(wlan)
-print gps
+pp = PrettyPrinter(indent=2)
+pp.pprint(gps)

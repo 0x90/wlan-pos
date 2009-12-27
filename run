@@ -1,0 +1,12 @@
+#!/bin/bash
+RUNTIME=20
+RUNFILE=offline.py
+LOGPATH=log
+LOGFILE=${LOGPATH}/log-`date +%Y%m%d-%H%M%S`
+
+[ -d ${LOGPATH} ] || mkdir ${LOGPATH}
+[ -f ${LOGFILE} ] && mv -f ${LOGFILE} ${LOGFILE}.bak
+for x in $(seq ${RUNTIME})
+do
+    sudo python ${RUNFILE} |tee -a ${LOGFILE}
+done
