@@ -6,3 +6,4 @@ syntax: glob
 *.pyc
 tags
 log
+test/*

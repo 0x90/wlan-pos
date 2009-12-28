@@ -1,12 +1,45 @@
 #!/bin/bash
-RUNTIME=20
+RUNTIME=10
 RUNFILE=offline.py
 LOGPATH=log
-LOGFILE=${LOGPATH}/log-`date +%Y%m%d-%H%M%S`
 
-[ -d ${LOGPATH} ] || mkdir ${LOGPATH}
-[ -f ${LOGFILE} ] && mv -f ${LOGFILE} ${LOGFILE}.bak
-for x in $(seq ${RUNTIME})
+if [ $# -lt 1 ]; then
+    date=`date +%Y%m%d-%H%M%S`
+    echo -e "\nTime: $date\n"
+    LOGFILE=$LOGPATH/log-$date
+    declare -a LOGFILES=( $LOGFILE )
+    [ -d ${LOGPATH} ] || mkdir ${LOGPATH}
+    [ -f ${LOGFILE} ] && mv -f ${LOGFILE} ${LOGFILE}.bak
+    for x in $(seq ${RUNTIME})
+    do
+        echo "Survey $x:"
+        sudo python ${RUNFILE} |tee -a ${LOGFILE}
+        echo "-------------------------------------------------------------"
+    done
+else
+	declare -a LOGFILES=( "$@" )
+fi 
+
+
+for LOGFILE in ${LOGFILES[@]}
 do
-    sudo python ${RUNFILE} |tee -a ${LOGFILE}
+    echo -ne "\nChecking ${LOGFILE##*/} ... "
+    #Integrity checking.
+    stat_gga=`grep -e 'GGA' ${LOGFILE} |wc -l`
+    stat_gll=`grep -e 'GLL' ${LOGFILE} |wc -l`
+    #stat_rmc=`grep -e 'RMC' ${LOGFILE} |wc -l`
+    stat_all=`expr ${stat_gga} + ${stat_gll}`
+
+    stat_loc_all=`echo "($stat_all) * 2" |bc`
+    stat_loc_mline=`grep -e '^ *116' -e '^ *39' ${LOGFILE} |wc -l`
+    stat_loc_sline_noap=`sed -n "/^\['[0-9]*\-[0-9]*', 116\.[0-9]*, 39\.[0-9]*, \[\]]/p" ${LOGFILE} |wc -l`
+    stat_loc_all=`echo "(${stat_loc_mline}) + (${stat_loc_sline_noap}) * 2" |bc`
+    echo "OK"
+
+    printf "Total scan: %16d\n" ${stat_all}
+    echo "-------------------------------"
+    printf "GGA: %23d\nGLL: %23d\nRMC: %23d\n" ${stat_gga} ${stat_gll} ${stat_rmc}
+    printf "Lat/Lon OK: %13d/%02d\n" ${stat_loc_all} ${stat_loc_all}
+    printf "WLAN scan OK: %11d/%02d\n" `expr ${stat_all} - ${stat_loc_sline_noap}` ${stat_all}
+    echo -e "-------------------------------\n"
 done

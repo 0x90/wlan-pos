@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys,os,re
 from subprocess import Popen, STDOUT, PIPE, call
+#from numpy import array, savetxt, dtype
 
 _re_mode = (re.I | re.M | re.S)
 patt_mac = re.compile('Address:\s*(.*?)\s*$', _re_mode)
@@ -66,5 +67,24 @@ def scanWLAN( cmd='sudo iwlist wlan0 scan'.split() ):
     return mac_rssi
 
 if __name__ == "__main__":
+    wlan = scanWLAN()
+    #dt = dtype([
+    #        ('mac','S17'),
+    #        ('signal','i4'),
+    #        ('noise','i4'),
+    #        ('key','S3'),
+    #        ('essid','S10')])
+    #ary_wlan = array(wlan)
+    #dt_wlan = array(ary_wlan[:,0],dtype=dt)
+    #dt_wlan['signal'],dt_wlan['noise'],dt_wlan['key'],dt_wlan['essid'] = \
+    #    ary_wlan[:,1], ary_wlan[:,2], ary_wlan[:,3], ary_wlan[:,4]
+
     from pprint import pprint
-    pprint(scanWLAN())
+    pprint(wlan)
+
+    #import csv
+    #wlancsv = csv.writer( open('out.csv','wb'), delimiter='|' )
+    #wlancsv.writerows(wlan)
+
+    #savetxt("out", wlan, fmt='%s,%s,%s,%s,%s')
+    #sys.exit(0)
