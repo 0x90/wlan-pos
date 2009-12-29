@@ -3,10 +3,12 @@
 #Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
 from __future__ import division
 import sys
+from time import strftime
 from WLAN import scanWLAN
 from GPS import getGPS
 
-gps = getGPS()
+tstamp = strftime('%Y%m%d-%H%M%S')
+gps = getGPS(); gps.insert(0,tstamp)
 wlan = scanWLAN()
 
 from pprint import pprint,PrettyPrinter
@@ -19,8 +21,12 @@ pp.pprint(wlan)
 aps = [ ';'.join([ '|'.join(ap) for ap in wlan ]) ]
 gps.extend(aps)
 
-ofile = open('out','a')
-ofile.write(str(gps)+'\n')
+
+date = strftime('%Y%m%d')
+logfile = open('log/log-' + date,'a')
+import csv
+csvout = csv.writer( logfile )
+csvout.writerow(gps)
 
 
 sys.exit(0)
@@ -33,7 +39,5 @@ for ap in aps:
     print ap.split('|')
 
 sys.exit(0)
-import csv
-csvout = csv.writer( open('out.csv','wb'), delimiter=',' )
-csvout.writerows(gps)
 
+ofile.write(str(gps)+'\n')

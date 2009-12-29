@@ -3,7 +3,6 @@
 #Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
 from __future__ import division
 import serial,string
-from time import sleep,strftime
 
 def getGPS():
     """
@@ -75,9 +74,7 @@ def getGPS():
         lon_int = int(lon_tmp/100)
         lon = lon_int + (lon_tmp - lon_int*100)/60
 
-        time = strftime('%Y%m%d-%H%M%S')
-
-        gps = [ time, lon, lat ]
+        gps = [ lon, lat ]
         break
 
     #sleep(.2)
@@ -85,5 +82,9 @@ def getGPS():
     return gps
 
 if __name__ == "__main__":
+    from time import sleep,strftime
+    timestamp = strftime('%Y%m%d-%H%M%S')
+    gps = getGPS()
+    gps.insert(0,timestamp)
     from pprint import pprint
-    pprint(getGPS())
+    pprint(gps)
