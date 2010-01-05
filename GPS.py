@@ -23,8 +23,7 @@ def getGPS():
         $GPGGA,011217.000,3955.36937,N,11628.37507,E,1,04,4.0,41.3,M,-7.9,M,,*75
         $GPRMC,011217.000,A,3955.36937,N,11628.37507,E,,,271209,,,A*6D
         """
-        if line.startswith('$GPGLL,'):
-            if not len(sentence) == 8: continue
+        if sentence[0] == '$GPGLL' and len(sentence) == 8:
             try:
                 # Format of sentence[5](utc): hhmmss
                 #time = string.atof(sentence[5])
@@ -36,8 +35,7 @@ def getGPS():
             except: 
                 continue
 
-        elif line.startswith('$GPGGA,'):
-            if not len(sentence) == 15: continue
+        elif sentence[0] == '$GPGGA' and len(sentence) == 15:
             try:
                 #time = string.atof(sentence[1])
                 lat_tmp = string.atof(sentence[2])
