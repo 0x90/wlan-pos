@@ -1,0 +1,2 @@
+DATPATH = 'dat/'
+RAWSUFIX = '.raw'

@@ -7,15 +7,15 @@ _re_mode = (re.I | re.M | re.S)
 patt_mac = re.compile('Address:\s*(.*?)\s*$', _re_mode)
 #FIXME
 #patt_mac = re.compile('.*Address: (([0-9A-Z]{2}:){5}[0-9A-Z]{2})', _re_mode)
-patt_sig = re.compile('Signal level=?:? ?(-\d\d*) ?dBm', _re_mode)
-#mac,essid,signal,noise,encryption
+patt_rss = re.compile('Signal level=?:? ?(-\d\d*) ?dBm', _re_mode)
+# mac,essid,signal,noise,encryption
 patt_all = re.compile('Address: ?(.*?)\n\
         .*ESSID: ?"?(.*?)"? *\n\
         .*Signal level=?:? ?(-\d\d*) ?dBm *Noise level ?=? ?(-\d\d*) ?dBm *\n\
         .*Encryption key:?=? ?(\w*) *\n', _re_mode)
-#mac,signal,noise
+# mac,rss
 patt_rmap = re.compile('Address: ?(.*?)\n\
-        .*Signal level=?:? ?(-\d\d*) ?dBm *Noise level ?=? ?(-\d\d*) ?dBm *', _re_mode)
+        .*Signal level=?:? ?(-\d\d*) *dBm', _re_mode)
 
 
 def Run(cmd, include_stderr=False, return_pipe=False,
@@ -33,17 +33,17 @@ def Run(cmd, include_stderr=False, return_pipe=False,
 
 
 def scanWLAN( cmd='sudo iwlist wlan0 scan'.split() ):
-    result = Run(cmd)
-    networks = result.split( 'Cell' )
-    mac_rssi = []
+    results = Run(cmd)
+    networks = results.split( 'Cell' )
+    scan_result = []
     for cell in networks:
         #TODO:exception handling.
         #found = patt_rmap.findall(cell) 
-        matched = patt_all.search(cell) 
+        matched = patt_rmap.search(cell) 
 
         # For re.findall's result - list
         #if isinstance(matched, list):
-        #    mac_rssi = matched 
+        #    scan_result = matched 
 
         # For re.search's result - either MatchObject or None,
         # and only the former has the attribute 'group(s)'.
@@ -55,16 +55,17 @@ def scanWLAN( cmd='sudo iwlist wlan0 scan'.split() ):
             # group() = group(0)
             found = list(matched.groups())
 
-            #Move the 'essid' field to the end of 'found' list.
-            if len(found) > 1:
+            # Move the 'essid' field to the end of 'found' list.
+            # 2: found at least has mac,rss,essid.
+            if len(found) > 2:
                 found.append(found[1])
                 found.pop(1)
 
-            mac_rssi.append(found)
+            scan_result.append(found)
         else:
             continue
 
-    return mac_rssi
+    return scan_result
 
 if __name__ == "__main__":
     wlan = scanWLAN()
