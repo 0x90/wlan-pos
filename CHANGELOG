@@ -1,0 +1,3 @@
+2010-01-06 	
+1) Parameters naming changed (-t,-s).
+2) Mac list intersection solved (test/intersect.py).

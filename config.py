@@ -1,2 +1,3 @@
 DATPATH = 'dat/'
-RAWSUFIX = '.raw'
+RAWSUFFIX = '.raw'
+RMPSUFFIX = '.rmp'
