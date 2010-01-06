@@ -15,8 +15,8 @@ def getRaw():
     Collecting scanning results for WLAN & GPS.
     """
     #FIXME:exception handling
-    #rawdata = getGPS(); 
-    rawdata = [ 116.472673167, 39.9229416667 ]
+    rawdata = getGPS(); 
+    #rawdata = [ 116.472673167, 39.9229416667 ]
     timestamp = strftime('%Y%m%d-%H%M%S')
     rawdata.insert(0,timestamp)
 
@@ -65,22 +65,13 @@ def RadioMap(rfile):
         lonlist.append(string.atof(rawdata[3]))
         mac_raw.append(rawdata[4])
         rss_raw.append(rawdata[5])
-    print 'spid: %d' % spid
-    print 'latlist: %s' % latlist
-    print 'lonlist: %s' % lonlist
 
     #mean lat/lon.
     lat_mean = sum(latlist) / len(latlist) 
     lon_mean = sum(lonlist) / len(lonlist) 
-    print 'lat_mean: %f' % lat_mean
-    print 'lon_mean: %f' % lon_mean
 
-    print 'mac_raw: %s' % mac_raw
-    print 'rss_raw: %s' % rss_raw
     maclist = [ macs.split('|') for macs in mac_raw ]
     rsslist = [ rsss.split('|') for rsss in rss_raw ]
-    print 'maclist: %s' % maclist
-    print 'rsslist: %s' % rsslist
 
     # Ugly code for packing MAC:RSS in dictionary.
     dictlist = []
@@ -89,7 +80,6 @@ def RadioMap(rfile):
         for x in range(len(rsslist[i])):
             dict[maclist[i][x]]=rsslist[i][x]
         dictlist.append(dict)
-    print 'dictlist: %s' % dictlist
 
     # Intersection of MAC address list for spid.
     inter = set( maclist.pop() )
@@ -97,7 +87,6 @@ def RadioMap(rfile):
         inter = inter & set(maclist.pop())
     # mac_interset: intersection of all MAC lists for spid samples.
     mac_interset = list(inter)
-    print 'mac_interset: %s' % mac_interset
 
     # List the rss values of the MACs in intersection set.
     dictlist_intersect = {}
@@ -105,7 +94,9 @@ def RadioMap(rfile):
         dictlist_intersect[mac]=[]
         for dict in dictlist:
             dictlist_intersect[mac].append(string.atoi(dict[mac]))
-    print 'dictlist_intersect: %s' % dictlist_intersect
+    if verbose is True:
+        print 'lat_mean: %f\tlon_mean: %f' % ( lat_mean, lon_mean )
+        print 'dictlist_intersect: \n%s' % (dictlist_intersect)
 
     # Packing the MACs in intersection set and corresponding rss means to radio map.
     # RadioMap: spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp
@@ -113,12 +104,17 @@ def RadioMap(rfile):
     rss_interset_rmp = '|'.join([ 
         str( sum(dictlist_intersect[x])/len(dictlist_intersect[x]) )
         for x in dictlist_intersect.keys() ])
-    print 'mac_interset_rmp: %s' % mac_interset_rmp
-    print 'rss_interset_rmp: %s' % rss_interset_rmp
+    print 'mac_interset_rmp: %s\nrss_interset_rmp: %s' % \
+            ( mac_interset_rmp, rss_interset_rmp )
 
     rmpdata = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
     return rmpdata
 
+
+def dumpCSV(csvfile, csvline):
+    print 'Dumping data to %s' % csvfile
+    rawout = csv.writer( open(csvfile,'a') )
+    rawout.writerow(csvline)
 
 
 def main():
@@ -132,7 +128,10 @@ def main():
 
     if not opts: usage()
     # global vars init.
-    spid = 0; times = 0; tormp = 0; rawfile = None
+    spid = 0; times = 0; tormp = False
+    rawfile = None; scanStatus = None
+    global verbose,pp 
+    verbose = False; pp = None 
 
     for o,a in opts:
         if o in ("-i", "--spid"):
@@ -144,10 +143,16 @@ def main():
             if a.isdigit(): times = string.atoi(a)
             else: times = 1
         elif o in ("-t", "--to-rmp"):
-            tormp = 1
-            rawfile = a
+            if not os.path.isfile(a):
+                print 'Raw data file NOT exist: %s' % a
+                sys.exit(99)
+            else: 
+                tormp = True
+                rawfile = a
         #elif o in ("-a", "--aio"):
-        #elif o in ("-v", "--verbose"):
+        elif o in ("-v", "--verbose"):
+            verbose = True
+            pp = PrettyPrinter(indent=2)
         elif o in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -156,24 +161,36 @@ def main():
             usage()
             sys.exit(99)
 
-    if tormp == 1:
+    # Raw data to Radio map convertion.
+    if tormp is True:
         if not rawfile == None: 
+            rmpdata = []
             rmpdata = RadioMap(rawfile)
+            if not rmpdata:
+                print 'Error: Radio map generation FAILED: %s' % rawfile
+                sys.exit(99)
             date = strftime('%Y-%m%d')
-            rmpfilename = DATPATH + date + ('-%06d' % rmpdata[0]) + RMPSUFFIX
-            DumpCSV(rmpfilename, rmpdata)
+            rmpfilename = DATPATH + date + RMPSUFFIX
+            dumpCSV(rmpfilename, rmpdata)
             print '-'*65
             sys.exit(0)
         else:
             usage()
             sys.exit(99)
 
+    # WLAN & GPS scan for raw data collection.
     for i in range(times):
         print "Survey: %d" % (i+1)
         rawdata = getRaw()
         rawdata.insert(0, spid)
-        pp = PrettyPrinter(indent=2)
-        pp.pprint(rawdata)
+        # Rawdata Integrity check.
+        if len(rawdata) == 6: 
+            scanStatus = 'Complete'
+        else: scanStatus = 'Incomplete'
+
+        if verbose: pp.pprint(rawdata)
+        else: 
+            print 'Calibrating at Sampling Point %d ... %s!' % (spid, scanStatus)
 
         # Integrity check(ignoring spid).
         # Raw data: spid, time, lat, lon, mac1|mac2, rss1|rss2
@@ -192,14 +209,9 @@ def main():
                 sys.exit(99)
         date = strftime('%Y-%m%d')
         rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
-        DumpCSV(rfilename, rawdata)
+        dumpCSV(rfilename, rawdata)
         print '-'*65
 
-
-def DumpCSV(csvfile, csvline):
-    print 'Dumping raw data to %s' % csvfile
-    rawout = csv.writer( open(csvfile,'a') )
-    rawout.writerow(csvline)
 
 if __name__ == "__main__":
     main()

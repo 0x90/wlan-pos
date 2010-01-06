@@ -46,17 +46,16 @@ def getGPS():
             except: 
                 continue
 
-        #elif line.startswith('$GPRMC,'):
-        #    if not len(sentence) == 13: continue
-        #    try:
-        #        #time = string.atof(sentence[1])
-        #        lat_tmp = string.atof(sentence[3])
-        #        lon_tmp = string.atof(sentence[5])
-        #        # Ugly 2 line for lat/lon check coming up.
-        #        if lat_tmp < 3900 or lon_tmp < 11600:
-        #            continue
-        #    except:
-        #        continue
+        elif sentence[0] == '$GPRMC' and len(sentence) == 13:
+            try:
+                #time = string.atof(sentence[1])
+                lat_tmp = string.atof(sentence[3])
+                lon_tmp = string.atof(sentence[5])
+                # Ugly 2 line for lat/lon check coming up.
+                if lat_tmp < 3900 or lon_tmp < 11600:
+                    continue
+            except:
+                continue
         else:
             continue
 
