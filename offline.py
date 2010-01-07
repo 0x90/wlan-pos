@@ -15,8 +15,8 @@ def getRaw():
     Collecting scanning results for WLAN & GPS.
     """
     #FIXME:exception handling
-    rawdata = getGPS(); 
-    #rawdata = [ 116.472673167, 39.9229416667 ]
+    #rawdata = getGPS(); 
+    rawdata = [ 39.9229416667, 116.472673167 ]
     timestamp = strftime('%Y%m%d-%H%M%S')
     rawdata.insert(0,timestamp)
 

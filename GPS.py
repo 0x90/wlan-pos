@@ -71,7 +71,7 @@ def getGPS():
         lon_int = int(lon_tmp/100)
         lon = lon_int + (lon_tmp - lon_int*100)/60
 
-        gps = [ lon, lat ]
+        gps = [ lat, lon ]
         break
 
     #sleep(.2)

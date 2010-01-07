@@ -1,1 +1,4 @@
+add raw scan filter for filtering out mal-scan results(ap not enough for intersection solution).
 add spid:address description mapping.
+add online location fingerprinting algo.
+add OO support.
