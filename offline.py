@@ -126,10 +126,11 @@ def main():
         usage()
         sys.exit(99)
 
-    if not opts: usage()
+    if not opts: usage(); sys.exit(0)
+
     # global vars init.
     spid = 0; times = 0; tormp = False
-    rawfile = None; scanStatus = None
+    rawfile = None
     global verbose,pp 
     verbose = False; pp = None 
 
@@ -183,19 +184,16 @@ def main():
         print "Survey: %d" % (i+1)
         rawdata = getRaw()
         rawdata.insert(0, spid)
+
         # Rawdata Integrity check.
+        # Rawdata: spid, time, lat, lon, mac1|mac2, rss1|rss2
         if len(rawdata) == 6: 
-            scanStatus = 'Complete'
-        else: scanStatus = 'Incomplete'
-
-        if verbose: pp.pprint(rawdata)
+            if verbose: 
+                pp.pprint(rawdata)
+            else:
+                print 'Calibrating at sampling point %d ... OK!' % spid
         else: 
-            print 'Calibrating at Sampling Point %d ... %s!' % (spid, scanStatus)
-
-        # Integrity check(ignoring spid).
-        # Raw data: spid, time, lat, lon, mac1|mac2, rss1|rss2
-        if not len(rawdata) == 6:
-            print 'Error: Integrity check Failed!'
+            print 'Error: Integrity check failed! Next!'
             print '-'*65
             continue
 
