@@ -1,3 +1,6 @@
 2010-01-06 	
-1) Parameters naming changed (-t,-s).
-2) Mac list intersection solved (test/intersect.py).
+	1) Parameters naming changed (-t,-s).
+	2) Mac list intersection solved (test/intersect.py).
+2010-01-08 	
+	1) Add --no-dump parameter with no log file writting.
+	2) Mod MAC:RSS output format under verbose mode.

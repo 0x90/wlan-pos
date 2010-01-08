@@ -1,4 +1,6 @@
-add raw scan filter for filtering out mal-scan results(ap not enough for intersection solution).
-add spid:address description mapping.
-add online location fingerprinting algo.
-add OO support.
+add  Summary information after raw data scanning and radio map construction.
+add  Online location fingerprinting algo.
+add  Filtering out mal-scan raw data(not enough ap for index intersection).
+add  Statistical chart or figure and data spreadsheet generation.
+add  spid:address description mapping.
+add  OO support.

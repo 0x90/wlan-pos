@@ -50,6 +50,7 @@ option:
     -t --to-rmp=<rawfile>:  Process the given raw data to radio map. 
     -a --aio             :  All in one--raw scanning, followed by radio map processing.
     -i --spid=<spid>     :  Sampling point id. (default:spid+1, 'spid' in log/spid).
+    -n --no-dump         :  No data dumping to file.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 """
@@ -94,9 +95,8 @@ def RadioMap(rfile):
         dictlist_intersect[mac]=[]
         for dict in dictlist:
             dictlist_intersect[mac].append(string.atoi(dict[mac]))
-    if verbose is True:
-        print 'lat_mean: %f\tlon_mean: %f' % ( lat_mean, lon_mean )
-        print 'dictlist_intersect: \n%s' % (dictlist_intersect)
+    print 'lat_mean: %f\tlon_mean: %f' % ( lat_mean, lon_mean )
+    #print 'dictlist_intersect: \n%s' % (dictlist_intersect)
 
     # Packing the MACs in intersection set and corresponding rss means to radio map.
     # RadioMap: spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp
@@ -104,7 +104,12 @@ def RadioMap(rfile):
     rss_interset_rmp = '|'.join([ 
         str( sum(dictlist_intersect[x])/len(dictlist_intersect[x]) )
         for x in dictlist_intersect.keys() ])
-    print 'mac_interset_rmp: %s\nrss_interset_rmp: %s' % \
+    if verbose is True:
+        print 'mac_interset_rmp:rss_interset_rmp:'
+        pp.pprint( [mac+' : '+rss for mac,rss in zip( 
+            mac_interset_rmp.split('|'), rss_interset_rmp.split('|') )] )
+    else:
+        print 'mac_interset_rmp: %s\nrss_interset_rmp: %s' % \
             ( mac_interset_rmp, rss_interset_rmp )
 
     rmpdata = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
@@ -120,8 +125,8 @@ def dumpCSV(csvfile, csvline):
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-                "s:t:ai:hv",
-                ["raw-scan=", "to-rmp=", "aio", "spid=", "help", "verbose"])
+                "s:t:ai:nhv",
+                ["raw-scan=","to-rmp=","aio","spid=","no-dump","help","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -131,8 +136,8 @@ def main():
     # global vars init.
     spid = 0; times = 0; tormp = False
     rawfile = None
-    global verbose,pp 
-    verbose = False; pp = None 
+    global verbose,pp,nodump 
+    verbose = False; pp = None; nodump = False
 
     for o,a in opts:
         if o in ("-i", "--spid"):
@@ -150,6 +155,8 @@ def main():
             else: 
                 tormp = True
                 rawfile = a
+        elif o in ("-n", "--no-dump"):
+            nodump = True
         #elif o in ("-a", "--aio"):
         elif o in ("-v", "--verbose"):
             verbose = True
@@ -164,20 +171,30 @@ def main():
 
     # Raw data to Radio map convertion.
     if tormp is True:
-        if not rawfile == None: 
-            rmpdata = []
-            rmpdata = RadioMap(rawfile)
-            if not rmpdata:
-                print 'Error: Radio map generation FAILED: %s' % rawfile
-                sys.exit(99)
-            date = strftime('%Y-%m%d')
-            rmpfilename = DATPATH + date + RMPSUFFIX
-            dumpCSV(rmpfilename, rmpdata)
-            print '-'*65
-            sys.exit(0)
-        else:
-            usage()
+        rmpdata = []
+        rmpdata = RadioMap(rawfile)
+        if not rmpdata:
+            print 'Error: Radio map generation FAILED: %s' % rawfile
             sys.exit(99)
+
+        if nodump is False:
+            if not rawfile == None: 
+                date = strftime('%Y-%m%d')
+                rmpfilename = DATPATH + date + RMPSUFFIX
+                dumpCSV(rmpfilename, rmpdata)
+                print '-'*65
+                sys.exit(0)
+            else:
+                usage()
+                sys.exit(99)
+        else:
+            spid = rmpdata[0]
+            if verbose is True:
+                print 'Radio Map (sampling point [%d]): ' % spid
+                pp.pprint(rmpdata)
+            else:
+                print 'Radio Map for sampling point %d: %s' % (spid, rmpdata)
+            sys.exit(0)
 
     # WLAN & GPS scan for raw data collection.
     for i in range(times):
@@ -197,17 +214,18 @@ def main():
             print '-'*65
             continue
 
-        if not os.path.isdir(DATPATH):
-            try:
-                os.umask(0) #linux system default umask: 022.
-                os.mkdir(DATPATH,0777)
-                #os.chmod(DATPATH,0777)
-            except OSError, errmsg:
-                print "Failed: %d" % str(errmsg)
-                sys.exit(99)
-        date = strftime('%Y-%m%d')
-        rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
-        dumpCSV(rfilename, rawdata)
+        if nodump is False:
+            if not os.path.isdir(DATPATH):
+                try:
+                    os.umask(0) #linux system default umask: 022.
+                    os.mkdir(DATPATH,0777)
+                    #os.chmod(DATPATH,0777)
+                except OSError, errmsg:
+                    print "Failed: %d" % str(errmsg)
+                    sys.exit(99)
+            date = strftime('%Y-%m%d')
+            rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
+            dumpCSV(rfilename, rawdata)
         print '-'*65
 
 
