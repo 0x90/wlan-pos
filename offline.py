@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-#coding=utf-8
-#Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
 from __future__ import division
 import os,sys,csv,getopt,string
 from time import strftime
@@ -15,8 +13,8 @@ def getRaw():
     Collecting scanning results for WLAN & GPS.
     """
     #FIXME:exception handling
-    #rawdata = getGPS(); 
-    rawdata = [ 39.9229416667, 116.472673167 ]
+    if fake is True: rawdata = [ 39.9229416667, 116.472673167 ]
+    else: rawdata = getGPS(); 
     timestamp = strftime('%Y%m%d-%H%M%S')
     rawdata.insert(0,timestamp)
 
@@ -38,24 +36,6 @@ def getRaw():
     return rawdata
 
 
-def usage():
-    print """
-offline.py - Copyright 2009 Yan Xiaotian, yanxiaotian@chinamobile.com.
-Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
-
-usage:
-    <sudo> offline <option> <infile>
-option:
-    -s --raw-scan=<times>:  Scan for <times> times and log in raw file. 
-    -t --to-rmp=<rawfile>:  Process the given raw data to radio map. 
-    -a --aio             :  All in one--raw scanning, followed by radio map processing.
-    -i --spid=<spid>     :  Sampling point id. (default:spid+1, 'spid' in log/spid).
-    -n --no-dump         :  No data dumping to file.
-    -v --verbose         :  Verbose mode.
-    -h --help            :  Show this help.
-"""
-
-
 def RadioMap(rfile):
     rawin = csv.reader( open(rfile,'r') )
     latlist=[]; lonlist=[]; mac_raw=[]; rss_raw=[]
@@ -67,7 +47,7 @@ def RadioMap(rfile):
         mac_raw.append(rawdata[4])
         rss_raw.append(rawdata[5])
 
-    #mean lat/lon.
+    # mean lat/lon.
     lat_mean = sum(latlist) / len(latlist) 
     lon_mean = sum(lonlist) / len(lonlist) 
 
@@ -122,11 +102,30 @@ def dumpCSV(csvfile, csvline):
     rawout.writerow(csvline)
 
 
+def usage():
+    print """
+offline.py - Copyright 2009 Yan Xiaotian, yanxiaotian@chinamobile.com.
+Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
+
+usage:
+    <sudo> offline <option> <infile>
+option:
+    -s --raw-scan=<times>:  Scan for <times> times and log in raw file. 
+    -t --to-rmp=<rawfile>:  Process the given raw data to radio map. 
+    -a --aio [NOT avail] :  All in one--raw scanning, followed by radio map generation.
+    -i --spid=<spid>     :  Sampling point id. (default:spid+1, 'spid' in log/spid).
+    -n --no-dump         :  No data dumping to file.
+    -f --fake [for test] :  Fake GPS scan results for bad receiving conditions.
+    -v --verbose         :  Verbose mode.
+    -h --help            :  Show this help.
+"""
+
+
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-                "s:t:ai:nhv",
-                ["raw-scan=","to-rmp=","aio","spid=","no-dump","help","verbose"])
+            "s:t:ai:nfhv",
+            ["raw-scan=","to-rmp=","aio","spid=","no-dump","fake","help","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -135,9 +134,9 @@ def main():
 
     # global vars init.
     spid = 0; times = 0; tormp = False
-    rawfile = None
-    global verbose,pp,nodump 
-    verbose = False; pp = None; nodump = False
+    rawfile = None; tfail = 0
+    global verbose,pp,nodump,fake
+    verbose = False; pp = None; nodump = False; fake = False
 
     for o,a in opts:
         if o in ("-i", "--spid"):
@@ -157,6 +156,8 @@ def main():
                 rawfile = a
         elif o in ("-n", "--no-dump"):
             nodump = True
+        elif o in ("-f", "--fake"):
+            fake = True
         #elif o in ("-a", "--aio"):
         elif o in ("-v", "--verbose"):
             verbose = True
@@ -176,7 +177,6 @@ def main():
         if not rmpdata:
             print 'Error: Radio map generation FAILED: %s' % rawfile
             sys.exit(99)
-
         if nodump is False:
             if not rawfile == None: 
                 date = strftime('%Y-%m%d')
@@ -210,10 +210,10 @@ def main():
             else:
                 print 'Calibrating at sampling point %d ... OK!' % spid
         else: 
-            print 'Error: Integrity check failed! Next!'
+            tfail += 1
+            print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
             print '-'*65
             continue
-
         if nodump is False:
             if not os.path.isdir(DATPATH):
                 try:
@@ -227,6 +227,9 @@ def main():
             rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
             dumpCSV(rfilename, rawdata)
         print '-'*65
+    
+    #Summary
+    print '\nComplete/Total:%20d/%d\n' % (times-tfail, times)
 
 
 if __name__ == "__main__":
