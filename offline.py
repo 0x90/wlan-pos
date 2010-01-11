@@ -11,6 +11,7 @@ from config import DATPATH, RAWSUFFIX, RMPSUFFIX
 def getRaw():
     """
     Collecting scanning results for WLAN & GPS.
+    *return: rawdata=[ time, lat, lon, mac1|mac2, rss1|rss2 ]
     """
     #FIXME:exception handling
     if fake is True: rawdata = [ 39.9229416667, 116.472673167 ]
@@ -104,7 +105,7 @@ def dumpCSV(csvfile, csvline):
 
 def usage():
     print """
-offline.py - Copyright 2009 Yan Xiaotian, yanxiaotian@chinamobile.com.
+offline.py - Copyleft 2009-2010 Yan Xiaotian, xiaotian.yan@gmail.com.
 Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
 
 usage:
