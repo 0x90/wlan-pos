@@ -60,18 +60,106 @@ def main():
             usage()
             sys.exit(99)
 
-    #if fake is True: wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
-    #else: wlan = scanWLAN(); 
+    if fake is True: 
+        wlan = [ ['00:11:B5:FD:8B:6D', '-79'],
+                 ['00:15:70:9E:91:60', '-52'],
+                 ['00:15:70:9E:91:61', '-53'],
+                 ['00:15:70:9F:73:64', '-78'],
+                 ['00:15:70:9F:73:66', '-75'],
+                 ['00:15:70:9E:91:62', '-55'],
+                 ['00:23:89:3C:BE:10', '-74'],
+                 ['00:23:89:3C:BE:11', '-78'],
+                 ['00:23:89:3C:BE:12', '-78'],
+                 ['00:11:B5:FE:8B:6D', '-80'],
+                 ['00:15:70:9E:6C:6C', '-65'],
+                 ['00:15:70:9E:6C:6D', '-70'],
+                 ['00:15:70:9E:6C:6E', '-70'],
+                 ['00:15:70:9F:76:E0', '-81'],
+                 ['00:15:70:9F:7D:88', '-76'],
+                 ['00:15:70:9F:73:65', '-76'],
+                 ['00:23:89:3C:BD:32', '-75'],
+                 ['00:23:89:3C:BD:30', '-78'],
+                 ['02:1F:3B:00:01:52', '-76'] ]
+    else: 
+        wlan = scanWLAN()
 
-    from numpy import loadtxt, dtype, fromfile
+    #TODO:dict implementation of 6 max-rss ap selection.
+    maxrsss = []
+    maxmacs = []
+    maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:6]
+    #maxtemp = [-52, -53, -55, -65, -70, -70]
 
-    dt = dtype( {'names':('spid','lat','lon','mac','rss'),
-               'formats':('i4',  'f4', 'f4', 'S35','S20')} )
-    #FIXME: usecols failed.
-    radiomap = loadtxt(rmpfile, dtype=dt, delimiter=',')
+    cnt = 0
+    for ap in wlan:
+        cnt += 1
+        if len(maxmacs) >= 6:
+            if maxrsss[:6] == maxtemp:
+                print 'Bravo! maxtemp matched!'
+                break
+        newrss = string.atoi(ap[1])
+        if not len(maxrsss) == 0:
+            if newrss > maxrsss[-1]:
+                maxrsss.insert(-1, newrss)
+                maxrsss.sort(reverse=True)
+                idx = maxrsss.index(newrss)
+                maxmacs.insert(idx, ap[0])
+            else:
+                maxrsss.append(newrss)
+                maxmacs.append(ap[0])
+        else:
+            maxrsss.append(newrss)
+            maxmacs.append(ap[0])
+        if verbose is True:
+            print 'cnt: %d' % cnt
+            print 'maxmacs: %s' % maxmacs
+            print 'maxrsss: %s' % maxrsss
+            print '-'*65
 
-    pp.pprint(radiomap['mac'])
-    pp.pprint(radiomap['rss'])
+    maxmacs = maxmacs[:6]
+    maxrsss = maxrsss[:6]
+    pp.pprint(wlan)
+    print 'len: %d\nmaxtemp:' % len(wlan)
+    pp.pprint(maxtemp)
+
+    pp.pprint(maxmacs)
+    pp.pprint(maxrsss)
+
+
+    import numpy as np
+    #
+    # NOTE:
+    #   The `numpy.core.defchararray` exists for backwards compatibility with
+    #   Numarray, it is not recommended for new development. If one needs
+    #   arrays of strings, use arrays of `dtype` `object_`, `string_` or
+    #   `unicode_`, and use the free functions in the `numpy.char` module
+    #   for fast vectorized string operations.
+    #   chararrays should be created using `numpy.char.array` or
+    #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
+    #
+    # String length of 107 and 89 chars are used for each intersection set to have 
+    # at most 6 APs, which should be enough for classification, very ugly though.
+    dt = np.dtype( {'names':('spid','lat','lon','macs','rsss'),
+                  'formats':('i4','f4','f4','S107','S89')} )
+    #FIXME: usecols for only spid-macs-rsss picking failed.
+    radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
+    macs = np.char.array(radiomap['macs']).split('|')
+    rsss = np.char.array(radiomap['rsss']).split('|')
+
+    #FIXME:Vectorized operation for Euclidean distance.
+    eDist = []
+    for i in range(len(macs)):
+        scan_mac = maxmacs[i]
+        rmap_mac = macs[i]
+        print 'scan: %s' % scan_mac
+        print 'rmap: %s' % rmap_mac
+        inters = set(scan_mac) & set(rmap_mac)
+        if not len(inters) == 0:
+            print 'Inter:',inters
+        else:
+            print 'NO AP intersection!'
+            continue
+
+
 
 if __name__ == "__main__":
     main()

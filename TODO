@@ -1,6 +1,7 @@
-add  Summary information after raw data scanning and radio map construction.
 add  Online location fingerprinting algo.
-add  Filtering out mal-scan raw data(not enough ap for index intersection).
+add  Filtering out unreliable APs for radiomap to have 6 APs left in offline(rule: rss in descending order or min-correlation).
+add  Summary information after radio map construction.
+
 add  Statistical chart or figure and data spreadsheet generation.
 add  spid:address description mapping.
 add  OO support.

@@ -33,6 +33,9 @@ def Run(cmd, include_stderr=False, return_pipe=False,
 
 
 def scanWLAN( cmd='sudo iwlist wlan0 scan'.split() ):
+    """
+    *return: [ [mac1, rss1], [mac2, rss2] ]
+    """
     results = Run(cmd)
     networks = results.split( 'Cell' )
     scan_result = []
