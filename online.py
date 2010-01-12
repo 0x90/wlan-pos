@@ -41,7 +41,11 @@ def main():
     for o,a in opts:
         if o in ("-i", "--infile"):
             if not os.path.isfile(a):
-                print 'Radio map file NOT exist: %s' % a
+                print '\nRadio map file NOT exist: %s' % a
+                sys.exit(99)
+            elif not a:
+                print '\nRadio map needed!\n'
+                usage()
                 sys.exit(99)
             else: 
                 rmpfile = a
@@ -61,24 +65,15 @@ def main():
             sys.exit(99)
 
     if fake is True: 
-        wlan = [ ['00:11:B5:FD:8B:6D', '-79'],
-                 ['00:15:70:9E:91:60', '-52'],
-                 ['00:15:70:9E:91:61', '-53'],
-                 ['00:15:70:9F:73:64', '-78'],
-                 ['00:15:70:9F:73:66', '-75'],
-                 ['00:15:70:9E:91:62', '-55'],
-                 ['00:23:89:3C:BE:10', '-74'],
-                 ['00:23:89:3C:BE:11', '-78'],
-                 ['00:23:89:3C:BE:12', '-78'],
-                 ['00:11:B5:FE:8B:6D', '-80'],
-                 ['00:15:70:9E:6C:6C', '-65'],
-                 ['00:15:70:9E:6C:6D', '-70'],
-                 ['00:15:70:9E:6C:6E', '-70'],
-                 ['00:15:70:9F:76:E0', '-81'],
-                 ['00:15:70:9F:7D:88', '-76'],
-                 ['00:15:70:9F:73:65', '-76'],
-                 ['00:23:89:3C:BD:32', '-75'],
-                 ['00:23:89:3C:BD:30', '-78'],
+        wlan = [ ['00:11:B5:FD:8B:6D', '-79'], ['00:15:70:9E:91:60', '-52'], 
+                 ['00:15:70:9E:91:61', '-53'], ['00:15:70:9F:73:64', '-78'], 
+                 ['00:15:70:9F:73:66', '-75'], ['00:15:70:9E:91:62', '-55'],
+                 ['00:23:89:3C:BE:10', '-74'], ['00:23:89:3C:BE:11', '-78'], 
+                 ['00:23:89:3C:BE:12', '-78'], ['00:11:B5:FE:8B:6D', '-80'], 
+                 ['00:15:70:9E:6C:6C', '-65'], ['00:15:70:9E:6C:6D', '-70'],
+                 ['00:15:70:9E:6C:6E', '-70'], ['00:15:70:9F:76:E0', '-81'], 
+                 ['00:15:70:9F:7D:88', '-76'], ['00:15:70:9F:73:65', '-76'], 
+                 ['00:23:89:3C:BD:32', '-75'], ['00:23:89:3C:BD:30', '-78'],
                  ['02:1F:3B:00:01:52', '-76'] ]
     else: 
         wlan = scanWLAN()
@@ -141,23 +136,57 @@ def main():
     dt = np.dtype( {'names':('spid','lat','lon','macs','rsss'),
                   'formats':('i4','f4','f4','S107','S89')} )
     #FIXME: usecols for only spid-macs-rsss picking failed.
+    if not rmpfile:
+        print '\nRadio map needed!'
+        usage()
+        sys.exit(99)
     radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
-    macs = np.char.array(radiomap['macs']).split('|')
-    rsss = np.char.array(radiomap['rsss']).split('|')
+    macs_rmp = np.char.array(radiomap['macs']).split('|')
+    rsss_rmp = np.char.array(radiomap['rsss']).split('|')
+    print 'macs_rmp: %s' % macs_rmp
+    print 'rsss_rmp: %s' % rsss_rmp
 
-    #FIXME:Vectorized operation for Euclidean distance.
-    eDist = []
-    for i in range(len(macs)):
-        scan_mac = maxmacs[i]
-        rmap_mac = macs[i]
-        print 'scan: %s' % scan_mac
-        print 'rmap: %s' % rmap_mac
-        inters = set(scan_mac) & set(rmap_mac)
-        if not len(inters) == 0:
-            print 'Inter:',inters
-        else:
-            print 'NO AP intersection!'
-            continue
+    # Vectorized operation for Euclidean distance.
+    #
+    # rss_scan_dist and rss_rmap_dist contain rss of intersection APs between visible 
+    # AP set from WLAN scanning and the AP set of each radio map fingerprint record, 
+    # these two vars are to be used for dist computation.
+    #
+    #TODO: determination of which fingerprint to pick.
+    rss_scan_dist = []
+    rss_rmap_dist = []
+    for i in range(len(macs_rmp)):
+        rss_scan_dist.append([])
+        rss_rmap_dist.append([])
+        for j in range(len(maxmacs)):
+            print 'rss_scan_dist: %s' % rss_scan_dist
+            print 'rss_rmap_dist: %s' % rss_rmap_dist
+            try:
+                idx = list(macs_rmp[i]).index(maxmacs[j])
+                rss_scan_dist[i].append(maxrsss[j])
+                rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
+            except:
+                rss_scan_dist[i].append(0)
+                rss_rmap_dist[i].append(0)
+            print '-'*60
+        print '='*65
+
+    pp.pprint(rss_scan_dist)
+    pp.pprint(rss_rmap_dist)
+
+    rss_scan_dist = np.array(rss_scan_dist)
+    rss_rmap_dist = np.array(rss_rmap_dist)
+
+    pp.pprint(rss_scan_dist)
+    pp.pprint(rss_rmap_dist)
+    rss_dist = (rss_scan_dist - rss_rmap_dist)**2
+    pp.pprint(rss_dist)
+
+    rss_min = min(rss_dist.sum(axis=1))
+    print rss_min
+
+
+
 
 
 

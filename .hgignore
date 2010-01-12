@@ -6,7 +6,6 @@ syntax: glob
 *.pyc
 tags
 log
-dat/*
 out
 test/*
 fig/*
