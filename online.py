@@ -192,12 +192,12 @@ def main():
                 rss_scan_dist[i].append(maxrsss[j])
                 rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
             except:
-                #FIXME: exception handling.
                 print '\nError: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
-                if not len(rss_scan_dist) == 0 and not len(rss_rmap_dist) == 0: 
-                    rss_scan_dist.pop(-1) 
-                    rss_rmap_dist.pop(-1)
-                else: break
+                if not len(rss_scan_dist[i]) == 0:
+                    rss_scan_dist.pop(i) 
+                if not len(rss_rmap_dist[i]) == 0:
+                    rss_rmap_dist.pop(i)
+                break
         #print 'rss_scan_dist: %s' % rss_scan_dist
         #print 'rss_rmap_dist: %s' % rss_rmap_dist
         #print '-'*65
