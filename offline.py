@@ -116,7 +116,7 @@ option:
     -a --aio [NOT avail] :  All in one--raw scanning, followed by radio map generation.
     -i --spid=<spid>     :  Sampling point id. (default:spid+1, 'spid' in log/spid).
     -n --no-dump         :  No data dumping to file.
-    -f --fake [for test] :  Fake GPS scan results for bad receiving conditions.
+    -f --fake [for test] :  Fake GPS scan results in case of bad GPS reception.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 """
@@ -143,11 +143,15 @@ def main():
         if o in ("-i", "--spid"):
             if a.isdigit(): spid = string.atoi(a)
             else:
-                #FIXME: default spid handling.
-                spid = 1
+                print '\nspid: %s should be a INTEGER!' % str(a)
+                usage()
+                sys.exit(99)
         elif o in ("-s", "--raw-scan"):
             if a.isdigit(): times = string.atoi(a)
-            else: times = 1
+            else: 
+                print '\nError: "-s/--raw-scan" should be followed by a INTEGER!'
+                usage()
+                sys.exit(99)
         elif o in ("-t", "--to-rmp"):
             if not os.path.isfile(a):
                 print 'Raw data file NOT exist: %s' % a
@@ -198,39 +202,40 @@ def main():
             sys.exit(0)
 
     # WLAN & GPS scan for raw data collection.
-    for i in range(times):
-        print "Survey: %d" % (i+1)
-        rawdata = getRaw()
-        rawdata.insert(0, spid)
+    if not times == 0:
+        for i in range(times):
+            print "Survey: %d" % (i+1)
+            rawdata = getRaw()
+            rawdata.insert(0, spid)
 
-        # Rawdata Integrity check.
-        # Rawdata: spid, time, lat, lon, mac1|mac2, rss1|rss2
-        if len(rawdata) == 6: 
-            if verbose: 
-                pp.pprint(rawdata)
-            else:
-                print 'Calibrating at sampling point %d ... OK!' % spid
-        else: 
-            tfail += 1
-            print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
+            # Rawdata Integrity check.
+            # Rawdata: spid, time, lat, lon, mac1|mac2, rss1|rss2
+            if len(rawdata) == 6: 
+                if verbose: 
+                    pp.pprint(rawdata)
+                else:
+                    print 'Calibrating at sampling point %d ... OK!' % spid
+            else: 
+                tfail += 1
+                print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
+                print '-'*65
+                continue
+            if nodump is False:
+                if not os.path.isdir(DATPATH):
+                    try:
+                        os.umask(0) #linux system default umask: 022.
+                        os.mkdir(DATPATH,0777)
+                        #os.chmod(DATPATH,0777)
+                    except OSError, errmsg:
+                        print "Failed: %d" % str(errmsg)
+                        sys.exit(99)
+                date = strftime('%Y-%m%d')
+                rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
+                dumpCSV(rfilename, rawdata)
             print '-'*65
-            continue
-        if nodump is False:
-            if not os.path.isdir(DATPATH):
-                try:
-                    os.umask(0) #linux system default umask: 022.
-                    os.mkdir(DATPATH,0777)
-                    #os.chmod(DATPATH,0777)
-                except OSError, errmsg:
-                    print "Failed: %d" % str(errmsg)
-                    sys.exit(99)
-            date = strftime('%Y-%m%d')
-            rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
-            dumpCSV(rfilename, rawdata)
-        print '-'*65
-    
-    #Summary
-    print '\nComplete/Total:%20d/%d\n' % (times-tfail, times)
+        
+        #Scan Summary
+        print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
 
 
 if __name__ == "__main__":

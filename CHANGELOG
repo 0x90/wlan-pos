@@ -4,3 +4,5 @@
 2010-01-08 	
 	1) Add --no-dump parameter with no log file writting.
 	2) Mod MAC:RSS output format under verbose mode.
+2010-01-13
+	1) Add online location fingerprinting routine.

@@ -3,7 +3,7 @@ from __future__ import division
 import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN
 
 
 def usage():
@@ -16,7 +16,7 @@ usage:
 option:
     -i --infile          :  Input radio map file.
     -n --no-dump         :  No data dumping to file.
-    -f --fake [for test] :  Fake WLAN scan results for bad coverage conditions.
+    -f --fake [for test] :  Fake WLAN scan results in case of bad WLAN coverage.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 """
@@ -78,7 +78,7 @@ def main():
     else: 
         wlan = scanWLAN()
 
-    #TODO:dict implementation of 6 max-rss ap selection.
+    # dict implementation of 6 max-rss ap selection.
     maxrsss = []
     maxmacs = []
     maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:6]
@@ -142,17 +142,24 @@ def main():
         sys.exit(99)
     radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
+    # rsss_rmp may contain some fingerprints that has more than 6 elements 
+    # because of the lower precision in radio map, which is considered by far 
+    # NOT to affect the whole. 
+    # One possible way to fix this might to modify this line of code:
+    # rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
+    # to be like the following line, which is not yet verified.
+    # rss_rmap_dist[i].append(string.atof(rsss_rmp[:6][i][idx]))
     rsss_rmp = np.char.array(radiomap['rsss']).split('|')
     print 'macs_rmp: %s' % macs_rmp
     print 'rsss_rmp: %s' % rsss_rmp
 
     # Vectorized operation for Euclidean distance.
     #
-    # rss_scan_dist and rss_rmap_dist contain rss of intersection APs between visible 
-    # AP set from WLAN scanning and the AP set of each radio map fingerprint record, 
-    # these two vars are to be used for dist computation.
+    # 'rss_scan_dist' and 'rss_rmap_dist' contain rss of APs intersection  
+    # between visible AP set from WLAN scanning and the AP set of each radio 
+    # map fingerprint, these two vars are to be used for dist computation.
     #
-    #TODO: determination of which fingerprint to pick.
+    #FIXME: all fingerprints MUST share the same AP set to compute distance.
     rss_scan_dist = []
     rss_rmap_dist = []
     for i in range(len(macs_rmp)):
@@ -171,22 +178,59 @@ def main():
             print '-'*60
         print '='*65
 
-    pp.pprint(rss_scan_dist)
-    pp.pprint(rss_rmap_dist)
-
     rss_scan_dist = np.array(rss_scan_dist)
     rss_rmap_dist = np.array(rss_rmap_dist)
+    print 'rss_scan_dist: '; pp.pprint(rss_scan_dist)
+    print 'rss_rmap_dist: '; pp.pprint(rss_rmap_dist)
 
-    pp.pprint(rss_scan_dist)
-    pp.pprint(rss_rmap_dist)
-    rss_dist = (rss_scan_dist - rss_rmap_dist)**2
-    pp.pprint(rss_dist)
+    rss_dist = ( rss_scan_dist - rss_rmap_dist )**2
+    print 'squared rss distance: '; pp.pprint(rss_dist)
 
-    rss_min = min(rss_dist.sum(axis=1))
-    print rss_min
+    sum_rss_tbsort = rss_dist.sum(axis=1)
+    #sum_rss: raw distance(squared) array of all fingerprints.
+    #sum_rss_tbsort: sorted tobe ascending order for KNN.
+    sum_rss = sum_rss_tbsort.copy()
+    sum_rss_tbsort.sort()
+    k_minrss = sum_rss_tbsort[:KNN]
+    dict_kmin = {}
+    for minrss in k_minrss:
+        try:
+            spidx = radiomap['spid'][list(sum_rss).index(minrss)]
+            dict_kmin[spidx] = minrss
+        except:
+            print 'Failed to solve spidx for rss: %d! Ignored!' % minrss
+            continue
 
+    pp.pprint(dict_kmin)
 
-
+    #TODO:optimize sort routine with both indices and vals retuened.
+    #
+    # np.argsort(a, axis=-1, kind='quicksort', order=None)
+    # Returns the indices that would sort an array.
+    # 
+    # Perform an indirect sort along the given axis using the algorithm specified
+    # by the `kind` keyword. It returns an array of indices of the same shape as
+    # `a` that index data along the given axis in sorted order.
+    #
+    # Parameters
+    # ----------
+    # a : array_like
+    #     Array to sort.
+    # axis : int or None, optional
+    #     Axis along which to sort.  The default is -1 (the last axis). If None,
+    #     the flattened array is used.
+    # kind : {'quicksort', 'mergesort', 'heapsort'}, optional
+    #     Sorting algorithm.
+    # order : list, optional
+    #     When `a` is an array with fields defined, this argument specifies
+    #     which fields to compare first, second, etc.  Not all fields need be
+    #     specified.
+    #
+    # Returns
+    # -------
+    # index_array : ndarray, int
+    #     Array of indices that sort `a` along the specified axis.
+    #     In other words, ``a[index_array]`` yields a sorted `a`.
 
 
 
