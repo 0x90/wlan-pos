@@ -1,9 +1,13 @@
-add  Online location fingerprinting algo.
+MUST
+add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
 mod  Sort routine with both indices and elements returned (numpy.argsort()).
-add  Filtering out unreliable APs for radiomap to have 6 APs left in offline(rule: rss in descending order or min-correlation).
-add  Summary information after radio map construction.
-add  Fingerprint clustering for large scale radio map.
-
-add  Statistical chart or figure and data spreadsheet generation.
 add  spid:address description mapping.
+add  Summary information after radio map construction.
+add  Statistical chart or figure and data spreadsheet generation.
+
+MIGHT
+add  Filtering out unreliable raw-scanned APs for radiomap to have 10 APs left(rule: descending order rss or min-correlation).
+
+LATER
 add  OO support.
+

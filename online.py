@@ -3,7 +3,7 @@ from __future__ import division
 import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN, INTERSET
 
 
 def usage():
@@ -78,17 +78,17 @@ def main():
     else: 
         wlan = scanWLAN()
 
-    # dict implementation of 6 max-rss ap selection.
+    # dict implementation of INTERSET max-rss ap selection.
     maxrsss = []
     maxmacs = []
-    maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:6]
+    maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:INTERSET]
     #maxtemp = [-52, -53, -55, -65, -70, -70]
 
     cnt = 0
     for ap in wlan:
         cnt += 1
-        if len(maxmacs) >= 6:
-            if maxrsss[:6] == maxtemp:
+        if len(maxmacs) >= INTERSET:
+            if maxrsss[:INTERSET] == maxtemp:
                 print 'Bravo! maxtemp matched!'
                 break
         newrss = string.atoi(ap[1])
@@ -104,14 +104,13 @@ def main():
         else:
             maxrsss.append(newrss)
             maxmacs.append(ap[0])
-        if verbose is True:
-            print 'cnt: %d' % cnt
-            print 'maxmacs: %s' % maxmacs
-            print 'maxrsss: %s' % maxrsss
-            print '-'*65
+        #print 'cnt: %d' % cnt
+        #print 'maxmacs: %s' % maxmacs
+        #print 'maxrsss: %s' % maxrsss
+        #print '-'*65
 
-    maxmacs = maxmacs[:6]
-    maxrsss = maxrsss[:6]
+    maxmacs = maxmacs[:INTERSET]
+    maxrsss = maxrsss[:INTERSET]
     pp.pprint(wlan)
     print 'len: %d\nmaxtemp:' % len(wlan)
     pp.pprint(maxtemp)
@@ -131,24 +130,24 @@ def main():
     #   chararrays should be created using `numpy.char.array` or
     #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
     #
-    # String length of 107 and 89 chars are used for each intersection set to have 
-    # at most 6 APs, which should be enough for classification, very ugly though.
+    # String length of 179 and 149 chars are used for each intersection set to have 
+    # at most INTERSET APs, which should be enough for classification, very ugly though.
     dt = np.dtype( {'names':('spid','lat','lon','macs','rsss'),
-                  'formats':('i4','f4','f4','S107','S89')} )
-    #FIXME: usecols for only spid-macs-rsss picking failed.
+                  'formats':('i4','f4','f4','S179','S149')} )
     if not rmpfile:
         print '\nRadio map needed!'
         usage()
         sys.exit(99)
+    #FIXME: usecols for only spid-macs-rsss picking failed.
     radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
-    # rsss_rmp may contain some fingerprints that has more than 6 elements 
+    # rsss_rmp may contain some fingerprints that has more than INTERSET elements 
     # because of the lower precision in radio map, which is considered by far 
     # NOT to affect the whole. 
     # One possible way to fix this might to modify this line of code:
     # rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
     # to be like the following line, which is not yet verified.
-    # rss_rmap_dist[i].append(string.atof(rsss_rmp[:6][i][idx]))
+    # rss_rmap_dist[i].append(string.atof(rsss_rmp[:INTERSET][i][idx]))
     rsss_rmp = np.char.array(radiomap['rsss']).split('|')
     print 'macs_rmp: %s' % macs_rmp
     print 'rsss_rmp: %s' % rsss_rmp
@@ -158,25 +157,50 @@ def main():
     # 'rss_scan_dist' and 'rss_rmap_dist' contain rss of APs intersection  
     # between visible AP set from WLAN scanning and the AP set of each radio 
     # map fingerprint, these two vars are to be used for dist computation.
-    #
-    #FIXME: all fingerprints MUST share the same AP set to compute distance.
+    mac_inters = []
+    for i in range(len(macs_rmp)):
+        mac_inters.append([])
+        for j in range(len(maxmacs)):
+            try:
+                idx = list(macs_rmp[i]).index(maxmacs[j])
+                mac_inters[i].append(maxmacs[j])
+            except:
+                #print '\nNotice: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
+                break
+        #print 'mac_inters: '; pp.pprint(mac_inters)
+        #print '-'*65
+    #print 'mac_inters: '; pp.pprint(mac_inters)
+
+    # Solve final mac_inter ready for distance computation.
+    inter = set( mac_inters.pop() )
+    while not len(mac_inters) is 0:
+        inter = inter & set(mac_inters.pop())
+    mac_inter = list(inter)
+    if len(mac_inter) == 0:
+        print '\nError: NO common AP(s) of (all FPs) & (scanned) found!'
+        sys.exit(99)
+    print 'mac_inter'; pp.pprint(mac_inter)
+
     rss_scan_dist = []
     rss_rmap_dist = []
     for i in range(len(macs_rmp)):
         rss_scan_dist.append([])
         rss_rmap_dist.append([])
-        for j in range(len(maxmacs)):
-            print 'rss_scan_dist: %s' % rss_scan_dist
-            print 'rss_rmap_dist: %s' % rss_rmap_dist
+        for j in range(len(mac_inter)):
             try:
-                idx = list(macs_rmp[i]).index(maxmacs[j])
+                idx = list(macs_rmp[i]).index(mac_inter[j])
                 rss_scan_dist[i].append(maxrsss[j])
                 rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
             except:
-                rss_scan_dist[i].append(0)
-                rss_rmap_dist[i].append(0)
-            print '-'*60
-        print '='*65
+                #FIXME: exception handling.
+                print '\nError: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
+                if not len(rss_scan_dist) == 0 and not len(rss_rmap_dist) == 0: 
+                    rss_scan_dist.pop(-1) 
+                    rss_rmap_dist.pop(-1)
+                else: break
+        #print 'rss_scan_dist: %s' % rss_scan_dist
+        #print 'rss_rmap_dist: %s' % rss_rmap_dist
+        #print '-'*65
 
     rss_scan_dist = np.array(rss_scan_dist)
     rss_rmap_dist = np.array(rss_rmap_dist)
