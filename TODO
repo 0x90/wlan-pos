@@ -1,8 +1,8 @@
 MUST
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
-mod  Sort routine with both indices and elements returned (numpy.argsort()).
-add  spid:address description mapping.
-add  Summary information after radio map construction.
+mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
+add  spid:address mapping configuration for indoor symbolic location.
+add  Summary information after radio map construction/online locationing.
 add  Statistical chart or figure and data spreadsheet generation.
 mod  Raw data collection method(syscall like pythonwifi) for WLAN, such as rss, etc.
 

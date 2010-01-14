@@ -8,3 +8,5 @@
 	1) Add online location fingerprinting routine.
 2010-01-14
 	1) Mod returned spid,rss determination method, and the final computation of the KNN location.
+	2) Add run test script
+	3) Mod online location result output format.

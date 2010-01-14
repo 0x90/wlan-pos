@@ -1,4 +1,28 @@
 #!/bin/bash
+#usage: basename <start_spid> <stop_spid> <runtimes>
+[ $# != 3 ] && exit 99
+start_spid=$1
+stop_spid=$2
+runtimes=$3
+offopts="-v -f"
+onopts="-v "
+date=`date +%Y-%m%d`
+
+for spid in $(seq $start_spid $stop_spid)
+do
+	./offline.py $offopts -s $runtimes -i $spid
+	spidfmt=`printf '%06d' $spid`
+	rawfilename=$date-$spidfmt.raw
+	./offline.py $onopts -t dat/$rawfilename
+	echo "--------------------------------"
+done
+echo
+rmpfilename=$date.rmp
+./online.py -v -i dat/$rmpfilename
+echo
+
+
+exit 0
 RUNTIME=10
 RUNFILE=offline.py
 LOGPATH=log

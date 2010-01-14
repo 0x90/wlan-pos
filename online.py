@@ -64,6 +64,11 @@ def main():
             usage()
             sys.exit(99)
 
+    if not rmpfile:
+        print '\nRadio map needed!'
+        usage()
+        sys.exit(99)
+
     if fake is True: 
         wlan = [ ['00:11:B5:FD:8B:6D', '-79'], ['00:15:70:9E:91:60', '-52'], 
                  ['00:15:70:9E:91:61', '-53'], ['00:15:70:9F:73:64', '-78'], 
@@ -134,10 +139,6 @@ def main():
     # at most INTERSET APs, which should be enough for classification, very ugly though.
     dt = np.dtype( {'names':('spid','lat','lon','macs','rsss'),
                   'formats':('i4','f4','f4','S179','S149')} )
-    if not rmpfile:
-        print '\nRadio map needed!'
-        usage()
-        sys.exit(99)
     #FIXME: usecols for only spid-macs-rsss picking failed.
     radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
@@ -149,8 +150,8 @@ def main():
     # to be like the following line, which is not yet verified.
     # rss_rmap_dist[i].append(string.atof(rsss_rmp[:INTERSET][i][idx]))
     rsss_rmp = np.char.array(radiomap['rsss']).split('|')
-    print 'macs_rmp: %s' % macs_rmp
-    print 'rsss_rmp: %s' % rsss_rmp
+    #print 'macs_rmp: %s' % macs_rmp
+    #print 'rsss_rmp: %s' % rsss_rmp
 
     # Vectorized operation for Euclidean distance.
     #
@@ -226,8 +227,8 @@ def main():
     ary_kmin = np.array(ary_kmin).reshape(KNN,-1)
 
     pp.pprint(ary_kmin)
-    sys.stdout.write('\nCentroid location of spid: %s: \n%s\n' % \
-            ( sorted(list(ary_kmin[:,0])), tuple(ary_kmin[:,2:].mean(axis=0)) ) )
+    print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )
+    print 'Centroid location: %s\n' % str( tuple(ary_kmin[:,2:].mean(axis=0)) )
 
     #TODO:optimize sort routine with both indices and vals retuened.
     #
