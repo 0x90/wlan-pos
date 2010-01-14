@@ -208,24 +208,26 @@ def main():
     print 'rss_rmap_dist: '; pp.pprint(rss_rmap_dist)
 
     rss_dist = ( rss_scan_dist - rss_rmap_dist )**2
-    print 'squared rss distance: '; pp.pprint(rss_dist)
+    #print 'squared rss distance: '; pp.pprint(rss_dist)
 
-    sum_rss_tbsort = rss_dist.sum(axis=1)
-    #sum_rss: raw distance(squared) array of all fingerprints.
-    #sum_rss_tbsort: sorted tobe ascending order for KNN.
-    sum_rss = sum_rss_tbsort.copy()
-    sum_rss_tbsort.sort()
-    k_minrss = sum_rss_tbsort[:KNN]
-    dict_kmin = {}
-    for minrss in k_minrss:
-        try:
-            spidx = radiomap['spid'][list(sum_rss).index(minrss)]
-            dict_kmin[spidx] = minrss
-        except:
-            print 'Failed to solve spidx for rss: %d! Ignored!' % minrss
-            continue
+    sum_rss = rss_dist.sum(axis=1)
+    # idx_sort: index array of sorted sum_rss.
+    idx_sort = sum_rss.argsort()
+    k_idx_sort = idx_sort[:KNN]
+    pp.pprint(sum_rss)
+    pp.pprint(k_idx_sort)
+    # ary_kmin: {spid:[ dist, [lat,lon] ]}
+    ary_kmin = []
+    for idx in k_idx_sort:
+        ary_kmin.append( radiomap['spid'][idx] )
+        ary_kmin.append( sum_rss[idx] )
+        #ary_kmin.extend([ radiomap['lat'][idx],radiomap['lon'][idx] ])
+        ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
+    ary_kmin = np.array(ary_kmin).reshape(KNN,-1)
 
-    pp.pprint(dict_kmin)
+    pp.pprint(ary_kmin)
+    sys.stdout.write('\nCentroid location of spid: %s: \n%s\n' % \
+            ( sorted(list(ary_kmin[:,0])), tuple(ary_kmin[:,2:].mean(axis=0)) ) )
 
     #TODO:optimize sort routine with both indices and vals retuened.
     #

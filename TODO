@@ -4,6 +4,7 @@ mod  Sort routine with both indices and elements returned (numpy.argsort()).
 add  spid:address description mapping.
 add  Summary information after radio map construction.
 add  Statistical chart or figure and data spreadsheet generation.
+mod  Raw data collection method(syscall like pythonwifi) for WLAN, such as rss, etc.
 
 MIGHT
 add  Filtering out unreliable raw-scanned APs for radiomap to have 10 APs left(rule: descending order rss or min-correlation).

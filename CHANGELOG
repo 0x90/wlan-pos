@@ -6,3 +6,5 @@
 	2) Mod MAC:RSS output format under verbose mode.
 2010-01-13
 	1) Add online location fingerprinting routine.
+2010-01-14
+	1) Mod returned spid,rss determination method, and the final computation of the KNN location.
