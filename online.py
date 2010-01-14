@@ -3,7 +3,7 @@ from __future__ import division
 import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN, INTERSET
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN, INTERSIZE
 
 
 def usage():
@@ -83,6 +83,13 @@ def main():
     else: 
         wlan = scanWLAN()
 
+    scanap_len = len(wlan)
+    pp.pprint(wlan)
+    print 'len: %d\nmaxtemp:' % scanap_len
+
+    # 
+    INTERSET = min(INTERSIZE, scanap_len)
+
     # dict implementation of INTERSET max-rss ap selection.
     maxrsss = []
     maxmacs = []
@@ -116,8 +123,6 @@ def main():
 
     maxmacs = maxmacs[:INTERSET]
     maxrsss = maxrsss[:INTERSET]
-    pp.pprint(wlan)
-    print 'len: %d\nmaxtemp:' % len(wlan)
     pp.pprint(maxtemp)
 
     pp.pprint(maxmacs)
@@ -152,6 +157,10 @@ def main():
     rsss_rmp = np.char.array(radiomap['rsss']).split('|')
     #print 'macs_rmp: %s' % macs_rmp
     #print 'rsss_rmp: %s' % rsss_rmp
+
+    # K_NN takes minimum value between KNN and number of fingerprints in case of 
+    # mal-assignment of ary_kmin when there are not enough KNN fingerprints.
+    K_NN = min( KNN, len(rsss_rmp) )
 
     # Vectorized operation for Euclidean distance.
     #
@@ -214,7 +223,7 @@ def main():
     sum_rss = rss_dist.sum(axis=1)
     # idx_sort: index array of sorted sum_rss.
     idx_sort = sum_rss.argsort()
-    k_idx_sort = idx_sort[:KNN]
+    k_idx_sort = idx_sort[:K_NN]
     pp.pprint(sum_rss)
     pp.pprint(k_idx_sort)
     # ary_kmin: {spid:[ dist, [lat,lon] ]}
@@ -224,7 +233,7 @@ def main():
         ary_kmin.append( sum_rss[idx] )
         #ary_kmin.extend([ radiomap['lat'][idx],radiomap['lon'][idx] ])
         ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
-    ary_kmin = np.array(ary_kmin).reshape(KNN,-1)
+    ary_kmin = np.array(ary_kmin).reshape(K_NN,-1)
 
     pp.pprint(ary_kmin)
     print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )

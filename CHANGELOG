@@ -10,3 +10,5 @@
 	1) Mod returned spid,rss determination method, and the final computation of the KNN location.
 	2) Add run test script
 	3) Mod online location result output format.
+    4) Fix ary_kmin array reshape error when there are not enough KNN fingerprints.
+    5) Opt WLAN scanned AP number less than INTERSIZE.
