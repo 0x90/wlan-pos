@@ -160,7 +160,11 @@ def main():
 
     # K_NN takes minimum value between KNN and number of fingerprints in case of 
     # mal-assignment of ary_kmin when there are not enough KNN fingerprints.
-    K_NN = min( KNN, len(rsss_rmp) )
+    len_rmp = len(macs_rmp)
+    if len_rmp < 2 or not isinstance(macs_rmp[0], list):
+        print '\nNot enough(>1) fingerprints in radio map: %s!\n' % rmpfile
+        sys.exit(99)
+    K_NN = min( KNN, len_rmp )
 
     # Vectorized operation for Euclidean distance.
     #
@@ -168,7 +172,7 @@ def main():
     # between visible AP set from WLAN scanning and the AP set of each radio 
     # map fingerprint, these two vars are to be used for dist computation.
     mac_inters = []
-    for i in range(len(macs_rmp)):
+    for i in range(len_rmp):
         mac_inters.append([])
         for j in range(len(maxmacs)):
             try:
@@ -193,7 +197,7 @@ def main():
 
     rss_scan_dist = []
     rss_rmap_dist = []
-    for i in range(len(macs_rmp)):
+    for i in range(len_rmp):
         rss_scan_dist.append([])
         rss_rmap_dist.append([])
         for j in range(len(mac_inter)):
