@@ -3,7 +3,8 @@ from __future__ import division
 import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, KNN, INTERSIZE
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, \
+                KNN, INTERSIZE, WLAN_HOME, WLAN_CMRI
 
 
 def usage():
@@ -15,8 +16,8 @@ usage:
     offline <option> <infile>
 option:
     -i --infile          :  Input radio map file.
-    -n --no-dump         :  No data dumping to file.
-    -f --fake [for test] :  Fake WLAN scan results in case of bad WLAN coverage.
+    -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
+                            [mode id] 0:true scan(default); 1:CMRI; 2:home.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 """
@@ -25,7 +26,7 @@ option:
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-            "i:nfhv",
+            "i:nf:hv",
             ["infile=","no-dump","fake","help","verbose"])
     except getopt.GetoptError:
         usage()
@@ -36,7 +37,7 @@ def main():
     # global vars init.
     times = 0; rmpfile = None; tfail = 0
     global verbose,pp,nodump,fake
-    verbose = False; pp = None; nodump = False; fake = False
+    verbose = False; pp = None; nodump = False; fake = 0
 
     for o,a in opts:
         if o in ("-i", "--infile"):
@@ -47,18 +48,22 @@ def main():
                 print '\nRadio map needed!\n'
                 usage()
                 sys.exit(99)
-            else: 
-                rmpfile = a
+            else: rmpfile = a
         elif o in ("-v", "--verbose"):
             verbose = True
             pp = PrettyPrinter(indent=2)
         elif o in ("-h", "--help"):
             usage()
             sys.exit(0)
-        elif o in ("-n", "--no-dump"):
-            nodump = True
         elif o in ("-f", "--fake"):
-            fake = True
+            if a.isdigit(): 
+                fake = string.atoi(a)
+                if 0 <= fake <= 2: continue
+                else: pass
+            else: pass
+            print '\nIllegal fake GPS id: %s!' % a
+            usage()
+            sys.exit(99)
         else:
             print 'Parameter NOT supported: %s' % o
             usage()
@@ -69,26 +74,21 @@ def main():
         usage()
         sys.exit(99)
 
-    if fake is True: 
-        wlan = [ ['00:11:B5:FD:8B:6D', '-79'], ['00:15:70:9E:91:60', '-52'], 
-                 ['00:15:70:9E:91:61', '-53'], ['00:15:70:9F:73:64', '-78'], 
-                 ['00:15:70:9F:73:66', '-75'], ['00:15:70:9E:91:62', '-55'],
-                 ['00:23:89:3C:BE:10', '-74'], ['00:23:89:3C:BE:11', '-78'], 
-                 ['00:23:89:3C:BE:12', '-78'], ['00:11:B5:FE:8B:6D', '-80'], 
-                 ['00:15:70:9E:6C:6C', '-65'], ['00:15:70:9E:6C:6D', '-70'],
-                 ['00:15:70:9E:6C:6E', '-70'], ['00:15:70:9F:76:E0', '-81'], 
-                 ['00:15:70:9F:7D:88', '-76'], ['00:15:70:9F:73:65', '-76'], 
-                 ['00:23:89:3C:BD:32', '-75'], ['00:23:89:3C:BD:30', '-78'],
-                 ['02:1F:3B:00:01:52', '-76'] ]
-    else: 
+    if fake == 0:   #true
         wlan = scanWLAN()
+    elif fake == 1: #CMRI
+        wlan = WLAN_CMRI
+    elif fake == 2: #home
+        wlan = WLAN_HOME
+    else: 
+        print 'Fake ID: %d NOT supported!' % fake
 
-    scanap_len = len(wlan)
+    len_scanAP = len(wlan)
+    print 'Online scanned APs: %d' % len_scanAP
     pp.pprint(wlan)
-    print 'len: %d\nmaxtemp:' % scanap_len
 
     # 
-    INTERSET = min(INTERSIZE, scanap_len)
+    INTERSET = min(INTERSIZE, len_scanAP)
 
     # dict implementation of INTERSET max-rss ap selection.
     maxrsss = []
@@ -123,10 +123,10 @@ def main():
 
     maxmacs = maxmacs[:INTERSET]
     maxrsss = maxrsss[:INTERSET]
-    pp.pprint(maxtemp)
+    print 'maxtemp: %s' % maxtemp
 
-    pp.pprint(maxmacs)
-    pp.pprint(maxrsss)
+    print 'maxmacs:'; pp.pprint(maxmacs)
+    print 'maxrsss:'; pp.pprint(maxrsss)
 
 
     import numpy as np
@@ -228,8 +228,7 @@ def main():
     # idx_sort: index array of sorted sum_rss.
     idx_sort = sum_rss.argsort()
     k_idx_sort = idx_sort[:K_NN]
-    pp.pprint(sum_rss)
-    pp.pprint(k_idx_sort)
+    print 'k_idx_sort:'; pp.pprint(k_idx_sort)
     # ary_kmin: {spid:[ dist, [lat,lon] ]}
     ary_kmin = []
     for idx in k_idx_sort:
@@ -239,7 +238,7 @@ def main():
         ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
     ary_kmin = np.array(ary_kmin).reshape(K_NN,-1)
 
-    pp.pprint(ary_kmin)
+    print 'ary_kmin:'; pp.pprint(ary_kmin)
     print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )
     print 'Centroid location: %s\n' % str( tuple(ary_kmin[:,2:].mean(axis=0)) )
 
@@ -271,7 +270,6 @@ def main():
     # index_array : ndarray, int
     #     Array of indices that sort `a` along the specified axis.
     #     In other words, ``a[index_array]`` yields a sorted `a`.
-
 
 
 if __name__ == "__main__":

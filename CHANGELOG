@@ -1,14 +1,16 @@
 2010-01-06 	
-	1) Parameters naming changed (-t,-s).
-	2) Mac list intersection solved (test/intersect.py).
+    1) Parameters naming changed (-t,-s).
+    2) Mac list intersection solved (test/intersect.py).
 2010-01-08 	
-	1) Add --no-dump parameter with no log file writting.
-	2) Mod MAC:RSS output format under verbose mode.
+    1) Add --no-dump parameter with no log file writting.
+    2) Mod MAC:RSS output format under verbose mode.
 2010-01-13
-	1) Add online location fingerprinting routine.
+    1) Add online location fingerprinting routine.
 2010-01-14
-	1) Mod returned spid,rss determination method, and the final computation of the KNN location.
-	2) Add run test script
-	3) Mod online location result output format.
+    1) Mod returned spid,rss structure, and the final computation of the KNN location.
+    2) Add run test script
+    3) Mod online location result output format.
     4) Fix ary_kmin array reshape error when there are not enough KNN fingerprints.
     5) Opt WLAN scanned AP number less than INTERSIZE.
+2010-01-16
+    1) Add multiple fake GPS mode(home/cmri,etc) handling in online phase.
