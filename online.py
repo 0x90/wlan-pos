@@ -5,6 +5,7 @@ from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, \
                 KNN, INTERSIZE, WLAN_HOME, WLAN_CMRI
+from address import addr_book
 
 
 def usage():
@@ -15,19 +16,24 @@ Location fingerprinting using deterministic/probablistic approaches.
 usage:
     offline <option> <infile>
 option:
-    -i --infile          :  Input radio map file.
+    -a --address=<key id>:  key id of address book configured in address.py.
+                            <key id>: 1-cmri(default); 2-home.
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
-                            [mode id] 0:true scan(default); 1:CMRI; 2:home.
+                            <mode id> 0:true scan(default); 1:cmri; 2:home.
+    -i --infile          :  Input radio map file.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
+example:
+    #online.py -a 2 -v -i /path/to/some/rmpfile
+    #online.py -f 2 -v -i /path/to/some/rmpfile
 """
 
 
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-            "i:nf:hv",
-            ["infile=","no-dump","fake","help","verbose"])
+            "a:i:nf:hv",
+            ["address=","infile=","no-dump","fake","help","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -36,10 +42,19 @@ def main():
 
     # global vars init.
     times = 0; rmpfile = None; tfail = 0
-    global verbose,pp,nodump,fake
-    verbose = False; pp = None; nodump = False; fake = 0
+    global verbose,pp,nodump,fake, addrid
+    verbose = False; pp = None; nodump = False; fake = 0; addrid = 1
 
     for o,a in opts:
+        if o in ("-a", "--address"):
+            if a.isdigit(): 
+                addrid = string.atoi(a)
+                if 1 <= fake <= 2: continue
+                else: pass
+            else: pass
+            print '\nIllegal address id: %s!' % a
+            usage()
+            sys.exit(99)
         if o in ("-i", "--infile"):
             if not os.path.isfile(a):
                 print '\nRadio map file NOT exist: %s' % a
@@ -80,8 +95,11 @@ def main():
         wlan = WLAN_CMRI
     elif fake == 2: #home
         wlan = WLAN_HOME
+        addrid = 2
     else: 
         print 'Fake ID: %d NOT supported!' % fake
+    # Address book init.
+    addr = addr_book[addrid]
 
     len_scanAP = len(wlan)
     print 'Online scanned APs: %d' % len_scanAP
@@ -231,16 +249,22 @@ def main():
     print 'k_idx_sort:'; pp.pprint(k_idx_sort)
     # ary_kmin: {spid:[ dist, [lat,lon] ]}
     ary_kmin = []
+    addr_kmin = []
     for idx in k_idx_sort:
-        ary_kmin.append( radiomap['spid'][idx] )
+        spidx = radiomap['spid'][idx]
+        ary_kmin.append( spidx )
         ary_kmin.append( sum_rss[idx] )
         #ary_kmin.extend([ radiomap['lat'][idx],radiomap['lon'][idx] ])
         ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
+        addr_kmin.append( addr[spidx] )
     ary_kmin = np.array(ary_kmin).reshape(K_NN,-1)
 
     print 'ary_kmin:'; pp.pprint(ary_kmin)
+
     print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )
+    print 'Address: %s' % addr_kmin
     print 'Centroid location: %s\n' % str( tuple(ary_kmin[:,2:].mean(axis=0)) )
+
 
     #TODO:optimize sort routine with both indices and vals retuened.
     #

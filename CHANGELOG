@@ -14,3 +14,4 @@
     5) Opt WLAN scanned AP number less than INTERSIZE.
 2010-01-16
     1) Add multiple fake GPS mode(home/cmri,etc) handling in online phase.
+    2) Add concise address information support.
