@@ -4,7 +4,7 @@ import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, \
-                KNN, INTERSIZE, WLAN_HOME, WLAN_CMRI
+                KNN, INTERSIZE, WLAN_FAKE
 from address import addr_book
 
 
@@ -49,7 +49,7 @@ def main():
         if o in ("-a", "--address"):
             if a.isdigit(): 
                 addrid = string.atoi(a)
-                if 1 <= fake <= 2: continue
+                if 1 <= addrid <= 2: continue
                 else: pass
             else: pass
             print '\nIllegal address id: %s!' % a
@@ -89,15 +89,11 @@ def main():
         usage()
         sys.exit(99)
 
-    if fake == 0:   #true
+    if fake == 0:   # True
         wlan = scanWLAN()
-    elif fake == 1: #CMRI
-        wlan = WLAN_CMRI
-    elif fake == 2: #home
-        wlan = WLAN_HOME
-        addrid = 2
-    else: 
-        print 'Fake ID: %d NOT supported!' % fake
+    else:           # CMRI or Home
+        addrid = fake
+        wlan = WLAN_FAKE[addrid]
     # Address book init.
     addr = addr_book[addrid]
 
@@ -198,7 +194,7 @@ def main():
                 mac_inters[i].append(maxmacs[j])
             except:
                 #print '\nNotice: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
-                break
+                continue
         #print 'mac_inters: '; pp.pprint(mac_inters)
         #print '-'*65
     #print 'mac_inters: '; pp.pprint(mac_inters)
