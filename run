@@ -51,10 +51,10 @@ HELP
 	exit 0
 }
 
-x=1   # Avoids an error if we get no options at all.
+[ $# -eq 0 ] && Usage
+#x=1   # Avoids an error if we get no options at all.
 while getopts "af:ghor:t:v" opt; do
     OPTERR=0 #error msg shutup
-    echo "init: $OPTIND"
     case $opt in
         a ) aio=1 ;;
         f ) start_spid=$OPTARG ;;
@@ -70,11 +70,10 @@ while getopts "af:ghor:t:v" opt; do
         ;;
     esac
   x=$OPTIND
-  echo "end: $OPTION"
 done
-shift $(($x-1))
-echo "Left overs: $@"
-exit 0
+#shift $(($x-1))
+#echo "Left overs: $@"
+#exit 0
 
 [ $fakegps = 1 ] && offopts="-v -f" || offopts="-v "
 onopts="-v "
