@@ -17,9 +17,9 @@ usage:
     offline <option> <infile>
 option:
     -a --address=<key id>:  key id of address book configured in address.py.
-                            <key id>: 1-cmri(default); 2-home.
+                            <key id>: 1-cmri; 2-home.
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
-                            <mode id> 0:true scan(default); 1:cmri; 2:home.
+                            <mode id> 0:true scan; 1:cmri; 2:home.
     -i --infile          :  Input radio map file.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.

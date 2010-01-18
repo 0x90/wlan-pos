@@ -33,11 +33,10 @@ run -- WLAN location fingerprinting running script.
 
 USAGE: run [OPTION] ...
 OPTION: 
--a     all in one processing(default: no)
+-a     all in one processing(default: no-only offline processing)
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
--o     only offline calibration and processing(default: yes)
 -r     number of samples for each spid(default: 30)
 -t     stop spid number(included)(default: 1)
 -v     show version information
@@ -60,7 +59,6 @@ while getopts "af:ghor:t:v" opt; do
         f ) start_spid=$OPTARG ;;
         g ) fakegps=1 ;;
         h ) Usage ;;
-        o ) aio=0 ;;
         r ) runtimes=$OPTARG ;;
         t ) stop_spid=$OPTARG ;;
         v ) Version ;;
@@ -77,20 +75,22 @@ done
 
 [ $fakegps = 1 ] && offopts="-v -f" || offopts="-v "
 onopts="-v "
+onopts="-v -a 2"
 date=`date +%Y-%m%d`
 
 for spid in $(seq $start_spid $stop_spid)
 do
+    echo "Sampling Point [$spid]"
 	./offline.py $offopts -s $runtimes -i $spid
 	spidfmt=`printf '%06d' $spid`
 	rawfilename=$date-$spidfmt.raw
 	./offline.py $onopts -t dat/$rawfilename
-	echo "--------------------------------"
+	echo "-----------------------------------------------------------------"
 done
-#echo
-#rmpfilename=$date.rmp
-#./online.py -v -i dat/$rmpfilename
-#echo
+if [ $aio -eq 1 ]; then
+    rmpfilename=$date.rmp
+    ./online.py $onopts -i dat/$rmpfilename
+fi
 
 
 exit 0

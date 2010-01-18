@@ -1,6 +1,5 @@
 MUST
 mod  rss_scan_dist built once enough(array(list*N).reshape()).
-mod  add  -o in run script; del default value for parametric args.
 --------
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).

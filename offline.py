@@ -114,7 +114,7 @@ option:
     -s --raw-scan=<times>:  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>:  Process the given raw data to radio map. 
     -a --aio [NOT avail] :  All in one--raw scanning, followed by radio map generation.
-    -i --spid=<spid>     :  Sampling point id. (default:spid+1, 'spid' in log/spid).
+    -i --spid=<spid>     :  Sampling point id.
     -n --no-dump         :  No data dumping to file.
     -f --fake [for test] :  Fake GPS scan results in case of bad GPS reception.
     -v --verbose         :  Verbose mode.
