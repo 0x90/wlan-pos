@@ -109,6 +109,7 @@ def main():
     maxmacs = []
     maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:INTERSET]
     #maxtemp = [-52, -53, -55, -65, -70, -70]
+    print 'maxtemp: %s' % maxtemp
 
     cnt = 0
     for ap in wlan:
@@ -124,12 +125,10 @@ def main():
                 maxrsss.sort(reverse=True)
                 idx = maxrsss.index(newrss)
                 maxmacs.insert(idx, ap[0])
-            else:
-                maxrsss.append(newrss)
-                maxmacs.append(ap[0])
-        else:
-            maxrsss.append(newrss)
-            maxmacs.append(ap[0])
+            else: pass
+        else: pass
+        maxrsss.append(newrss)
+        maxmacs.append(ap[0])
         #print 'cnt: %d' % cnt
         #print 'maxmacs: %s' % maxmacs
         #print 'maxrsss: %s' % maxrsss
@@ -137,10 +136,9 @@ def main():
 
     maxmacs = maxmacs[:INTERSET]
     maxrsss = maxrsss[:INTERSET]
-    print 'maxtemp: %s' % maxtemp
 
     print 'maxmacs:'; pp.pprint(maxmacs)
-    print 'maxrsss:'; pp.pprint(maxrsss)
+    print 'maxrsss: %s' % maxrsss
 
 
     import numpy as np
@@ -207,7 +205,7 @@ def main():
     if len(mac_inter) == 0:
         print '\nError: NO common AP(s) of (all FPs) & (scanned) found!'
         sys.exit(99)
-    print 'mac_inter'; pp.pprint(mac_inter)
+    print 'mac_inter: %s' % mac_inter
 
     rss_scan_dist = []
     rss_rmap_dist = []
