@@ -19,3 +19,5 @@
     1) Update issue 5: interset solution error when strongest AP is not in radio map.
     2) Fix issue 5: break -> continue.
     3) Mod fake WLAN data config.py.
+2010-01-20
+    1) Fix MAC:RSS descending order sorted based on RSS values for Radio map file generation.

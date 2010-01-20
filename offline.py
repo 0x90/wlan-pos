@@ -2,6 +2,7 @@
 from __future__ import division
 import os,sys,csv,getopt,string
 from time import strftime
+import numpy as np
 from WLAN import scanWLAN
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
@@ -56,11 +57,12 @@ def RadioMap(rfile):
     rsslist = [ rsss.split('|') for rsss in rss_raw ]
 
     # Ugly code for packing MAC:RSS in dictionary.
+    # dictlist: [{mac1:rss1,mac2:rss2,...},{mac3:rss3,mac4:mac4,...},...]
     dictlist = []
     for i in range(len(maclist)):
         dict = {}
         for x in range(len(rsslist[i])):
-            dict[maclist[i][x]]=rsslist[i][x]
+            dict[maclist[i][x]] = rsslist[i][x]
         dictlist.append(dict)
 
     # Intersection of MAC address list for spid.
@@ -71,22 +73,33 @@ def RadioMap(rfile):
     mac_interset = list(inter)
 
     # List the rss values of the MACs in intersection set.
-    dictlist_intersect = {}
+    # dictlist_inters: {mac1:[rss11,rss12,...], mac2:[rss21,rss22,...],...},
+    # mac_interset=[mac1, mac2,...].
+    dictlist_inters = {}
     for mac in mac_interset:
-        dictlist_intersect[mac]=[]
+        dictlist_inters[mac] = []
         for dict in dictlist:
-            dictlist_intersect[mac].append(string.atoi(dict[mac]))
+            dictlist_inters[mac].append(string.atoi(dict[mac]))
     print 'lat_mean: %f\tlon_mean: %f' % ( lat_mean, lon_mean )
-    #print 'dictlist_intersect: \n%s' % (dictlist_intersect)
+    #print 'dictlist_inters: \n%s' % (dictlist_inters)
 
     # Packing the MACs in intersection set and corresponding rss means to radio map.
     # RadioMap: spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp
-    mac_interset_rmp = '|'.join( dictlist_intersect.keys() )
-    rss_interset_rmp = '|'.join([ 
-        str( sum(dictlist_intersect[x])/len(dictlist_intersect[x]) )
-        for x in dictlist_intersect.keys() ])
+    # keys: MACs list of mac_interset; mrss: mean rss list of macs in keys.
+    # ary_fp: array for rss sorting of mac_interset, ary_fp[0]:macs,ary_fp[1]:rsss.
+    keys = dictlist_inters.keys()
+    mrss = [ sum(dictlist_inters[x])/len(dictlist_inters[x]) 
+            for x in dictlist_inters.keys() ]
+    print keys
+    print mrss
+    ary_fp = np.array(keys + mrss).reshape(2,-1)
+    # The default ascending order of argsort() is correct for find max rss macs here, 
+    # because sorted orders for strings and numbers are opposite.
+    ary_fp = ary_fp[:, np.argsort(ary_fp[1])]
+    mac_interset_rmp = '|'.join( list(ary_fp[0]) )
+    rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     if verbose is True:
-        print 'mac_interset_rmp:rss_interset_rmp:'
+        print 'mac_interset_rmp:rss_interset_rmp'
         pp.pprint( [mac+' : '+rss for mac,rss in zip( 
             mac_interset_rmp.split('|'), rss_interset_rmp.split('|') )] )
     else:
@@ -119,6 +132,8 @@ option:
     -f --fake [for test] :  Fake GPS scan results in case of bad GPS reception.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
+NOTE:
+    <rawfile> needed by -t/--to-rmp option must NOT has empty line(s)!
 """
 
 
