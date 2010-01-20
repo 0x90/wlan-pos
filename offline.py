@@ -90,8 +90,6 @@ def RadioMap(rfile):
     keys = dictlist_inters.keys()
     mrss = [ sum(dictlist_inters[x])/len(dictlist_inters[x]) 
             for x in dictlist_inters.keys() ]
-    print keys
-    print mrss
     ary_fp = np.array(keys + mrss).reshape(2,-1)
     # The default ascending order of argsort() is correct for find max rss macs here, 
     # because sorted orders for strings and numbers are opposite.
