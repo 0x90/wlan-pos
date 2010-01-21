@@ -6,7 +6,7 @@ import numpy as np
 from WLAN import scanWLAN
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, INTERSIZE
 
 
 def getRaw():
@@ -38,8 +38,8 @@ def getRaw():
     return rawdata
 
 
-def RadioMap(rfile):
-    rawin = csv.reader( open(rfile,'r') )
+def Fingerprint(rawfile):
+    rawin = csv.reader( open(rawfile,'r') )
     latlist=[]; lonlist=[]; mac_raw=[]; rss_raw=[]
     maclist=[]; mac_interset=[]
     for rawdata in rawin:
@@ -80,20 +80,20 @@ def RadioMap(rfile):
         dictlist_inters[mac] = []
         for dict in dictlist:
             dictlist_inters[mac].append(string.atoi(dict[mac]))
-    print 'lat_mean: %f\tlon_mean: %f' % ( lat_mean, lon_mean )
+    print 'lat_mean: %f\tlon_mean: %f' % (lat_mean, lon_mean)
     #print 'dictlist_inters: \n%s' % (dictlist_inters)
 
-    # Packing the MACs in intersection set and corresponding rss means to radio map.
-    # RadioMap: spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp
+    # Packing the MACs in intersection set and corresponding rss means to fingerprint.
+    # Fingerprint: spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp
     # keys: MACs list of mac_interset; mrss: mean rss list of macs in keys.
     # ary_fp: array for rss sorting of mac_interset, ary_fp[0]:macs,ary_fp[1]:rsss.
     keys = dictlist_inters.keys()
     mrss = [ sum(dictlist_inters[x])/len(dictlist_inters[x]) 
             for x in dictlist_inters.keys() ]
     ary_fp = np.array(keys + mrss).reshape(2,-1)
-    # The default ascending order of argsort() is correct for find max rss macs here, 
-    # because sorted orders for strings and numbers are opposite.
-    ary_fp = ary_fp[:, np.argsort(ary_fp[1])]
+    # The default ascending order of argsort() seems correct for finding max-rss macs here, 
+    # because the respective sorted orders for strings and numbers are opposite.
+    ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:INTERSIZE] ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     if verbose is True:
@@ -104,8 +104,20 @@ def RadioMap(rfile):
         print 'mac_interset_rmp: %s\nrss_interset_rmp: %s' % \
             ( mac_interset_rmp, rss_interset_rmp )
 
-    rmpdata = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
-    return rmpdata
+    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
+    return fingerprint
+
+
+def Cluster(rmpfile):
+    rmpin = csv.reader( open(rmpfile,'r') )
+    latlist=[]; lonlist=[]; macs=[]; rsss=[]
+    for fingerp in rmpin:
+        spid = string.atoi(fingerp[0])
+        latlist.append(string.atof(fingerp[1]))
+        lonlist.append(string.atof(fingerp[2]))
+        macs.append(fingerp[3])
+        rsss.append(fingerp[4])
+
 
 
 def dumpCSV(csvfile, csvline):
@@ -122,24 +134,25 @@ Calibration & preprocessing for radio map generation in WLAN location fingerprin
 usage:
     <sudo> offline <option> <infile>
 option:
-    -s --raw-scan=<times>:  Scan for <times> times and log in raw file. 
-    -t --to-rmp=<rawfile>:  Process the given raw data to radio map. 
-    -a --aio [NOT avail] :  All in one--raw scanning, followed by radio map generation.
-    -i --spid=<spid>     :  Sampling point id.
-    -n --no-dump         :  No data dumping to file.
-    -f --fake [for test] :  Fake GPS scan results in case of bad GPS reception.
-    -v --verbose         :  Verbose mode.
-    -h --help            :  Show this help.
+    -a --aio [NOT avail]   :  All in one--raw scanning, followed by radio map generation.
+    -c --cluster=<rmpfile> :  Fingerprints classification based on max-rss-APs fingerprints clustering.
+    -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
+    -h --help              :  Show this help.
+    -i --spid=<spid>       :  Sampling point id.
+    -n --no-dump           :  No data dumping to file.
+    -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
+    -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
+    -v --verbose           :  Verbose mode.
 NOTE:
-    <rawfile> needed by -t/--to-rmp option must NOT has empty line(s)!
+    <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
 """
 
 
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-            "s:t:ai:nfhv",
-            ["raw-scan=","to-rmp=","aio","spid=","no-dump","fake","help","verbose"])
+            "ac:fhi:ns:t:v",
+            ["aio","cluster","fake","help","spid=","no-dump","raw-scan=","to-rmp=","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -147,10 +160,10 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    spid = 0; times = 0; tormp = False
-    rawfile = None; tfail = 0
+    spid=0; times=0; tormp=False
+    rawfile=None; tfail=0; docluster=False
     global verbose,pp,nodump,fake
-    verbose = False; pp = None; nodump = False; fake = False
+    verbose=False; pp=None; nodump=False; fake=False
 
     for o,a in opts:
         if o in ("-i", "--spid"):
@@ -172,6 +185,13 @@ def main():
             else: 
                 tormp = True
                 rawfile = a
+        elif o in ("-c", "--cluster"):
+            if not os.path.isfile(a):
+                print 'Radio map file NOT exist: %s' % a
+                sys.exit(99)
+            else: 
+                docluster = True
+                rmpfile = a
         elif o in ("-n", "--no-dump"):
             nodump = True
         elif o in ("-f", "--fake"):
@@ -188,31 +208,37 @@ def main():
             usage()
             sys.exit(99)
 
-    # Raw data to Radio map convertion.
+    # Raw data to fingerprint convertion.
     if tormp is True:
-        rmpdata = []
-        rmpdata = RadioMap(rawfile)
-        if not rmpdata:
-            print 'Error: Radio map generation FAILED: %s' % rawfile
+        fingerprint = []
+        fingerprint = Fingerprint(rawfile)
+        if not fingerprint:
+            print 'Error: Fingerprint generation FAILED: %s' % rawfile
             sys.exit(99)
         if nodump is False:
             if not rawfile == None: 
                 date = strftime('%Y-%m%d')
                 rmpfilename = DATPATH + date + RMPSUFFIX
-                dumpCSV(rmpfilename, rmpdata)
+                dumpCSV(rmpfilename, fingerprint)
                 print '-'*65
                 sys.exit(0)
             else:
                 usage()
                 sys.exit(99)
         else:
-            spid = rmpdata[0]
-            if verbose is True:
-                print 'Radio Map (sampling point [%d]): ' % spid
-                pp.pprint(rmpdata)
-            else:
-                print 'Radio Map for sampling point %d: %s' % (spid, rmpdata)
+            spid = fingerprint[0]
+            print 'Fingerprint (sampling point [%d]): ' % spid
+            if verbose is True: pp.pprint(fingerprint)
+            else: print fingerprint
             sys.exit(0)
+
+    # Ordinary fingerprints clustering.
+    if docluster is True:
+        cluster_fp = []
+        cluster_fp = Cluster(rmpfile)
+        if not cluster_fp:
+            print 'Error: Clustering FAILED: %s' % rmpfile
+            sys.exit(99)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:

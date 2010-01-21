@@ -1,7 +1,7 @@
 DATPATH = 'dat/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
-INTERSIZE = 10
+INTERSIZE = 4
 KNN = 4
 WLAN_FAKE = {
         2: #home

@@ -33,7 +33,7 @@ run -- WLAN location fingerprinting running script.
 
 USAGE: run [OPTION] ...
 OPTION: 
--a     all in one processing(default: no-only offline processing)
+-a     all in one processing(default: no, only offline processing)
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
@@ -75,7 +75,7 @@ done
 
 [ $fakegps = 1 ] && offopts="-v -f" || offopts="-v "
 onopts="-v "
-onopts="-v -a 2"
+#onopts="-v -a 2"
 date=`date +%Y-%m%d`
 
 for spid in $(seq $start_spid $stop_spid)
@@ -84,7 +84,7 @@ do
 	./offline.py $offopts -s $runtimes -i $spid
 	spidfmt=`printf '%06d' $spid`
 	rawfilename=$date-$spidfmt.raw
-	./offline.py $onopts -t dat/$rawfilename
+	./offline.py -v -t dat/$rawfilename
 	echo "-----------------------------------------------------------------"
 done
 if [ $aio -eq 1 ]; then

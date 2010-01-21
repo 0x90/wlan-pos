@@ -21,3 +21,8 @@
     3) Mod fake WLAN data config.py.
 2010-01-20
     1) Fix MAC:RSS descending order sorted based on RSS values for Radio map file generation.
+2010-01-21
+    1) Mod offline RadioMap(), only certain number(INTERSIZE) of max-rss APs left in radio map fingerprints.
+    2) Fix logical procedure bug for maxmacs generation, introduced by REV<e65c339eeb>.
+    3) Fix appending error for rss_scan_dist, introduced by using maxmacs instead of mac_inter.
+    4) Fix onopts bug in run script, introduced by REV<5bc8b654fd>.

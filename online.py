@@ -114,21 +114,18 @@ def main():
     cnt = 0
     for ap in wlan:
         cnt += 1
-        if len(maxmacs) >= INTERSET:
-            if maxrsss[:INTERSET] == maxtemp:
-                print 'Bravo! maxtemp matched!'
-                break
+        if ( len(maxmacs)>=INTERSET ) and ( maxrsss[:INTERSET]==maxtemp ):
+            print 'Bravo! maxtemp matched!'
+            break
         newrss = string.atoi(ap[1])
-        if not len(maxrsss) == 0:
-            if newrss > maxrsss[-1]:
-                maxrsss.insert(-1, newrss)
-                maxrsss.sort(reverse=True)
-                idx = maxrsss.index(newrss)
-                maxmacs.insert(idx, ap[0])
-            else: pass
-        else: pass
-        maxrsss.append(newrss)
-        maxmacs.append(ap[0])
+        if (not len(maxrsss) == 0) and (newrss > maxrsss[-1]):
+            maxrsss.insert(-1, newrss)
+            maxrsss.sort(reverse=True)
+            idx = maxrsss.index(newrss)
+            maxmacs.insert(idx, ap[0])
+        else: 
+            maxrsss.append(newrss)
+            maxmacs.append(ap[0])
         #print 'cnt: %d' % cnt
         #print 'maxmacs: %s' % maxmacs
         #print 'maxrsss: %s' % maxrsss
@@ -205,20 +202,21 @@ def main():
     if len(mac_inter) == 0:
         print '\nError: NO common AP(s) of (all FPs) & (scanned) found!'
         sys.exit(99)
-    print 'mac_inter: %s' % mac_inter
+    print 'mac_inter:'; pp.pprint(mac_inter)
 
     rss_scan_dist = []
     rss_rmap_dist = []
     for i in range(len_rmp):
         rss_scan_dist.append([])
         rss_rmap_dist.append([])
-        for j in range(len(mac_inter)):
+        for mac in mac_inter:
             try:
-                idx = list(macs_rmp[i]).index(mac_inter[j])
-                rss_scan_dist[i].append(maxrsss[j])
-                rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
+                idx_rmap = list(macs_rmp[i]).index(mac)
+                idx_scan = maxmacs.index(mac)
+                rss_scan_dist[i].append(maxrsss[idx_scan])
+                rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx_rmap]))
             except:
-                print '\nError: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
+                print '\nError: Cannot find %s in %s!\n' % (mac, macs_rmp[i])
                 if not len(rss_scan_dist[i]) == 0:
                     rss_scan_dist.pop(i) 
                 if not len(rss_rmap_dist[i]) == 0:
