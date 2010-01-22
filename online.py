@@ -4,7 +4,7 @@ import os,sys,csv,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, \
-                KNN, INTERSIZE, WLAN_FAKE
+                KNN, INTERSIZE, WLAN_FAKE, dt_rmp_nocluster
 from address import addr_book
 
 
@@ -149,12 +149,8 @@ def main():
     #   chararrays should be created using `numpy.char.array` or
     #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
     #
-    # String length of 179 and 149 chars are used for each intersection set to have 
-    # at most INTERSET APs, which should be enough for classification, very ugly though.
-    dt = np.dtype( {'names':('spid','lat','lon','macs','rsss'),
-                  'formats':('i4','f4','f4','S179','S149')} )
     #FIXME: usecols for only spid-macs-rsss picking failed.
-    radiomap = np.loadtxt(rmpfile, dtype=dt, delimiter=',')
+    radiomap = np.loadtxt(rmpfile, dtype=np.dtype(dt_rmp_nocluster), delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
     # rsss_rmp may contain some fingerprints that has more than INTERSET elements 
     # because of the lower precision in radio map, which is considered by far 

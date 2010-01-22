@@ -26,3 +26,5 @@
     2) Fix logical procedure bug for maxmacs generation, introduced by REV<e65c339eeb>.
     3) Fix appending error for rss_scan_dist, introduced by using maxmacs instead of mac_inter.
     4) Fix onopts bug in run script, introduced by REV<5bc8b654fd>.
+2010-01-22
+    1) Add offline clustering heuristics.

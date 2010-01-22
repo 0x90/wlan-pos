@@ -93,7 +93,7 @@ def Fingerprint(rawfile):
     ary_fp = np.array(keys + mrss).reshape(2,-1)
     # The default ascending order of argsort() seems correct for finding max-rss macs here, 
     # because the respective sorted orders for strings and numbers are opposite.
-    ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:INTERSIZE] ]
+    ary_fp = ary_fp[ :, np.argsort(ary_fp[1]) ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     if verbose is True:
@@ -110,20 +110,43 @@ def Fingerprint(rawfile):
 
 def Cluster(rmpfile):
     rmpin = csv.reader( open(rmpfile,'r') )
-    latlist=[]; lonlist=[]; macs=[]; rsss=[]
+    lat_means=[]; lon_means=[]; mac_inter=[]; rss_inter=[]
+    # group all lines in rmpfile to a list.
     for fingerp in rmpin:
         spid = string.atoi(fingerp[0])
-        latlist.append(string.atof(fingerp[1]))
-        lonlist.append(string.atof(fingerp[2]))
-        macs.append(fingerp[3])
-        rsss.append(fingerp[4])
+        lat_means.append(string.atof(fingerp[1]))
+        lon_means.append(string.atof(fingerp[2]))
+        mac_inter.append(fingerp[3])
+        rss_inter.append(fingerp[4])
+    pp.pprint(lat_means)
+    pp.pprint(lon_means)
+    pp.pprint(mac_inter)
+    pp.pprint(rss_inter)
+
+    # dict_ckeyset: {cid:[spid]}
+    #for idx in range(len(mac_inte)):
+
+
+    crmpfilename = rmpfile.split('.')
+    crmpfilename[1] = 'crmp'
+    crmpfilename = '.'.join(crmpfilename)
+
+    sys.exit(0)
 
 
 
-def dumpCSV(csvfile, csvline):
+def dumpCSV(csvfile, content):
+    """
+    Appendding content in form of line(s) into csvfile.
+    """
+    if not content:
+        print 'Null: %s!' % content
+        sys.exit(99)
     print 'Dumping data to %s' % csvfile
-    rawout = csv.writer( open(csvfile,'a') )
-    rawout.writerow(csvline)
+    csvout = csv.writer( open(csvfile,'a') )
+    if not isinstance(content[0], list):
+        content = [ content ]
+    csvout.writerows(content)
 
 
 def usage():

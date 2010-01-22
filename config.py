@@ -1,8 +1,12 @@
 DATPATH = 'dat/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
-INTERSIZE = 4
+INTERSIZE = 10
 KNN = 4
+# String length of 179 and 149 chars are used for each intersection set to have 
+# at most INTERSET APs, which should be enough for classification, very ugly though.
+dt_rmp_nocluster = {'names':('spid','lat','lon','macs','rsss'), 
+                       'formats':('i4','f4','f4','S179','S149')}
 WLAN_FAKE = {
         2: #home
            [ ['00:25:86:23:A4:48', '-86'], ['00:24:01:FE:0F:20', '-90'], 
