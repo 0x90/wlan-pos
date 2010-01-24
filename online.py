@@ -20,7 +20,7 @@ option:
                             <key id>: 1-cmri; 2-home.
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
                             <mode id> 0:true scan; 1:cmri; 2:home.
-    -i --infile          :  Input radio map file.
+    -i --infile          :  Input raw or clustered(not avail) radio map file.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 example:
@@ -145,16 +145,16 @@ def main():
     #   Numarray, it is not recommended for new development. If one needs
     #   arrays of strings, use arrays of `dtype` `object_`, `string_` or
     #   `unicode_`, and use the free functions in the `numpy.char` module
-    #   for fast vectorized string operations.
+    #   for fast *vectorized string operations*.
     #   chararrays should be created using `numpy.char.array` or
     #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
     #
     #FIXME: usecols for only spid-macs-rsss picking failed.
     radiomap = np.loadtxt(rmpfile, dtype=np.dtype(dt_rmp_nocluster), delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
-    # rsss_rmp may contain some fingerprints that has more than INTERSET elements 
-    # because of the lower precision in radio map, which is considered by far 
-    # NOT to affect the whole. 
+    # rsss_rmp may contain fingerprints that has more than INTERSET elements 
+    # because of the lower storage precision in radio map, which is evaluated 
+    # by far NOT to affect the whole. 
     # One possible way to fix this might to modify this line of code:
     # rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
     # to be like the following line, which is not yet verified.

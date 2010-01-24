@@ -109,35 +109,71 @@ def Fingerprint(rawfile):
 
 
 def Cluster(rmpfile):
+    """
+    Clustering the raw radio map fingerprints for fast indexing.
+    Each line in crmp(clustered rmp) file has the following format:
+    spid,lat,lon,macs,rsss,clusterid.
+    """
     rmpin = csv.reader( open(rmpfile,'r') )
-    lat_means=[]; lon_means=[]; mac_inter=[]; rss_inter=[]
-    # group all lines in rmpfile to a list.
-    for fingerp in rmpin:
-        spid = string.atoi(fingerp[0])
-        lat_means.append(string.atof(fingerp[1]))
-        lon_means.append(string.atof(fingerp[2]))
-        mac_inter.append(fingerp[3])
-        rss_inter.append(fingerp[4])
-    pp.pprint(lat_means)
-    pp.pprint(lon_means)
-    pp.pprint(mac_inter)
-    pp.pprint(rss_inter)
+    rawrmp = np.array([ fp for fp in rmpin ])
+    # topaps: array of splited aps strings for all fingerprints.
+    topaps = np.char.array(rawrmp[:,3]).split('|')
 
-    # dict_ckeyset: {cid:[spid]}
-    #for idx in range(len(mac_inte)):
+    # sets_keyaps: a set of aps for fingerprints clustering in raw radio map,
+    # [set1(ap11,ap12,...),set2(ap21,ap22,...),...].
+    # idxs_keyaps: corresponding line indices of the ap set in sets_keyaps.
+    # [[idx11,idx12,...],[idx21,idx22,...],...].
+    sets_keyaps = []
+    idxs_keyaps = []
 
+    # Clustering heuristics.
+    #TODO:take inclusion relation into consideration.
+    cnt = 0
+    for idx_topaps in range(len(topaps)):
+        taps = set( topaps[idx_topaps] )
+        if not len(sets_keyaps) == 0:
+            if taps in sets_keyaps:
+                idx = sets_keyaps.index(taps)
+                idxs_keyaps[idx].append(idx_topaps)
+                continue
+        idxs_keyaps.append([])
+        sets_keyaps.append(taps)
+        idxs_keyaps[cnt].append(idx_topaps)
+        cnt += 1
+
+    # clusterid: list of clustering id, for indexing in sql db.
+    # [ [1], [1], ..., [2],...,... ]
+    # cidtmp1: [ [1,...], [2,...], ...].
+    # cidtmp2: [ 1,..., 2,..., ...].
+    cidtmp1 = [ [cid+1]*len(idxs_keyaps[cid]) for cid in range(len(idxs_keyaps)) ]
+    cidtmp2 = []; [ cidtmp2.extend(x) for x in cidtmp1 ]
+    clusterid = [ [x] for x in cidtmp2 ]
+
+    ord = []; [ ord.extend(x) for x in idxs_keyaps ]
+    crmp = np.append(rawrmp[ord,:], clusterid, axis=1)
+
+    if verbose == True:
+        print 'topaps:'; pp.pprint(topaps)
+        print 'sets_keyaps:'; pp.pprint(sets_keyaps)
+        print 'idxs_keyaps:'; pp.pprint(idxs_keyaps)
+        print 'clusterid:'; pp.pprint(clusterid)
+        print 'crmp:'; pp.pprint(crmp)
+    else:
+        print 'crmp: \n%s' % crmp
 
     crmpfilename = rmpfile.split('.')
     crmpfilename[1] = 'crmp'
     crmpfilename = '.'.join(crmpfilename)
 
-    sys.exit(0)
-
+    # numpy.savetxt(fname, X, fmt='%.18e', delimiter=' ') 
+    # Save an array to file.
+    np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
+    print '\nDumping clustered fingerprints to %s ... Done\n' % crmpfilename
 
 
 def dumpCSV(csvfile, content):
     """
-    Appendding content in form of line(s) into csvfile.
+    Appendding csv-formed content line(s) into csvfile.
     """
     if not content:
         print 'Null: %s!' % content
@@ -157,8 +193,8 @@ Calibration & preprocessing for radio map generation in WLAN location fingerprin
 usage:
     <sudo> offline <option> <infile>
 option:
-    -a --aio [NOT avail]   :  All in one--raw scanning, followed by radio map generation.
-    -c --cluster=<rmpfile> :  Fingerprints classification based on max-rss-APs fingerprints clustering.
+    -a --aio [NOT avail]   :  All-in-one offline processing.
+    -c --cluster=<rmpfile> :  Fingerprints clustering based on max-rss-APs.
     -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
     -h --help              :  Show this help.
     -i --spid=<spid>       :  Sampling point id.
@@ -257,11 +293,7 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster is True:
-        cluster_fp = []
-        cluster_fp = Cluster(rmpfile)
-        if not cluster_fp:
-            print 'Error: Clustering FAILED: %s' % rmpfile
-            sys.exit(99)
+        Cluster(rmpfile)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:
