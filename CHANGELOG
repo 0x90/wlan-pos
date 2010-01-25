@@ -30,3 +30,5 @@
     1) Add offline clustering heuristics.
 2010-01-24
     1) Clustering heuristics implementation: Cluster(rmpfile). The circumstance that fingerprint's APs included in member of sets_keyaps list should be considered.
+2010-01-25
+    1) KML interface agile development for sampling and location point demonstration.

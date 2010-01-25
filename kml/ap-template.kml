@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://earth.google.com/kml/2.0">
+<Folder>
+<name>Offline Calibration</name>
+<visibility>1</visibility>
+  <Style id="wepoff">
+    <IconStyle>
+      <Icon>
+		  <href>/home/alexy/wlan-pos/fig/wepoff.png</href>
+      </Icon>
+    </IconStyle>
+  </Style>
+  <Style id="wepon">
+    <IconStyle>
+      <Icon>
+		  <href>/home/alexy/wlan-pos/fig/wepon.png</href>
+      </Icon>
+    </IconStyle>
+  </Style>
+
+ <Placemark>
+ <name>yf</name>
+  <description>"yf"  		"00:15:70:9F:7D:88"  		"-76"</description>
+ <View>
+  <longitude>116.472673167</longitude>
+  <latitude>39.9229416667</latitude>
+ </View>
+ <visibility>1</visibility>
+ <styleUrl>#wepoff</styleUrl>
+ <Point><coordinates>116.472673167,39.9229416667,100</coordinates></Point>
+ </Placemark>
+</Folder>
+</kml>
