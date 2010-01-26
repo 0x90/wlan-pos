@@ -1,6 +1,7 @@
 MUST
 mod  rss_scan_dist built once enough(array(list*N).reshape()).
 mod  scanWLAN returns array with all info, convenient for row/col operation.
+mod  KML __main__ to contain testing data in dat/ap.dat, which should be deleted.
 --------
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
