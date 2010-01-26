@@ -32,3 +32,5 @@
     1) Clustering heuristics implementation: Cluster(rmpfile). The circumstance that fingerprint's APs included in member of sets_keyaps list should be considered.
 2010-01-25
     1) KML interface agile development for sampling and location point demonstration.
+2010-01-26
+    1) KML related data structure specification and function encapsulation.

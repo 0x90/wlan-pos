@@ -1,82 +1,116 @@
 #!/usr/bin/env python
 import sys,csv,os
 
-cwd = os.getcwd()
-#homedir = os.path.expanduser('~')
-icon_encryton = cwd + '/kml/encrypton.png'
-icon_encrytoff = cwd + '/kml/encryptoff.png'
-dict_encrypt_icon = { 'on': [ '"encrypton"', icon_encryton ],
-                     'off': [ '"encryptoff"',icon_encrytoff] }
 
-try:
-   filename = sys.argv[1]
-   infile = csv.reader( open(filename,'r') )
-except:
-   print sys.argv[0] + " <input csv file>(mac,rss,noise,encrypt,bssid,lat,lon)"
-   sys.exit(1)
+def genKML(data, kmlfile, icons):
+    """
+    Generating KML file with input data.
 
-kmlout = open('kml/ap.kml','w')
-# KML Header
-kmlout.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-kmlout.write('<kml xmlns="http://earth.google.com/kml/2.0">\n')
-kmlout.write('<Document>\n')
-kmlout.write(' <Style id=%s> \n\
-                <IconStyle>\n\
-                  <Icon>\n\
-                      <href>%s</href>\n\
-                  </Icon>\n\
-                </IconStyle>\n\
-              </Style>\n\
-              <Style id=%s>\n\
-                <IconStyle>\n\
-                  <Icon>\n\
-                      <href>%s</href>\n\
-                  </Icon>\n\
-                </IconStyle>\n\
-              </Style>\n'
-              % (dict_encrypt_icon['on'][0], dict_encrypt_icon['on'][1],
-                dict_encrypt_icon['off'][0], dict_encrypt_icon['off'][1]) )
-kmlout.write('<name>WLAN Locationing Mapping</name>\n')
-kmlout.write('<Folder>\n')
-kmlout.write('<name>Offline Calibration/Online Location</name>\n')
-kmlout.write('<visibility>1</visibility>\n')
+    Parameters
+    ----------
+    data : [ [mandatory, optional],...] = [ [[lat,lon,desc], [mac,rss,noise,encrypt]],...],
+        "desc" is either description for physical address or bssid for WLAN AP.
+    kmlfile : abs path & filename.
+    icons : icons used for pinpointing, {'keyword':['"title"', iconfile]}.
+    """
+    optional = 0
 
-for line in infile:
-    print line
-    mac = line[0]; rss = line[1]; noise = line[2]
-    encrypt = line[3]; bssid = line[4]
-    lat = line[5]; lon = line[6]
-    kmlout.write('\n')
-    kmlout.write(' <Placemark>\n')
-    kmlout.write(' <name>%s</name>\n' % bssid)
-    kmlout.write(' <description><![CDATA[\n\
-                    <p style="font-size:8pt;font-family:monospace;">(%s, %s)</p>\n\
-                    <ul>\n\
-                    <li> BSSID: %s </li>\n\
-                    <li> MACAddr: %s </li>\n\
-                    <li> Encrypt: %s </li>\n\
-                    </ul> ]]>\n\
-                   </description>\n' 
-                   % (lon,lat,bssid,mac,encrypt) )
-    kmlout.write(' <View>\n\
-                    <longitude>%s</longitude>\n\
-                    <latitude>%s</latitude>\n\
-                   </View>\n'
-                     % (lon,lat) )
-    #kmlout.write(' <visibility>1</visibility>\n')
-    if encrypt =='on': styleurl = '#encrypton'
-    else: styleurl = '#encryptoff'
-    kmlout.write(' <styleUrl>%s</styleUrl>\n' % styleurl )
-    kmlout.write(' <Point>\n\
-                    <extrude>1</extrude>\n\
-                    <altitudeMode>relativeToGround</altitudeMode>\n\
-                    <coordinates>%s,%s,0</coordinates>\n\
-                   </Point>\n' 
-                   % (lon,lat) )
-    kmlout.write(' </Placemark>\n')
+    kmlout = open(kmlfile,'w')
+    # KML Header
+    kmlout.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    kmlout.write('<kml xmlns="http://earth.google.com/kml/2.0">\n')
+    kmlout.write('<Document>\n')
+    kmlout.write(' <Style id=%s> \n\
+                    <IconStyle>\n\
+                      <Icon>\n\
+                          <href>%s</href>\n\
+                      </Icon>\n\
+                    </IconStyle>\n\
+                  </Style>\n\
+                  <Style id=%s>\n\
+                    <IconStyle>\n\
+                      <Icon>\n\
+                          <href>%s</href>\n\
+                      </Icon>\n\
+                    </IconStyle>\n\
+                  </Style>\n\
+                  <Style id=%s>\n\
+                    <IconStyle>\n\
+                      <Icon>\n\
+                          <href>%s</href>\n\
+                      </Icon>\n\
+                    </IconStyle>\n\
+                  </Style>\n'
+                  % (icons['on'][0], icons['on'][1],
+                    icons['off'][0], icons['off'][1],
+                  icons['other'][0], icons['other'][1]) )
+    kmlout.write('<name>WLAN Locationing Mapping</name>\n')
+    kmlout.write('<Folder>\n')
+    kmlout.write('<name>Offline Calibration/Online Location</name>\n')
+    kmlout.write('<visibility>1</visibility>\n')
 
-# KML Footer
-kmlout.write('</Folder>\n')
-kmlout.write('</Document>\n')
-kmlout.write('</kml>')
-kmlout.close()
+    for line in data:
+        print line
+        if len(line) == 2:
+            optional = 1
+            mac = line[1][0]; rss = line[1][1]; noise = line[1][2]; encrypt = line[1][3]
+        desc=line[0][2]; lat = line[0][0]; lon = line[0][1]
+        kmlout.write('\n')
+        kmlout.write(' <Placemark>\n')
+        kmlout.write(' <name>%s</name>\n' % desc)
+        kmlout.write(' <description><![CDATA[\n\
+                        <p style="font-size:8pt;font-family:monospace;">(%s, %s)</p>\n\
+                        <ul>\n\
+                        <li> BSSID: %s </li>\n'
+                        % (lon, lat, desc) )
+        if optional == 1:
+            kmlout.write('<li> MACAddr: %s </li>\n\
+                         <li> Encrypt: %s </li>\n'
+                         % (mac,encrypt) )
+        kmlout.write('</ul> ]]>\n\
+                       </description>\n')
+        kmlout.write(' <View>\n\
+                        <longitude>%s</longitude>\n\
+                        <latitude>%s</latitude>\n\
+                       </View>\n'
+                         % (lon,lat) )
+
+        if optional == 1:
+            if encrypt =='on': styleurl = '#encrypton'
+            elif encrypt == 'off': styleurl = '#encryptoff'
+        else: styleurl = '#reddot'
+        kmlout.write(' <styleUrl>%s</styleUrl>\n' % styleurl )
+
+        kmlout.write(' <Point>\n\
+                        <extrude>1</extrude>\n\
+                        <altitudeMode>relativeToGround</altitudeMode>\n\
+                        <coordinates>%s,%s,0</coordinates>\n\
+                       </Point>\n' 
+                       % (lon,lat) )
+        kmlout.write(' </Placemark>\n')
+
+    # KML Footer
+    kmlout.write('</Folder>\n')
+    kmlout.write('</Document>\n')
+    kmlout.write('</kml>')
+    kmlout.close()
+
+
+if __name__ == "__main__":
+    from config import dict_encrypt_icon
+    from pprint import pprint
+    cwd = os.getcwd()
+    #homedir = os.path.expanduser('~')
+    dict_encrypt_icon['on'][1] = cwd + dict_encrypt_icon['on'][1]
+    dict_encrypt_icon['off'][1] = cwd + dict_encrypt_icon['off'][1]
+
+    try:
+       filename = sys.argv[1]
+       infile = csv.reader( open(filename,'r') )
+    except:
+       print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
+       sys.exit(1)
+
+    dat = [ [[line[5], line[6], line[4]], [line[0], line[1], line[2], line[3]]] for line in infile ]
+    kfile = 'kml/ap.kml'
+    genKML(data=dat, kmlfile=kfile, icons=dict_encrypt_icon)
