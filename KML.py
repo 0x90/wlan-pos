@@ -74,7 +74,6 @@ def genKML(data, kmlfile, icons):
                         <latitude>%s</latitude>\n\
                        </View>\n'
                          % (lon,lat) )
-
         if optional == 1:
             if encrypt =='on': styleurl = '#encrypton'
             elif encrypt == 'off': styleurl = '#encryptoff'
@@ -88,7 +87,6 @@ def genKML(data, kmlfile, icons):
                        </Point>\n' 
                        % (lon,lat) )
         kmlout.write(' </Placemark>\n')
-
     # KML Footer
     kmlout.write('</Folder>\n')
     kmlout.write('</Document>\n')
@@ -104,13 +102,16 @@ if __name__ == "__main__":
     dict_encrypt_icon['on'][1] = cwd + dict_encrypt_icon['on'][1]
     dict_encrypt_icon['off'][1] = cwd + dict_encrypt_icon['off'][1]
 
-    try:
-       filename = sys.argv[1]
-       infile = csv.reader( open(filename,'r') )
-    except:
-       print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
-       sys.exit(1)
+    #try:
+    #   filename = sys.argv[1]
+    #   rawdat = csv.reader( open(filename,'r') )
+    #except:
+    #   print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
+    #   sys.exit(1)
 
-    dat = [ [[line[5], line[6], line[4]], [line[0], line[1], line[2], line[3]]] for line in infile ]
+    rawdat=[['00:24:01:FE:0F:20','-70','-127','on', 'CMCC','39.9229416667','116.472673167'], 
+            ['00:24:01:FE:0F:21','-79','-127','off','CMRI','39.9228416667','116.472573167']]
+
+    dat = [ [[line[5], line[6], line[4]], [line[0], line[1], line[2], line[3]]] for line in rawdat ]
     kfile = 'kml/ap.kml'
     genKML(data=dat, kmlfile=kfile, icons=dict_encrypt_icon)

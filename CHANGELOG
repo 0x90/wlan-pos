@@ -1,7 +1,7 @@
-2010-01-06 	
+2010-01-06 
     1) Parameters naming changed (-t,-s).
     2) Mac list intersection solved (test/intersect.py).
-2010-01-08 	
+2010-01-08 
     1) Add --no-dump parameter with no log file writting.
     2) Mod MAC:RSS output format under verbose mode.
 2010-01-13
@@ -34,3 +34,5 @@
     1) KML interface agile development for sampling and location point demonstration.
 2010-01-26
     1) KML related data structure specification and function encapsulation.
+    2) Clear up clustering heuristics.
+    3) mod  KML __main__ to contain testing data in dat/ap.dat, which should be deleted.

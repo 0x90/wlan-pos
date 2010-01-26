@@ -6,7 +6,7 @@ import numpy as np
 from WLAN import scanWLAN
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, INTERSIZE
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX
 
 
 def getRaw():
@@ -110,9 +110,19 @@ def Fingerprint(rawfile):
 
 def Cluster(rmpfile):
     """
-    Clustering the raw radio map fingerprints for fast indexing.
+    Clustering the raw radio map fingerprints for fast indexing(mainly in db).
     Each line in crmp(clustered rmp) file has the following format:
-    spid,lat,lon,macs,rsss,clusterid.
+    spid,lat,lon,macs,rsss,cids(clusterids).
+
+    Heuristics
+    ----------
+    (1)Offline clustering:
+    visible APs >=4: clustering with top4;
+    visible APs < 4: discarded.
+
+    (2)Online declustering:
+    visible APs >=4: declustering with top4, top3(if top4 fails);
+    visible APs < 4: if top3 or 2 included in any cluster key aps.
     """
     rmpin = csv.reader( open(rmpfile,'r') )
     rawrmp = np.array([ fp for fp in rmpin ])
@@ -141,22 +151,22 @@ def Cluster(rmpfile):
         idxs_keyaps[cnt].append(idx_topaps)
         cnt += 1
 
-    # clusterid: list of clustering id, for indexing in sql db.
+    # cids: list of clustering ids for all fingerprints, for indexing in sql db.
     # [ [1], [1], ..., [2],...,... ]
     # cidtmp1: [ [1,...], [2,...], ...].
     # cidtmp2: [ 1,..., 2,..., ...].
     cidtmp1 = [ [cid+1]*len(idxs_keyaps[cid]) for cid in range(len(idxs_keyaps)) ]
     cidtmp2 = []; [ cidtmp2.extend(x) for x in cidtmp1 ]
-    clusterid = [ [x] for x in cidtmp2 ]
+    cids = [ [x] for x in cidtmp2 ]
 
     ord = []; [ ord.extend(x) for x in idxs_keyaps ]
-    crmp = np.append(rawrmp[ord,:], clusterid, axis=1)
+    crmp = np.append(rawrmp[ord,:], cids, axis=1)
 
     if verbose == True:
         print 'topaps:'; pp.pprint(topaps)
         print 'sets_keyaps:'; pp.pprint(sets_keyaps)
         print 'idxs_keyaps:'; pp.pprint(idxs_keyaps)
-        print 'clusterid:'; pp.pprint(clusterid)
+        print 'clusterids:'; pp.pprint(cids)
         print 'crmp:'; pp.pprint(crmp)
     else:
         print 'crmp: \n%s' % crmp
