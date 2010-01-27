@@ -2,6 +2,7 @@ DATPATH = 'dat/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
 INTERSIZE = 10
+CLUSTERKEYSIZE = 4
 KNN = 4
 # String length of 179 and 149 chars are used for each intersection set to have 
 # at most INTERSET APs, which should be enough for classification, very ugly though.

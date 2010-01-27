@@ -36,3 +36,5 @@
     1) KML related data structure specification and function encapsulation.
     2) Clear up clustering heuristics.
     3) mod  KML __main__ to contain testing data in dat/ap.dat, which should be deleted.
+2010-01-27
+    1) Data organization for two designated sql tables(cid_aps,cfps) in clustering routine.

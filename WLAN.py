@@ -43,7 +43,7 @@ def scanWLAN( cmd='sudo iwlist wlan0 scan'.split() ):
         #TODO:exception handling.
         #found = patt_rmap.findall(cell) 
         #matched = patt_rmap.search(cell) 
-        matched = patt_all.search(cell) 
+        matched = patt_rmap.search(cell) 
 
         # For re.findall's result - list
         #if isinstance(matched, list):

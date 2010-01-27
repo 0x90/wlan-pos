@@ -6,7 +6,7 @@ import numpy as np
 from WLAN import scanWLAN
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
 
 
 def getRaw():
@@ -24,7 +24,8 @@ def getRaw():
     wlan = scanWLAN()
     #wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
     #wlan = [ [] ]
-    if wlan: num_fields = len(wlan[0])
+    # judging whether the number of scanned wlan APs more than 4 is for clustering.
+    if wlan and (len(wlan) >= 4): num_fields = len(wlan[0])
     else: return rawdata
 
     # Raw data: time, lat, lon, mac1|mac2, rss1|rss2
@@ -39,6 +40,18 @@ def getRaw():
 
 
 def Fingerprint(rawfile):
+    """
+    Generating (unclustered) fingerprint for certain sampling point(specified by 
+        raw file content) from GPS/WLAN raw scanned data.
+
+    Parameters
+    ----------
+    rawfile : GPS/WLAN raw scanned data file (spid, time, lat, lon, macs, rsss).
+
+    Returns
+    -------
+    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
+    """
     rawin = csv.reader( open(rawfile,'r') )
     latlist=[]; lonlist=[]; mac_raw=[]; rss_raw=[]
     maclist=[]; mac_interset=[]
@@ -93,7 +106,7 @@ def Fingerprint(rawfile):
     ary_fp = np.array(keys + mrss).reshape(2,-1)
     # The default ascending order of argsort() seems correct for finding max-rss macs here, 
     # because the respective sorted orders for strings and numbers are opposite.
-    ary_fp = ary_fp[ :, np.argsort(ary_fp[1]) ]
+    ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:CLUSTERKEYSIZE] ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     if verbose is True:
@@ -110,9 +123,17 @@ def Fingerprint(rawfile):
 
 def Cluster(rmpfile):
     """
-    Clustering the raw radio map fingerprints for fast indexing(mainly in db).
-    Each line in crmp(clustered rmp) file has the following format:
-    spid,lat,lon,macs,rsss,cids(clusterids).
+    Clustering the raw radio map fingerprints for fast indexing(mainly in db),
+    generating following formats: cid_aps, cfprints and crmp.
+
+    Formats
+    -------
+    *cid_aps*: mapping between cluster id and corresponding keyaps.
+    cids(clusterids), keyaps(macs).
+    *cfprints*: all cluster id specified fingerprints.
+    cids(clusterids), spid, lat, lon, rsss.
+    *crmp*: medium format for further processing like clustering or just logging analysis.
+    cids(clusterids), spid, lat, lon, macs, rsss.
 
     Heuristics
     ----------
@@ -160,14 +181,22 @@ def Cluster(rmpfile):
     cids = [ [x] for x in cidtmp2 ]
 
     ord = []; [ ord.extend(x) for x in idxs_keyaps ]
-    crmp = np.append(rawrmp[ord,:], cids, axis=1)
+    crmp = np.append(cids, rawrmp[ord,:], axis=1)
 
-    if verbose == True:
+    # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
+    cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
+    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate( rawrmp[cidaps_idx, [3]] ) ])
+    # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss].
+    cfprints = crmp[:,[0,1,2,3,5]]
+    
+    if verbose is True:
         print 'topaps:'; pp.pprint(topaps)
         print 'sets_keyaps:'; pp.pprint(sets_keyaps)
         print 'idxs_keyaps:'; pp.pprint(idxs_keyaps)
         print 'clusterids:'; pp.pprint(cids)
         print 'crmp:'; pp.pprint(crmp)
+        print 'cid_aps:'; pp.pprint(cid_aps)
+        print 'cfprints:'; pp.pprint(cfprints)
     else:
         print 'crmp: \n%s' % crmp
 
@@ -175,10 +204,19 @@ def Cluster(rmpfile):
     crmpfilename[1] = 'crmp'
     crmpfilename = '.'.join(crmpfilename)
 
-    # numpy.savetxt(fname, X, fmt='%.18e', delimiter=' ') 
-    # Save an array to file.
+    timestamp = strftime('-%m%d-%H%M')
+    cidaps_filename = 'tbl/cidaps' + timestamp + '.tbl'
+    cfprints_filename = 'tbl/cfprints' + timestamp + '.tbl'
+
+    # numpy.savetxt(fname, array, fmt='%.18e', delimiter=' ') 
     np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
-    print '\nDumping clustered fingerprints to %s ... Done\n' % crmpfilename
+    print '\nDumping clustered fingerprints to: %s ... Done' % crmpfilename
+
+    np.savetxt(cidaps_filename, cid_aps, fmt='%s',delimiter=',')
+    print '\nDumping clusterid keyaps table to: %s ... Done' % cidaps_filename
+
+    np.savetxt(cfprints_filename, cfprints, fmt='%s',delimiter=',')
+    print '\nDumping clustered fingerprints table to: %s ... Done\n' % cfprints_filename
 
 
 def dumpCSV(csvfile, content):
@@ -311,19 +349,20 @@ def main():
             print "Survey: %d" % (i+1)
             rawdata = getRaw()
             rawdata.insert(0, spid)
-
-            # Rawdata Integrity check.
-            # Rawdata: spid, time, lat, lon, mac1|mac2, rss1|rss2
+            # Rawdata Integrity check,
+            # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
             if len(rawdata) == 6: 
-                if verbose: 
+                if verbose is True: 
                     pp.pprint(rawdata)
                 else:
-                    print 'Calibrating at sampling point %d ... OK!' % spid
+                    print 'Calibration at sampling point %d ... OK!' % spid
             else: 
+                # wlan scanned APs less than 4.
                 tfail += 1
                 print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
                 print '-'*65
                 continue
+            # Raw data dumping to file.
             if nodump is False:
                 if not os.path.isdir(DATPATH):
                     try:
@@ -337,7 +376,6 @@ def main():
                 rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
                 dumpCSV(rfilename, rawdata)
             print '-'*65
-        
         #Scan Summary
         print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
 
