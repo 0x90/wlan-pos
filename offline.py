@@ -158,7 +158,6 @@ def Cluster(rmpfile):
     idxs_keyaps = []
 
     # Clustering heuristics.
-    #TODO:take inclusion relation into consideration.
     cnt = 0
     for idx_topaps in range(len(topaps)):
         taps = set( topaps[idx_topaps] )
@@ -243,12 +242,15 @@ usage:
 option:
     -a --aio [NOT avail]   :  All-in-one offline processing.
     -c --cluster=<rmpfile> :  Fingerprints clustering based on max-rss-APs.
+    -d --db=<dbfiles>      :  Specify the db files to upload.
     -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
     -h --help              :  Show this help.
     -i --spid=<spid>       :  Sampling point id.
     -n --no-dump           :  No data dumping to file.
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
+    -u --upload=<mode>     :  Upload clustered fingerprint tables into database, in certain mode: 
+                              1-initial import(default); 2-increamental update.
     -v --verbose           :  Verbose mode.
 NOTE:
     <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
@@ -257,9 +259,8 @@ NOTE:
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 
-            "ac:fhi:ns:t:v",
-            ["aio","cluster","fake","help","spid=","no-dump","raw-scan=","to-rmp=","verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:ns:t:u:v",
+            ["aio","cluster","fake","help","spid=","no-dump","raw-scan=","to-rmp=","upload","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -267,24 +268,22 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    spid=0; times=0; tormp=False
+    spid=0; times=0; tormp=False; updb=False
     rawfile=None; tfail=0; docluster=False
-    global verbose,pp,nodump,fake
-    verbose=False; pp=None; nodump=False; fake=False
+    global verbose,pp,nodump,fake,updbmode
+    verbose=False; pp=None; nodump=False; fake=False; updbmode=1
 
     for o,a in opts:
         if o in ("-i", "--spid"):
             if a.isdigit(): spid = string.atoi(a)
             else:
-                print '\nspid: %s should be a INTEGER!' % str(a)
-                usage()
-                sys.exit(99)
+                print '\nspid: %s should be an INTEGER!' % str(a)
+                usage(); sys.exit(99)
         elif o in ("-s", "--raw-scan"):
             if a.isdigit(): times = string.atoi(a)
             else: 
-                print '\nError: "-s/--raw-scan" should be followed by a INTEGER!'
-                usage()
-                sys.exit(99)
+                print '\nError: "-s/--raw-scan" should be followed by an INTEGER!'
+                usage(); sys.exit(99)
         elif o in ("-t", "--to-rmp"):
             if not os.path.isfile(a):
                 print 'Raw data file NOT exist: %s' % a
@@ -303,17 +302,30 @@ def main():
             nodump = True
         elif o in ("-f", "--fake"):
             fake = True
+        elif o in ("-u", "--upload"):
+            if a.isdigit(): 
+                updbmode = string.atoi(a)
+                if not (1 <= updbmode <= 2):
+                    print '\nError: updbmode: (%d) NOT supported yet!' % updbmode
+                    usage(); sys.exit(99)
+                else:
+                    updb = True
+                    hostname = 'localhost'
+                    username = 'pos'
+                    password = 'pos'
+                    dbname = 'wlanpos'
+            else: 
+                print '\nError: "-d/--db" should be followed by an INTEGER!'
+                usage(); sys.exit(99)
         #elif o in ("-a", "--aio"):
         elif o in ("-v", "--verbose"):
             verbose = True
             pp = PrettyPrinter(indent=2)
         elif o in ("-h", "--help"):
-            usage()
-            sys.exit(0)
+            usage(); sys.exit(0)
         else:
             print 'Parameter NOT supported: %s' % o
-            usage()
-            sys.exit(99)
+            usage(); sys.exit(99)
 
     # Raw data to fingerprint convertion.
     if tormp is True:
@@ -330,14 +342,86 @@ def main():
                 print '-'*65
                 sys.exit(0)
             else:
-                usage()
-                sys.exit(99)
+                usage(); sys.exit(99)
         else:
             spid = fingerprint[0]
             print 'Fingerprint (sampling point [%d]): ' % spid
             if verbose is True: pp.pprint(fingerprint)
             else: print fingerprint
             sys.exit(0)
+
+    # Uploading to database.
+    #TODO: upload mode 2
+    if updb is True:
+        import MySQLdb
+        try:
+            conn = MySQLdb.connect(host=hostname, user=username, \
+                    passwd=password, db=dbname, compress=1)
+                    #cursorclass=MySQLdb.cursors.DictCursor)
+        except MySQLdb.Error,e:
+            print "\nCan NOT connect %s@server: %s!" % (username, hostname)
+            print "Error(%d): %s" % (e.args[0], e.args[1])
+            sys.exit(99)
+
+        # SQL table related data structs.
+        tbl_names = { 'cidaps':'cidaps', 
+                        'cfps':'cfps' }
+        tbl_field = { 'cidaps':'(cid, keyaps)',
+                        'cfps':'(cid, spid, lat, lon, rsss)' }
+        tbl_forms = { 'cidaps':""" (
+                             cid SMALLINT NOT NULL, 
+                          keyaps VARCHAR(71),
+                           INDEX icid (cid)
+                        )""", 
+                      'cfps':""" (
+                             cid SMALLINT NOT NULL,
+                            spid SMALLINT NOT NULL,
+                             lat DOUBLE(9,6),
+                             lon DOUBLE(9,6),
+                            rsss VARCHAR(59),
+                           INDEX icid (cid)
+                        )""" }
+        tbl_files = { 'cidaps':'tbl/cidaps.tbl', 
+                        'cfps':'tbl/cfprints.tbl' }
+        # SQL sentences.
+        SQL_DROP = 'DROP TABLE IF EXISTS %s'
+        SQL_CREATE = 'CREATE TABLE IF NOT EXISTS %s %s'
+        SQL_CSVIN = """
+                LOAD DATA LOCAL INFILE "%s" INTO TABLE %s 
+                FIELDS TERMINATED BY ',' 
+                LINES TERMINATED BY '\\n' 
+                %s"""
+
+        try:
+            # Returns values identified by field name(or field order if no arg).
+            cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+            for table in tbl_names:
+                print 'table: %s' % table
+                cursor.execute(SQL_DROP % table)
+                cursor.execute(SQL_CREATE % (table, tbl_forms[table]))
+                cursor.execute(SQL_CSVIN % (tbl_files[table], table, tbl_field[table]))
+            cursor.close()
+        except MySQLdb.Error,e:
+            print "Error(%d): %s" % (e.args[0], e.args[1])
+            sys.exit(99)
+
+        conn.commit()
+        conn.close()
+
+    # Referenced snippets.
+    #cursor.execute ("""
+    #    INSERT INTO animal (name, category)
+    #    VALUES
+    #      ('snake', 'reptile'),
+    #      ('frog', 'amphibian'),
+    #      ('tuna', 'fish'),
+    #      ('racoon', 'mammal')
+    #  """)
+    #cursor.execute ("""
+    #      UPDATE animal SET name = %s
+    #      WHERE name = %s
+    #    """, ("snake", "turtle"))
+    #print "Number of rows updated: %d" % cursor.rowcount
 
     # Ordinary fingerprints clustering.
     if docluster is True:

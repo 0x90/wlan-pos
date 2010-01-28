@@ -1,7 +1,5 @@
 MUST
-add  sql table design (1:cid~topaps; 2:cid~indexed fingerprints without topaps), refer to findroad.
 mod  rss_scan_dist built once enough(array(list*N).reshape()).
-mod  scanWLAN returns array with all info, convenient for row/col operation.
 mod  split Radio Map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
 --------
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.

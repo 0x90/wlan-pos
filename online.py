@@ -237,20 +237,20 @@ def main():
     print 'k_idx_sort:'; pp.pprint(k_idx_sort)
     # ary_kmin: {spid:[ dist, [lat,lon] ]}
     ary_kmin = []
-    addr_kmin = []
+    #addr_kmin = []
     for idx in k_idx_sort:
         spidx = radiomap['spid'][idx]
         ary_kmin.append( spidx )
         ary_kmin.append( sum_rss[idx] )
         #ary_kmin.extend([ radiomap['lat'][idx],radiomap['lon'][idx] ])
         ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
-        addr_kmin.append( addr[spidx] )
+        #addr_kmin.append( addr[spidx] )
     ary_kmin = np.array(ary_kmin).reshape(K_NN,-1)
 
     print 'ary_kmin:'; pp.pprint(ary_kmin)
 
     print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )
-    print 'Address: %s' % addr_kmin
+    #print 'Address: %s' % addr_kmin
     print 'Centroid location: %s\n' % str( tuple(ary_kmin[:,2:].mean(axis=0)) )
 
 
