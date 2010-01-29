@@ -310,10 +310,9 @@ def main():
                     usage(); sys.exit(99)
                 else:
                     updb = True
-                    hostname = 'localhost'
-                    username = 'pos'
-                    password = 'pos'
-                    dbname = 'wlanpos'
+                    from config import hostname, username, password, dbname, \
+                            tbl_names, tbl_forms, tbl_files, tbl_field, \
+                            SQL_DROP, SQL_CREATE, SQL_CSVIN
             else: 
                 print '\nError: "-d/--db" should be followed by an INTEGER!'
                 usage(); sys.exit(99)
@@ -362,35 +361,6 @@ def main():
             print "\nCan NOT connect %s@server: %s!" % (username, hostname)
             print "Error(%d): %s" % (e.args[0], e.args[1])
             sys.exit(99)
-
-        # SQL table related data structs.
-        tbl_names = { 'cidaps':'cidaps', 
-                        'cfps':'cfps' }
-        tbl_field = { 'cidaps':'(cid, keyaps)',
-                        'cfps':'(cid, spid, lat, lon, rsss)' }
-        tbl_forms = { 'cidaps':""" (
-                             cid SMALLINT NOT NULL, 
-                          keyaps VARCHAR(71),
-                           INDEX icid (cid)
-                        )""", 
-                      'cfps':""" (
-                             cid SMALLINT NOT NULL,
-                            spid SMALLINT NOT NULL,
-                             lat DOUBLE(9,6),
-                             lon DOUBLE(9,6),
-                            rsss VARCHAR(59),
-                           INDEX icid (cid)
-                        )""" }
-        tbl_files = { 'cidaps':'tbl/cidaps.tbl', 
-                        'cfps':'tbl/cfprints.tbl' }
-        # SQL sentences.
-        SQL_DROP = 'DROP TABLE IF EXISTS %s'
-        SQL_CREATE = 'CREATE TABLE IF NOT EXISTS %s %s'
-        SQL_CSVIN = """
-                LOAD DATA LOCAL INFILE "%s" INTO TABLE %s 
-                FIELDS TERMINATED BY ',' 
-                LINES TERMINATED BY '\\n' 
-                %s"""
 
         try:
             # Returns values identified by field name(or field order if no arg).

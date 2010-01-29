@@ -40,3 +40,6 @@
     1) Data organization for two designated sql tables(cid_aps,cfps) in clustering routine.
 2010-01-28
     1) Add MySQLdb interface for clustered fingerprints uploading into database tables.
+2010-01-29
+    1) Opt code trimming and efficiency of maxmacs and maxrsss construction routine with vectorized operation.
+    2) Add online db operation and immature data processing for location fingerprinting.

@@ -1,6 +1,8 @@
 MUST
 mod  rss_scan_dist built once enough(array(list*N).reshape()).
 mod  split Radio Map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
+mod  minify number of global vars (cos it's slow).
+fix  when online top4 rss values have more than 4 macs.
 --------
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
