@@ -166,7 +166,7 @@ def main():
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
 
-    #FIXME: set_maxmacs included or == set(aps) should all be considered.
+    #FIXME: set_maxmacs INCLUDED or EQUAL TO set(aps) should all be considered.
     #FIXME: the online processing related details should be cleared up in advance.
     cidaps = np.char.array(cidaps)
     topaps = cidaps[:,1].split('|')

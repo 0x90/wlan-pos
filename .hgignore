@@ -5,7 +5,6 @@ syntax: glob
 *~
 *.pyc
 dat/*
-tbl/*
 tags
 log
 out
