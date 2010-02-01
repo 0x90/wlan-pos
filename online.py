@@ -84,10 +84,10 @@ def main():
             usage()
             sys.exit(99)
 
-    if not rmpfile:
-        print '\nRadio map needed!'
-        usage()
-        sys.exit(99)
+    #if not rmpfile:
+    #    print '\nRadio map needed!'
+    #    usage()
+    #    sys.exit(99)
 
     if fake == 0:   # True
         wlan = scanWLAN()
@@ -201,35 +201,43 @@ def main():
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        print cid, keyaps
-        pp.pprint(keycfps)
+        print 'cid: %s, keyaps: %s' % (cid, keyaps)
+        print 'keycfps: '; pp.pprint(keycfps)
+
         maxmacs_idx = [ keyaps.index(x) for x in maxmacs ]
         len_keycfps = len(keycfps)
-        maxrsss = np.array([ maxrsss[i] for i in maxmacs_idx ]*len_keycfps).reshape(len_keycfps,-1)
-        pp.pprint(maxrsss)
+        maxrsss = np.array([ maxrsss[i] for i in maxmacs_idx ])
+        print 'maxrsss: '; pp.pprint(maxrsss)
+
         keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
         # 3 line of ugly element-wise atof code coming up.
         keyrsss = []
         for i in range(len_keycfps):
             keyrsss.append([ string.atof(x) for x in keyrsss_tmp[i] ])
         keyrsss = np.array(keyrsss)
-        pp.pprint(keyrsss)
+        print 'keyrsss: '; pp.pprint(keyrsss)
+
         rss_dist = ( maxrsss - keyrsss )**2
         print 'squared rss distance: '; pp.pprint(rss_dist)
 
         sum_rss = rss_dist.sum(axis=1)
-        pp.pprint(sum_rss)
-        rss_dist = ( maxrsss - keyrsss )**2
+        print 'sum_rss: '; pp.pprint(sum_rss)
         idx_min = sum_rss.argmin()
         min_rss = sum_rss[idx_min]
-        print idx_min, min_rss
+        print 'idx_min: %d, min_rss: %f' % (idx_min, min_rss)
         spidrss = list(keycfps[idx_min])
         spidrss.append(min_rss)
-        pp.pprint(spidrss)
+        print 'spidrss: '; pp.pprint(spidrss)
         min_spidrss.append( spidrss )
 
 
     pp.pprint(min_spidrss)
+    if len(min_spidrss) > 1:
+        idxs_kmin = np.argsort([ spid[5] for spid in min_spidrss ])[:K_NN]
+        pp.pprint(min_spidrss[idxs_kmin])
+    else:
+        pp.pprint(min_spidrss)
+
     cursor.close()
     conn.close()
     sys.exit(0)
