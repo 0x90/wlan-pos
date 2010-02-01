@@ -167,43 +167,72 @@ def main():
         sys.exit(99)
 
     #FIXME: set_maxmacs INCLUDED or EQUAL TO set(aps) should all be considered.
-    #FIXME: the online processing related details should be cleared up in advance.
+    # Fingerprints in same cluster should have same order for RSSs according to their MACs:
+    # Although the keyaps is logically defined and used as a SET, it's stored as an ordered list.
     cidaps = np.char.array(cidaps)
     topaps = cidaps[:,1].split('|')
     set_maxmacs = set(maxmacs)
-    keycids = [ string.atoi(cidaps[idx,0]) for idx,aps in enumerate(topaps) 
-            if set_maxmacs.issubset(set(aps)) ]
-    print 'keycids found: '; pp.pprint(keycids)
+    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) if set_maxmacs == set(aps) ]
+    print 'clusters found: '; pp.pprint(keys)
 
-    len_keycids = len(keycids)
-    # state_where construction.
-    if not len_keycids == 0: 
-        if len_keycids == 1:
-            state_where = 'cid in (%s)' % keycids[0]
-        else:
-            state_where = 'cid in %s' % str(tuple(keycids))
-    else:
-        print 'Oops! no proper cluster found!'
-        cursor.close(); conn.close()
-        sys.exit(99)
+    #num_clusters = len(keys)
+    ## state_where construction.
+    #if not len_keycids == 0: 
+    #    if len_keycids == 1:
+    #        state_where = 'cid in (%s)' % keycids[0]
+    #    else:
+    #        state_where = 'cid in %s' % str(tuple(keycids))
+    #else:
+    #    print 'Oops! no proper cluster found!'
+    #    cursor.close(); conn.close()
+    #    sys.exit(99)
 
-    try:
-        # Returns values identified by field name(or field order if no arg).
-        table = tbl_names['cfps']
-        print 'select from table: %s' % table
-        #print state_where
-        cursor.execute(SQL_SELECT_WHERE % ('*' , table, state_where))
-        keycfps = cursor.fetchall()
-        cursor.close()
-    except MySQLdb.Error,e:
-        print "Error(%d): %s" % (e.args[0], e.args[1])
-        cursor.close(); conn.close()
-        sys.exit(99)
+    # min_spidrss: [[cid,spid,lat,lon,min_rss],...]
+    min_spidrss = []
+    for cid,keyaps in keys:
+        try:
+            # Returns values identified by field name(or field order if no arg).
+            table = tbl_names['cfps']
+            print 'select from table: %s' % table
+            state_where = 'cid = %s' % cid
+            cursor.execute(SQL_SELECT_WHERE % ('*' , table, state_where))
+            keycfps = cursor.fetchall()
+        except MySQLdb.Error,e:
+            print "Error(%d): %s" % (e.args[0], e.args[1])
+            cursor.close(); conn.close()
+            sys.exit(99)
+        print cid, keyaps
+        pp.pprint(keycfps)
+        maxmacs_idx = [ keyaps.index(x) for x in maxmacs ]
+        len_keycfps = len(keycfps)
+        maxrsss = np.array([ maxrsss[i] for i in maxmacs_idx ]*len_keycfps).reshape(len_keycfps,-1)
+        pp.pprint(maxrsss)
+        keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
+        # 3 line of ugly element-wise atof code coming up.
+        keyrsss = []
+        for i in range(len_keycfps):
+            keyrsss.append([ string.atof(x) for x in keyrsss_tmp[i] ])
+        keyrsss = np.array(keyrsss)
+        pp.pprint(keyrsss)
+        rss_dist = ( maxrsss - keyrsss )**2
+        print 'squared rss distance: '; pp.pprint(rss_dist)
+
+        sum_rss = rss_dist.sum(axis=1)
+        pp.pprint(sum_rss)
+        rss_dist = ( maxrsss - keyrsss )**2
+        idx_min = sum_rss.argmin()
+        min_rss = sum_rss[idx_min]
+        print idx_min, min_rss
+        spidrss = list(keycfps[idx_min])
+        spidrss.append(min_rss)
+        pp.pprint(spidrss)
+        min_spidrss.append( spidrss )
+
+
+    pp.pprint(min_spidrss)
+    cursor.close()
     conn.close()
-    pp.pprint(keycfps)
-
-    keycfps = np.char.array(keycfps)
-    keyrsss = keycfps[:,4].split('|')
+    sys.exit(0)
 
     # NOTE:
     #   The `numpy.core.defchararray` exists for backwards compatibility with
