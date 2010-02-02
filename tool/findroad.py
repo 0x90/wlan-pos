@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-# Purpose: Road(name) matching using input point coord.
-# Author: Sun Bing, Lu Huixin, Li Xiaoye, Yan Xiaotian.
+# Author: Yan Xiaotian.
 # Lisence: GPL
-# Date: 2008-12-02
-# TODO: understand 'groub by' in sql.
+# Date: 2009-12-02
 
 from __future__ import division
 import sys, os

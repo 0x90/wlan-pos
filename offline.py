@@ -124,52 +124,57 @@ def Fingerprint(rawfile):
 def Cluster(rmpfile):
     """
     Clustering the raw radio map fingerprints for fast indexing(mainly in db),
-    generating following formats: cid_aps, cfprints and crmp.
+    generating following data structs: cid_aps, cfprints and crmp.
 
-    Formats
-    -------
-    *cid_aps*: mapping between cluster id and corresponding keyaps.
-    cids(clusterids), keyaps(macs).
-    *cfprints*: all cluster id specified fingerprints.
-    cids(clusterids), spid, lat, lon, rsss.
-    *crmp*: medium format for further processing like clustering or just logging analysis.
-    cids(clusterids), spid, lat, lon, macs, rsss.
+    Data structs
+    ------------
+    *cid_aps*: mapping between cluster id and corresponding keyaps, 
+        including cids(clusterids), keyaps(macs).
+    *cfprints*: all clusterid-specified fingerprints,
+        including cids(clusterids), spid, lat, lon, rsss.
+    *crmp*: transitional data struct for further processing like clustering or just logging,
+        including cids(clusterids), spid, lat, lon, macs, rsss.
 
     Heuristics
     ----------
     (1)Offline clustering:
-    visible APs >=4: clustering with top4;
-    visible APs < 4: discarded.
+        visible APs >=4: clustering with top4;
+        visible APs < 4: discarded.
 
     (2)Online declustering:
-    visible APs >=4: declustering with top4, top3(if top4 fails);
-    visible APs < 4: if top3 or 2 included in any cluster key aps.
+        visible APs >=4: declustering with top4, top3(if top4 fails);
+        visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
     rmpin = csv.reader( open(rmpfile,'r') )
     rawrmp = np.array([ fp for fp in rmpin ])
     # topaps: array of splited aps strings for all fingerprints.
     topaps = np.char.array(rawrmp[:,3]).split('|')
 
-    # sets_keyaps: a set of aps for fingerprints clustering in raw radio map,
+    # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
     # [set1(ap11,ap12,...),set2(ap21,ap22,...),...].
+    # lsts_keyaps: a list of AP lists for fingerprints clustering in raw radio map,
+    # [[ap11,ap12,...],[ap21,ap22,...],...].
     # idxs_keyaps: corresponding line indices of the ap set in sets_keyaps.
     # [[idx11,idx12,...],[idx21,idx22,...],...].
     sets_keyaps = []
+    lsts_keyaps = []
     idxs_keyaps = []
 
     # Clustering heuristics.
     cnt = 0
     for idx_topaps in range(len(topaps)):
-        taps = set( topaps[idx_topaps] )
-        if not len(sets_keyaps) == 0:
-            if taps in sets_keyaps:
-                idx = sets_keyaps.index(taps)
-                idxs_keyaps[idx].append(idx_topaps)
-                continue
+        taps = topaps[idx_topaps]
+        staps = set( taps )
+        if (not len(sets_keyaps) == 0) and (staps in sets_keyaps):
+            idx = sets_keyaps.index(staps)
+            idxs_keyaps[idx].append(idx_topaps)
+            continue
         idxs_keyaps.append([])
-        sets_keyaps.append(taps)
+        sets_keyaps.append(staps)
+        lsts_keyaps.append(taps)
         idxs_keyaps[cnt].append(idx_topaps)
         cnt += 1
+    print 'lsts_keyaps: %s' % lsts_keyaps
 
     # cids: list of clustering ids for all fingerprints, for indexing in sql db.
     # [ [1], [1], ..., [2],...,... ]
@@ -184,10 +189,32 @@ def Cluster(rmpfile):
 
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
-    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate( rawrmp[cidaps_idx, [3]] ) ])
+    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [3]]) ])
+    
+    print 'crmp: \n%s' % crmp
+    start = 0; end = 0
+    for i,macsref in enumerate(lsts_keyaps):
+        end = start + len(idxs_keyaps[i])
+        #print 'start: %d, end: %d' % (start, end)
+        if end > len(crmp)-1: cr = crmp[start:]
+        else: cr = crmp[start:end]
+        print 'macsref: %s' % macsref
+        print 'cr: %s' % cr
+        for j,aps in enumerate(cr):
+            rssnew = []
+            macold = aps[4].split('|')
+            print 'macold: %s' % macold
+            rssold = aps[5].split('|')
+            #re-arrange RSSs according to MACs.
+            rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
+            cr[j][5] = '|'.join(rssnew) 
+        if end > len(crmp)-1: crmp[start:] = cr
+        else: crmp[start:end] = cr
+        start = end
+
     # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss].
     cfprints = crmp[:,[0,1,2,3,5]]
-    
+
     if verbose is True:
         print 'topaps:'; pp.pprint(topaps)
         print 'sets_keyaps:'; pp.pprint(sets_keyaps)

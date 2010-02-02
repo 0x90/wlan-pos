@@ -45,3 +45,5 @@
     2) Add online db operation and immature data processing for location fingerprinting.
 2010-02-01
     1) bare bone implementation of online processing.
+2010-02-02
+    1) Fix issue 7 by re-arranging RSSs according to key MACs in table 'cfps'.
