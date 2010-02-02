@@ -10,3 +10,4 @@ log
 out
 test/*
 kml/ap.kml
+tbl/*-*.tbl

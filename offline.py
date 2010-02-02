@@ -191,6 +191,9 @@ def Cluster(rmpfile):
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
     cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [3]]) ])
     
+    # re-arrange RSSs of each fingerprint according to its key MACs.
+    # macsref: key AP MACs in cidaps table.
+    # cr: clustered fingerprints data(in crmp) for each cluster.
     print 'crmp: \n%s' % crmp
     start = 0; end = 0
     for i,macsref in enumerate(lsts_keyaps):
@@ -198,14 +201,13 @@ def Cluster(rmpfile):
         #print 'start: %d, end: %d' % (start, end)
         if end > len(crmp)-1: cr = crmp[start:]
         else: cr = crmp[start:end]
-        print 'macsref: %s' % macsref
-        print 'cr: %s' % cr
-        for j,aps in enumerate(cr):
+        print 'macsref: %s\ncr:%s' % (macsref,cr)
+        # j,spiddata: jth spid data in ith cluster. 
+        for j,spiddata in enumerate(cr):
             rssnew = []
-            macold = aps[4].split('|')
+            macold = spiddata[4].split('|')
             print 'macold: %s' % macold
-            rssold = aps[5].split('|')
-            #re-arrange RSSs according to MACs.
+            rssold = spiddata[5].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
             cr[j][5] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
@@ -232,7 +234,7 @@ def Cluster(rmpfile):
 
     timestamp = strftime('-%m%d-%H%M')
     cidaps_filename = 'tbl/cidaps' + timestamp + '.tbl'
-    cfprints_filename = 'tbl/cfprints' + timestamp + '.tbl'
+    cfps_filename = 'tbl/cfprints' + timestamp + '.tbl'
 
     # numpy.savetxt(fname, array, fmt='%.18e', delimiter=' ') 
     np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
@@ -241,8 +243,8 @@ def Cluster(rmpfile):
     np.savetxt(cidaps_filename, cid_aps, fmt='%s',delimiter=',')
     print '\nDumping clusterid keyaps table to: %s ... Done' % cidaps_filename
 
-    np.savetxt(cfprints_filename, cfprints, fmt='%s',delimiter=',')
-    print '\nDumping clustered fingerprints table to: %s ... Done\n' % cfprints_filename
+    np.savetxt(cfps_filename, cfprints, fmt='%s',delimiter=',')
+    print '\nDumping clustered fingerprints table to: %s ... Done\n' % cfps_filename
 
 
 def dumpCSV(csvfile, content):

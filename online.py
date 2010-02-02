@@ -167,12 +167,13 @@ def main():
         sys.exit(99)
 
     #FIXME: set_maxmacs INCLUDED or EQUAL TO set(aps) should all be considered.
-    # Fingerprints in same cluster should have same order for RSSs according to their MACs:
-    # Although the keyaps is logically defined and used as a SET, it's stored as an ordered list.
+    # Fingerprints in same cluster should have same order for RSSs according to key MACs:
+    # Though keyaps is logically defined and used as a SET, it's stored as ordered list.
     cidaps = np.char.array(cidaps)
     topaps = cidaps[:,1].split('|')
     set_maxmacs = set(maxmacs)
-    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) if set_maxmacs == set(aps) ]
+    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
+            if set_maxmacs == set(aps) ]
     print 'clusters found: '; pp.pprint(keys)
 
     #num_clusters = len(keys)
@@ -187,7 +188,7 @@ def main():
     #    cursor.close(); conn.close()
     #    sys.exit(99)
 
-    # min_spidrss: [[cid,spid,lat,lon,min_rss],...]
+    # min_spidrss: [[cid,spid,lat,lon,rssss,min_rss],...]
     min_spidrss = []
     for cid,keyaps in keys:
         try:
@@ -205,14 +206,13 @@ def main():
         print 'keycfps: '; pp.pprint(keycfps)
 
         maxmacs_idx = [ keyaps.index(x) for x in maxmacs ]
-        len_keycfps = len(keycfps)
         maxrsss = np.array([ maxrsss[i] for i in maxmacs_idx ])
         print 'maxrsss: '; pp.pprint(maxrsss)
 
         keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
         # 3 line of ugly element-wise atof code coming up.
         keyrsss = []
-        for i in range(len_keycfps):
+        for i in range(len(keycfps)):
             keyrsss.append([ string.atof(x) for x in keyrsss_tmp[i] ])
         keyrsss = np.array(keyrsss)
         print 'keyrsss: '; pp.pprint(keyrsss)
@@ -227,11 +227,9 @@ def main():
         print 'idx_min: %d, min_rss: %f' % (idx_min, min_rss)
         spidrss = list(keycfps[idx_min])
         spidrss.append(min_rss)
-        print 'spidrss: '; pp.pprint(spidrss)
         min_spidrss.append( spidrss )
 
 
-    pp.pprint(min_spidrss)
     if len(min_spidrss) > 1:
         idxs_kmin = np.argsort([ spid[5] for spid in min_spidrss ])[:K_NN]
         pp.pprint(min_spidrss[idxs_kmin])
