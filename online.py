@@ -210,11 +210,7 @@ def main():
         print 'maxrsss: '; pp.pprint(maxrsss)
 
         keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
-        # 3 line of ugly element-wise atof code coming up.
-        keyrsss = []
-        for i in range(len(keycfps)):
-            keyrsss.append([ string.atof(x) for x in keyrsss_tmp[i] ])
-        keyrsss = np.array(keyrsss)
+        keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss_tmp ])
         print 'keyrsss: '; pp.pprint(keyrsss)
 
         rss_dist = ( maxrsss - keyrsss )**2

@@ -47,3 +47,5 @@
     1) bare bone implementation of online processing.
 2010-02-02
     1) Fix issue 7 by re-arranging RSSs according to key MACs in table 'cfps'.
+2010-02-03
+    1) Merge opt online list atof operation for keyrsss and todo list updating.
