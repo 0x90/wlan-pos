@@ -1,0 +1,13 @@
+syntax: glob
+*.swp
+*.backup
+*.orig
+*~
+*.pyc
+dat/*
+tags
+log
+out
+test/*
+kml/ap.kml
+tbl/*-*.tbl
