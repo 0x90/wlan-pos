@@ -11,3 +11,5 @@ out
 test/*
 kml/ap.kml
 tbl/*-*.tbl
+tbl/cidaps.tbl
+tbl/cfprints.tbl

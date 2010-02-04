@@ -1,7 +1,9 @@
 MUST
 fix  when online top4 RSS values correspond to more than 4 MACs.
 fix  online visible MACs != key APs (pop weakest AP from wlan and use subset operation).
-mod  offline and online arguments configurations.
+mod  'run' enhanced for automated offline operations(spid print for each rmp, tbl renaming).
+add  ssid.py for mapping MACs and essid names.
+mod  offline and online arguments modification(discard those not for db).
 mod  split Radio Map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
 mod  minify number of global vars (cos it's slow).
 --------

@@ -49,3 +49,5 @@
     1) Fix issue 7 by re-arranging RSSs according to key MACs in table 'cfps'.
 2010-02-03
     1) Merge opt online list atof operation for keyrsss and todo list updating.
+2010-02-04
+    1) Update tbl data after offline calibration, filtering, clustering and sql importing.
