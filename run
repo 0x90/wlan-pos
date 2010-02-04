@@ -6,8 +6,9 @@ VER=0.1
 aio=0
 start_spid=1
 stop_spid=1
-runtimes=30
+runtimes=80
 fakegps=1
+nstop=0
 
 Version ()
 {
@@ -37,6 +38,7 @@ OPTION:
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
+-n     non-stop automated offline calibration
 -r     number of samples for each spid(default: 30)
 -t     stop spid number(included)(default: 1)
 -v     show version information
@@ -45,6 +47,8 @@ EXAMPLE:
 Offline radio map generation for spid from 1 to 100(60 scans each, 
 with fake GPS enabled), followed by online locationing.
 #run -a -g -f 1 -t 100 -r 60
+Offline WLAN data calibration, filtering, clustering and sql tabling continuously.
+#run -n
 
 HELP
 	exit 0
@@ -52,13 +56,18 @@ HELP
 
 [ $# -eq 0 ] && Usage
 #x=1   # Avoids an error if we get no options at all.
-while getopts "af:ghor:t:v" opt; do
+while getopts "af:ghn:or:t:v" opt; do
     OPTERR=0 #error msg shutup
     case $opt in
         a ) aio=1 ;;
         f ) start_spid=$OPTARG ;;
         g ) fakegps=1 ;;
         h ) Usage ;;
+        n ) 
+            nstop=1 
+            [ "$2" = "" ] && cnt=1 || cnt=$2 
+            offopts="-v -f"
+        ;;
         r ) runtimes=$OPTARG ;;
         t ) stop_spid=$OPTARG ;;
         v ) Version ;;
@@ -73,10 +82,48 @@ done
 #echo "Left overs: $@"
 #exit 0
 
+date=`date +%Y-%m%d`
+
+if [ $nstop -eq 1 ]; then
+    while true;
+    do
+        echo "Calibration begins at sampling point [$cnt]......."
+        echo -n "Continue[Y/n]?"
+        #FIXME: Parameters interactive confirm.
+        read -s opt
+        echo " $opt"
+        if [ "$opt" != "n" -a "$opt" != "N" ]; then
+            goon=1
+            ./offline.py $offopts -s $runtimes -i $cnt
+
+            spidfmt=`printf '%06d' $spid`
+            rawfilename=$date-$spidfmt.raw
+            echo -e "\nGenerating rmp file...\n"
+            ./offline.py -v -t dat/$rawfilename
+            echo "-----------------------------------------------------------------"
+            cnt=`expr $cnt + 1`
+        else
+            [ $goon -eq 1 ] && break || exit 0
+        fi
+    done
+
+    echo -e "\nRenaming tbl files to be ready for clustering...\n"
+    mv -f tbl/cidaps.tbl tbl/cidaps-$date.tbl.bak
+    mv -f tbl/cfprints.tbl tbl/cfprints-$date.tbl.bak
+
+    echo -e "\nClustering...\n"
+    rmpfilename=$date.rmp
+    ./offline.py -c dat/$rmpfilename
+
+    echo -e "\nUpload SQL tables...\n"
+    ./offline.py -u 1
+
+    exit 0
+fi
+
 [ $fakegps = 1 ] && offopts="-v -f" || offopts="-v "
 onopts="-v "
 #onopts="-v -a 2"
-date=`date +%Y-%m%d`
 
 for spid in $(seq $start_spid $stop_spid)
 do

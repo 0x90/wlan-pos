@@ -109,6 +109,7 @@ def Fingerprint(rawfile):
     ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:CLUSTERKEYSIZE] ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
+    print 'Unclustered fingerprint at sampling point [%d]: ' % spid
     if verbose is True:
         print 'mac_interset_rmp:rss_interset_rmp'
         pp.pprint( [mac+' : '+rss for mac,rss in zip( 
@@ -232,9 +233,9 @@ def Cluster(rmpfile):
     crmpfilename[1] = 'crmp'
     crmpfilename = '.'.join(crmpfilename)
 
-    timestamp = strftime('-%m%d-%H%M')
-    cidaps_filename = 'tbl/cidaps' + timestamp + '.tbl'
-    cfps_filename = 'tbl/cfprints' + timestamp + '.tbl'
+    #timestamp = strftime('-%m%d-%H%M')
+    cidaps_filename = 'tbl/cidaps' + '.tbl'
+    cfps_filename = 'tbl/cfprints' + '.tbl'
 
     # numpy.savetxt(fname, array, fmt='%.18e', delimiter=' ') 
     np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
@@ -372,8 +373,6 @@ def main():
             else:
                 usage(); sys.exit(99)
         else:
-            spid = fingerprint[0]
-            print 'Fingerprint (sampling point [%d]): ' % spid
             if verbose is True: pp.pprint(fingerprint)
             else: print fingerprint
             sys.exit(0)
@@ -390,7 +389,6 @@ def main():
             print "\nCan NOT connect %s@server: %s!" % (username, hostname)
             print "Error(%d): %s" % (e.args[0], e.args[1])
             sys.exit(99)
-
         try:
             # Returns values identified by field name(or field order if no arg).
             cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)

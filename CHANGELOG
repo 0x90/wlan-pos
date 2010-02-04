@@ -51,3 +51,5 @@
     1) Merge opt online list atof operation for keyrsss and todo list updating.
 2010-02-04
     1) Update tbl data after offline calibration, filtering, clustering and sql importing.
+    2) Unclustered fingerprints spid printing in offline procedure.
+    3) Coherent offline processing support in run -n <start_spid> argument.
