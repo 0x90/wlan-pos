@@ -99,7 +99,7 @@ def main():
 
     len_scanAP = len(wlan)
     print 'Online visible APs: %d' % len_scanAP
-    pp.pprint(wlan)
+    #pp.pprint(wlan)
 
     # 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
@@ -110,36 +110,6 @@ def main():
     maxidx = np.argsort(rsss)[:INTERSET]
     maxmacs = list(wlan[0][:,maxidx])
     maxrsss = [ string.atoi(rss) for rss in rsss[:,maxidx] ]
-
-    #maxrsss = []
-    #maxmacs = []
-    #maxtemp = sorted( [string.atoi(ap[1]) for ap in wlan], reverse=True )[:INTERSET]
-    ##maxtemp = [-52, -53, -55, -65, -70, -70]
-    #print 'maxtemp: %s' % maxtemp
-
-    #cnt = 0
-    #for ap in wlan:
-    #    cnt += 1
-    #    if ( len(maxmacs)>=INTERSET ) and ( maxrsss[:INTERSET]==maxtemp ):
-    #        print 'Bravo! maxtemp matched!'
-    #        break
-    #    newrss = string.atoi(ap[1])
-    #    if (not len(maxrsss) == 0) and (newrss > maxrsss[-1]):
-    #        maxrsss.insert(-1, newrss)
-    #        maxrsss.sort(reverse=True)
-    #        idx = maxrsss.index(newrss)
-    #        maxmacs.insert(idx, ap[0])
-    #    else: 
-    #        maxrsss.append(newrss)
-    #        maxmacs.append(ap[0])
-    #    #print 'cnt: %d' % cnt
-    #    #print 'maxmacs: %s' % maxmacs
-    #    #print 'maxrsss: %s' % maxrsss
-    #    #print '-'*65
-
-    #maxmacs = maxmacs[:INTERSET]
-    #maxrsss = maxrsss[:INTERSET]
-
     print 'maxmacs:'; pp.pprint(maxmacs)
     print 'maxrsss: %s' % maxrsss
 
@@ -166,7 +136,6 @@ def main():
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
 
-    #FIXME: set_maxmacs INCLUDED or EQUAL TO set(aps) should all be considered.
     # Fingerprints in same cluster should have same order for RSSs according to key MACs:
     # Though keyaps is logically defined and used as a SET, it's stored as ordered list.
     cidaps = np.char.array(cidaps)
@@ -184,20 +153,10 @@ def main():
     else: print 'Exact matched cluster(s) found: ' 
     pp.pprint(keys)
 
-    #num_clusters = len(keys)
-    ## state_where construction.
-    #if not len_keycids == 0: 
-    #    if len_keycids == 1:
-    #        state_where = 'cid in (%s)' % keycids[0]
-    #    else:
-    #        state_where = 'cid in %s' % str(tuple(keycids))
-    #else:
-    #    print 'Oops! no proper cluster found!'
-    #    cursor.close(); conn.close()
-    #    sys.exit(99)
-
-    # min_spidrss: [[cid,spid,lat,lon,rssss,min_rss],...]
-    min_spidrss = []
+    # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
+    # min_sums: [ minsum1, minsum2, ... ]
+    min_spids = []
+    min_sums = []
     for cid,keyaps in keys:
         import copy as cp
         mmacs = cp.deepcopy(maxmacs)
@@ -214,38 +173,37 @@ def main():
             cursor.close(); conn.close()
             sys.exit(99)
         print 'cid: %s, keyaps: %s' % (cid, keyaps)
-        print 'keycfps: '; pp.pprint(keycfps)
+        print 'keycfps: %s' % keycfps
 
         if subsearch is True:
             rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
             mmacs.pop(rm_idx); mrsss.pop(rm_idx)
         take_idx = [ keyaps.index(x) for x in mmacs ]
-        print 'mmacs: '; pp.pprint(mmacs)
-        print 'mrsss: '; pp.pprint(mrsss)
+        print 'mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
 
-        keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
-        keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss_tmp ])
+        keyrsss = np.char.array(keycfps)[:,4].split('|')
+        keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
         keyrsss = keyrsss.take(take_idx, axis=1)
-        print 'keyrsss: '; pp.pprint(keyrsss)
+        #print 'keyrsss: '; pp.pprint(keyrsss)
 
         rss_dist = ( mrsss - keyrsss )**2
         #print 'squared rss distance: '; pp.pprint(rss_dist)
 
         sum_rss = rss_dist.sum(axis=1)
-        print 'sum_rss: '; pp.pprint(sum_rss)
+        print 'sum_rss: %s' % sum_rss
         idx_min = sum_rss.argmin()
-        min_rss = sum_rss[idx_min]
-        spidrss = list(keycfps[idx_min])
-        spidrss.append(min_rss)
-        min_spidrss.append( spidrss )
+        min_spids.append(list(keycfps[idx_min]))
+        min_sums.append(sum_rss[idx_min])
+        print '-'*60
 
 
-    if len(min_spidrss) > 1:
-        idxs_kmin = np.argsort([ spid[5] for spid in min_spidrss ])[:KNN]
-        min_spidrss = np.array(min_spidrss)
-        print min_spidrss[idxs_kmin]
+    if len(min_sums) > 1:
+        idxs_kmin = np.argsort(min_sums)[:KNN]
+        min_spids = np.array(min_spids).reshape(-1,5)
+        print 'dists: '; print np.array(min_sums)[idxs_kmin]
+        print 'locations: '; print min_spids[idxs_kmin]
     else:
-        print min_spidrss
+        print 'location: %s' % min_spids
 
     cursor.close()
     conn.close()
@@ -396,4 +354,11 @@ def main():
 
 
 if __name__ == "__main__":
+    try:
+        import psyco
+        psyco.full()
+        #psyco.log()
+        #psyco.profile(0.3)
+    except ImportError:
+        pass
     main()
