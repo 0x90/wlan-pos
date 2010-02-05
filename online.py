@@ -41,7 +41,7 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    times = 0; rmpfile = None; tfail = 0
+    times = 0; rmpfile = None; tfail = 0; subsearch = False
     global verbose,pp,nodump,fake, addrid
     verbose = False; pp = None; nodump = False; fake = 0; addrid = 1
 
@@ -174,7 +174,15 @@ def main():
     set_maxmacs = set(maxmacs)
     keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
             if set_maxmacs == set(aps) ]
-    print 'clusters found: '; pp.pprint(keys)
+    if not keys:
+        print 'Exact matched cluster NOT found! Go on with subset search...'
+        keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
+                if len(set_maxmacs & set(aps)) == 3 ]
+        if not keys: print 'Subset search FAILED! Fingerprinting TERMINATED!'
+        else: print 'Subset keyed cluster(s) found:'
+        subsearch = True
+    else: print 'Exact matched cluster(s) found: ' 
+    pp.pprint(keys)
 
     #num_clusters = len(keys)
     ## state_where construction.
@@ -191,6 +199,9 @@ def main():
     # min_spidrss: [[cid,spid,lat,lon,rssss,min_rss],...]
     min_spidrss = []
     for cid,keyaps in keys:
+        import copy as cp
+        mmacs = cp.deepcopy(maxmacs)
+        mrsss = cp.deepcopy(maxrsss)
         try:
             # Returns values identified by field name(or field order if no arg).
             table = tbl_names['cfps']
@@ -205,32 +216,36 @@ def main():
         print 'cid: %s, keyaps: %s' % (cid, keyaps)
         print 'keycfps: '; pp.pprint(keycfps)
 
-        maxmacs_idx = [ keyaps.index(x) for x in maxmacs ]
-        maxrsss = np.array([ maxrsss[i] for i in maxmacs_idx ])
-        print 'maxrsss: '; pp.pprint(maxrsss)
+        if subsearch is True:
+            rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
+            mmacs.pop(rm_idx); mrsss.pop(rm_idx)
+        take_idx = [ keyaps.index(x) for x in mmacs ]
+        print 'mmacs: '; pp.pprint(mmacs)
+        print 'mrsss: '; pp.pprint(mrsss)
 
         keyrsss_tmp = np.char.array(keycfps)[:,4].split('|')
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss_tmp ])
+        keyrsss = keyrsss.take(take_idx, axis=1)
         print 'keyrsss: '; pp.pprint(keyrsss)
 
-        rss_dist = ( maxrsss - keyrsss )**2
-        print 'squared rss distance: '; pp.pprint(rss_dist)
+        rss_dist = ( mrsss - keyrsss )**2
+        #print 'squared rss distance: '; pp.pprint(rss_dist)
 
         sum_rss = rss_dist.sum(axis=1)
         print 'sum_rss: '; pp.pprint(sum_rss)
         idx_min = sum_rss.argmin()
         min_rss = sum_rss[idx_min]
-        print 'idx_min: %d, min_rss: %f' % (idx_min, min_rss)
         spidrss = list(keycfps[idx_min])
         spidrss.append(min_rss)
         min_spidrss.append( spidrss )
 
 
     if len(min_spidrss) > 1:
-        idxs_kmin = np.argsort([ spid[5] for spid in min_spidrss ])[:K_NN]
-        pp.pprint(min_spidrss[idxs_kmin])
+        idxs_kmin = np.argsort([ spid[5] for spid in min_spidrss ])[:KNN]
+        min_spidrss = np.array(min_spidrss)
+        print min_spidrss[idxs_kmin]
     else:
-        pp.pprint(min_spidrss)
+        print min_spidrss
 
     cursor.close()
     conn.close()

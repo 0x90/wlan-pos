@@ -85,9 +85,10 @@ done
 date=`date +%Y-%m%d`
 
 if [ $nstop -eq 1 ]; then
+	goon=0
     while true;
     do
-        echo "Calibration begins at sampling point [$cnt]......."
+        echo "Offline procedure begins at sampling point [$cnt]......."
         echo -n "Continue[Y/n]?"
         #FIXME: Parameters interactive confirm.
         read -s opt

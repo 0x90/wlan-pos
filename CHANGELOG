@@ -53,3 +53,6 @@
     1) Update tbl data after offline calibration, filtering, clustering and sql importing.
     2) Unclustered fingerprints spid printing in offline procedure.
     3) Coherent offline processing support in run -n <start_spid> argument.
+2010-02-05
+    1) Fix issue 10 for maxmacs subset-searching in fingerprints.
+    2) Fix goon assignment error in run script.
