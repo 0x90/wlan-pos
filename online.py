@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 from __future__ import division
-import os,sys,csv,getopt,string
+import os,sys,getopt,string
 from WLAN import scanWLAN
 from pprint import pprint,PrettyPrinter
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, \
-                KNN, CLUSTERKEYSIZE, WLAN_FAKE, dt_rmp_nocluster
-from address import addr_book
+from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
+#from address import addr_book
 
 
 def usage():
@@ -32,6 +31,10 @@ example:
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
+            # FIXME: Simplifying option arguments for DB support ONLY 
+            # with NO backward compatibility for file handling, so the relevant 
+            # methods(os,pprint)/parameters(addr_book,XXXPATH) 
+            # imported from standard or 3rd-party modules can be avoided.
             "a:i:nf:hv",
             ["address=","infile=","no-dump","fake","help","verbose"])
     except getopt.GetoptError:
@@ -99,9 +102,9 @@ def main():
 
     len_scanAP = len(wlan)
     print 'Online visible APs: %d' % len_scanAP
+    if len(wlan) == 0: sys.exit(0)   
     #pp.pprint(wlan)
 
-    # 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
 
     import numpy as np
@@ -147,7 +150,9 @@ def main():
         print 'Exact matched cluster NOT found! Go on with subset search...'
         keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
                 if len(set_maxmacs & set(aps)) == 3 ]
-        if not keys: print 'Subset search FAILED! Fingerprinting TERMINATED!'
+        if not keys: 
+            print 'Subset search FAILED! Fingerprinting TERMINATED!'
+            sys.exit(99)
         else: print 'Subset keyed cluster(s) found:'
         subsearch = True
     else: print 'Exact matched cluster(s) found: ' 
@@ -218,7 +223,7 @@ def main():
     #   chararrays should be created using `numpy.char.array` or
     #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
     #
-    #FIXME: usecols for only spid-macs-rsss picking failed.
+    # FIXME: usecols for only spid-macs-rsss picking failed.
     radiomap = np.loadtxt(rmpfile, dtype=np.dtype(dt_rmp_nocluster), delimiter=',')
     macs_rmp = np.char.array(radiomap['macs']).split('|')
     # rsss_rmp may contain fingerprints that has more than INTERSET elements 

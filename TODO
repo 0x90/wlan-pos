@@ -1,9 +1,10 @@
 MUST
+mod  Simplify mainly online arguments modification(discard those not for db).
 fix  when online top4 RSS values correspond to more than 4 MACs.
 add  ssid.py for mapping MACs and essid names.
-mod  offline and online arguments modification(discard those not for db).
-mod  split Radio Map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
+mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
 mod  minify number of global vars (cos it's slow).
+mod  DB increamental upload support.
 --------
 add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
@@ -14,9 +15,11 @@ mod  Refine WLAN RSS raw data collection method(syscall like pythonwifi).
 opt  data structure and related operation.
 
 MIGHT
+mod  Functionalize online procedure.
 mod  offline different key APs may correspond to same spid and physical address.
 add  Filtering out unreliable raw-scanned APs for radiomap to have 10 APs left(rule: descending order rss or min-correlation).
 
 LATER
 add  OO support.
+add  WLAN signal coverage level contour plot (referred to 'lewifi').
 

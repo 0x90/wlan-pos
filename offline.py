@@ -405,21 +405,6 @@ def main():
         conn.commit()
         conn.close()
 
-    # Referenced snippets.
-    #cursor.execute ("""
-    #    INSERT INTO animal (name, category)
-    #    VALUES
-    #      ('snake', 'reptile'),
-    #      ('frog', 'amphibian'),
-    #      ('tuna', 'fish'),
-    #      ('racoon', 'mammal')
-    #  """)
-    #cursor.execute ("""
-    #      UPDATE animal SET name = %s
-    #      WHERE name = %s
-    #    """, ("snake", "turtle"))
-    #print "Number of rows updated: %d" % cursor.rowcount
-
     # Ordinary fingerprints clustering.
     if docluster is True:
         Cluster(rmpfile)

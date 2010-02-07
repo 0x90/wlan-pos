@@ -56,3 +56,7 @@
 2010-02-05
     1) Fix issue 10 for maxmacs subset-searching in fingerprints.
     2) Fix goon assignment error in run script.
+2010-02-07
+    1) Fix bug when wlan len == 0.
+    2) Fix bug when subset searching fails.
+    3) Mod trimming imported file handling related parameters.
