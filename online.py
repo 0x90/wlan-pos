@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 import os,sys,getopt,string
-from WLAN import scanWLAN
+from WLAN import scanWLAN_OS
 from pprint import pprint,PrettyPrinter
 from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
 #from address import addr_book
@@ -93,7 +93,7 @@ def main():
     #    sys.exit(99)
 
     if fake == 0:   # True
-        wlan = scanWLAN()
+        wlan = scanWLAN_OS()
     else:           # CMRI or Home
         addrid = fake
         wlan = WLAN_FAKE[addrid]

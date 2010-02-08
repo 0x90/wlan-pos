@@ -60,3 +60,5 @@
     1) Fix bug when wlan len == 0.
     2) Fix bug when subset searching fails.
     3) Mod trimming imported file handling related parameters.
+2010-02-08
+    1) Add *nix kernel syscall method for WLAN AP scanning.
