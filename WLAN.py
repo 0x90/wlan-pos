@@ -69,12 +69,9 @@ def scanWLAN_RE(pmode=1):
 
 
 def pack_wrq(buffsize):
-    """ Packs wireless request data for sending it to the kernel. """
-    # Prepare a buffer
-    # We need the address of our buffer and the size for it. The
-    # ioctl itself looks for the pointer to the address in our
-    # memory and the size of it.
-    # Don't change the order how the structure is packed!!!
+    """ Packs wireless request data which is to be sent to kernel. """
+    # ioctl needs address and size of our buffer, and looks itself for 
+    # the pointer to the address in memory and the size of it.
     buff = array.array('c', '\0'*buffsize)
     caddr_t, length = buff.buffer_info()
     datastr = struct.pack('Pi', caddr_t, length)
@@ -83,7 +80,17 @@ def pack_wrq(buffsize):
 
 def _fcntl(request, args):
     sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return fcntl.ioctl(sockfd.fileno(), request, args)
+    while True:
+        try:
+            status = fcntl.ioctl(sockfd.fileno(), request, args)
+        except IOError, (err_no, err_str):
+            if err_no == errno.EBUSY: #16
+                delay = 0.2
+                print '%s, wait %.1f sec...' % (err_str, delay)
+            else: raise
+        except: raise
+        else: break
+    return status
 
 
 def syscall(ifname, request, data=None):
@@ -91,14 +98,21 @@ def syscall(ifname, request, data=None):
     buff = 16 - len(ifname)
     ifreq = array.array('c', ifname + '\0'*buff)
     # put some additional data behind the interface name
-    if data is not None:
-        ifreq.extend(data)
-    else:
-        buff = 32 # - pythonwifi.flags.IFNAMSIZE
-        ifreq.extend('\0'*buff)
+    ifreq.extend(data)
 
-    result = _fcntl(request, ifreq)
-    return (result, ifreq[16:])
+    sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    while True:
+        try:
+            status = fcntl.ioctl(sockfd.fileno(), request, ifreq)
+        except IOError, (err_no, err_str):
+            if err_no == errno.EBUSY: #16
+                delay = 0.2
+                print '%s, wait %.1f sec...' % (err_str, delay)
+            else: raise
+        except: raise
+        else: break
+
+    return (status, ifreq[16:])
 
 
 def parse_qual(fmt, data):
@@ -111,23 +125,21 @@ def parse_qual(fmt, data):
 
 
 def parse_all(data):
-    # Run through the stream until it is too short to contain a command
+    # Run through the stream until it is too short to contain a cmd
     aplist = []
     while (len(data) >= 4):
-        # Unpack the header
+        # Unpack the header: length, cmd id
         length, cmd = struct.unpack('HH', data[:4])
-        #print'length:%d, cmd: %x' % (length, cmd)
-        # If the event length is too short to contain valid data,
-        # then break, because we're probably at the end of the cell's data
         if length < 4: break;
+        print '%d, %x' % (length, cmd)
         # Put the events into their respective result data
-        if cmd == 0x8B15:
-            #print 'AP found!'
-            #if len(aplist) == 0: aplist.append([])
+        if cmd == 0x8B15: #SIOCGIWAP
             bssid = "%02X:%02X:%02X:%02X:%02X:%02X" % \
-                    ( struct.unpack('6B', data[4:length][2:8]) )
-        elif cmd == 0x8c01:
-            rss = struct.unpack("B", data[5:6])[0] - 256
+                    ( struct.unpack('6B', data[6:12]) )
+        elif cmd == 0x8b07: # Operation mode
+            length = 32
+        elif cmd == 0x8c01: #Quality part of statistics (scan) 
+            rss = struct.unpack("B", data[5])[0] - 256
             aplist.append([bssid, rss])
         data = data[length:]
     return aplist
@@ -135,48 +147,51 @@ def parse_all(data):
 
 def scanWLAN_OS():
     datastr = struct.pack("Pii", 0, 0, 0)
+    # SIOCSIWSCAN
     status, result = syscall('wlan0', 0x8B18, datastr)
 
     repack = False
     bufflen = 4096
     buff, datastr = pack_wrq(bufflen)
-    while (True):
+    while True:
         if repack is True:
             buff, datastr = pack_wrq(bufflen)
         try:
-            status, result = syscall('wlan0', 0x8B19, data=datastr)
-        except IOError, (error_number, error_string):
-            if error_number == errno.E2BIG:
-                #print 'E2BIG: %d' % errno.E2BIG
+            # SIOCGIWSCAN
+            status, result = syscall('wlan0', 0x8B19, datastr)
+        except IOError, (err_no, err_str):
+            if err_no == errno.E2BIG: #7
+                print '%s, resizing buffer...' % (err_no, err_str)
                 # Keep resizing the buffer until it's
-                #   large enough to hold the scan
+                #  large enough to hold the scan
                 pbuff, newlen = struct.unpack('Pi', datastr)
-                if bufflen < newlen:
-                    # the driver told us how big to make the buffer
-                    bufflen = newlen
-                else:
-                    # try doubling the buffer size
-                    bufflen = bufflen * 2
+                if bufflen < newlen: bufflen = newlen
+                else: bufflen = bufflen * 2
                 repack = True
-            elif error_number == errno.EAGAIN: #try again.
-                # Permission was NOT denied,
-                #   therefore we must WAIT to get results
-                time.sleep(0.1)
-            else:
-                raise
-        except:
-            raise
-        else:
-            break
+            elif (err_no == errno.EAGAIN): 
+                delay = 0.1
+                print '%s, wait %.1f sec...' % (err_str, delay)
+                time.sleep(delay)
+            else: raise
+        except: raise
+        else: break
 
-    # unpack the buffer pointer and length
-    pbuff, reslen = struct.unpack('Pi', datastr)
-    if reslen > 0:
-        aplist = parse_all(buff.tostring())
+    aplist = parse_all(buff.tostring())
     return aplist
 
 
 if __name__ == "__main__":
+    try:
+        import psyco
+        psyco.bind(pack_wrq)
+        psyco.bind(syscall)
+        psyco.bind(parse_all)
+        psyco.bind(scanWLAN_OS)
+        #psyco.profile()
+        #psyco.full(0.1)
+    except ImportError:
+        pass
+
     #wlan_re = scanWLAN_RE(pmode=2)
     #time.sleep(2)
     wlan_os = scanWLAN_OS()
