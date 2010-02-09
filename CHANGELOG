@@ -62,3 +62,6 @@
     3) Mod trimming imported file handling related parameters.
 2010-02-08
     1) Add *nix kernel syscall method for WLAN AP scanning.
+2010-02-09
+    1) Fix exception handling bug in scanWLAN_OS() of WLAN module.
+    2) Exception handling for GPS module.

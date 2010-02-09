@@ -3,7 +3,7 @@ from __future__ import division
 import os,sys,csv,getopt,string
 from time import strftime
 import numpy as np
-from WLAN import scanWLAN
+from WLAN import scanWLAN_RE
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
@@ -21,7 +21,7 @@ def getRaw():
     rawdata.insert(0,timestamp)
 
     #FIXME:exception handling
-    wlan = scanWLAN()
+    wlan = scanWLAN_RE()
     #wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
     #wlan = [ [] ]
     # judging whether the number of scanned wlan APs more than 4 is for clustering.

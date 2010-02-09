@@ -1,12 +1,13 @@
 MUST
 mod  Simplify mainly online arguments modification(discard those not for db).
-fix  when online top4 RSS values correspond to more than 4 MACs.
+mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
+mod  Automate size reduction of intersection set of visible APs and keyaps.
 add  ssid.py for mapping MACs and essid names.
 mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
 mod  minify number of global vars (cos it's slow).
 mod  DB increamental upload support.
 --------
-add  Fingerprint clustering heuristic based on visible AP set for large scale radio map.
+fix  when online top4 RSS values correspond to more than 4 MACs.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
 add  Summary information after radio map construction/online locationing.
 add  Statistical chart or figure and data spreadsheet generation.

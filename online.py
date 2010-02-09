@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 import os,sys,getopt,string
-from WLAN import scanWLAN_OS
+from WLAN import scanWLAN_OS#, scanWLAN_RE
 from pprint import pprint,PrettyPrinter
 from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
 #from address import addr_book
@@ -93,6 +93,7 @@ def main():
     #    sys.exit(99)
 
     if fake == 0:   # True
+        #wlan = scanWLAN_RE()
         wlan = scanWLAN_OS()
     else:           # CMRI or Home
         addrid = fake
@@ -103,16 +104,20 @@ def main():
     len_scanAP = len(wlan)
     print 'Online visible APs: %d' % len_scanAP
     if len(wlan) == 0: sys.exit(0)   
-    #pp.pprint(wlan)
+    pp.pprint(wlan)
 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
 
     import numpy as np
+    # All integers in rss field returned by scanWLAN_OS() 
+    # are converted to strings during np.array(wlan).
     wlan = np.array(wlan).T
     rsss = wlan[1]
     maxidx = np.argsort(rsss)[:INTERSET]
-    maxmacs = list(wlan[0][:,maxidx])
-    maxrsss = [ string.atoi(rss) for rss in rsss[:,maxidx] ]
+    # Necessary for different list comprehension for maxmacs and maxrsss.
+    # TBE:tobe explained.
+    maxmacs = list(wlan[0,maxidx])
+    maxrsss = [ string.atoi(rss) for rss in rsss[maxidx] ]
     print 'maxmacs:'; pp.pprint(maxmacs)
     print 'maxrsss: %s' % maxrsss
 
@@ -162,8 +167,8 @@ def main():
     # min_sums: [ minsum1, minsum2, ... ]
     min_spids = []
     min_sums = []
+    import copy as cp
     for cid,keyaps in keys:
-        import copy as cp
         mmacs = cp.deepcopy(maxmacs)
         mrsss = cp.deepcopy(maxrsss)
         try:
@@ -361,7 +366,8 @@ def main():
 if __name__ == "__main__":
     try:
         import psyco
-        psyco.full()
+        psyco.bind(scanWLAN_OS)
+        #psyco.full()
         #psyco.log()
         #psyco.profile(0.3)
     except ImportError:

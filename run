@@ -6,7 +6,7 @@ VER=0.1
 aio=0
 start_spid=1
 stop_spid=1
-runtimes=80
+runtimes=60
 fakegps=1
 nstop=0
 
@@ -48,7 +48,7 @@ Offline radio map generation for spid from 1 to 100(60 scans each,
 with fake GPS enabled), followed by online locationing.
 #run -a -g -f 1 -t 100 -r 60
 Offline WLAN data calibration, filtering, clustering and sql tabling continuously.
-#run -n
+#run -n <start_spid>
 
 HELP
 	exit 0
@@ -65,14 +65,15 @@ while getopts "af:ghn:or:t:v" opt; do
         h ) Usage ;;
         n ) 
             nstop=1 
-            [ "$2" = "" ] && cnt=1 || cnt=$2 
-            offopts="-v -f"
+			cnt=$OPTARG
+            offopts="-v"
+            #offopts="-v -f"
         ;;
         r ) runtimes=$OPTARG ;;
         t ) stop_spid=$OPTARG ;;
         v ) Version ;;
         * )
-			echo -e "\nSorry, option: '$@' NOT supported~!"
+			echo -e "\nSorry, BAD or IMCOMPLETE options: '$@' !"
             Usage
         ;;
     esac
@@ -95,9 +96,10 @@ if [ $nstop -eq 1 ]; then
         echo " $opt"
         if [ "$opt" != "n" -a "$opt" != "N" ]; then
             goon=1
-            ./offline.py $offopts -s $runtimes -i $cnt
+            sudo ./offline.py $offopts -s $runtimes -i $cnt
+			[ $? -eq 0 ] || exit 99
 
-            spidfmt=`printf '%06d' $spid`
+            spidfmt=`printf '%06d' $cnt`
             rawfilename=$date-$spidfmt.raw
             echo -e "\nGenerating rmp file...\n"
             ./offline.py -v -t dat/$rawfilename
@@ -109,15 +111,15 @@ if [ $nstop -eq 1 ]; then
     done
 
     echo -e "\nRenaming tbl files to be ready for clustering...\n"
-    mv -f tbl/cidaps.tbl tbl/cidaps-$date.tbl.bak
-    mv -f tbl/cfprints.tbl tbl/cfprints-$date.tbl.bak
+	[ -f tbl/cidaps.tbl ] && mv -f tbl/cidaps.tbl tbl/cidaps-$date.tbl.bak
+	[ -f tbl/cfprints.tbl ] && mv -f tbl/cfprints.tbl tbl/cfprints-$date.tbl.bak
 
     echo -e "\nClustering...\n"
     rmpfilename=$date.rmp
-    ./offline.py -c dat/$rmpfilename
+    #./offline.py -c dat/$rmpfilename
 
     echo -e "\nUpload SQL tables...\n"
-    ./offline.py -u 1
+    #./offline.py -u 1
 
     exit 0
 fi

@@ -1,27 +1,37 @@
 #!/usr/bin/env python
-#Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
+# Parse GPS info by listening NMEA0183 GPGLL sentence from serial port.
 from __future__ import division
-import serial,string
+import sys,serial,string,errno,time
 
-def getGPS():
+def getGPS(sport="/dev/rfcomm0"):
     """
-    Bluez likes to use /dev/rfcomm0, but pyserial uses /dev/ttyS*.
-    So be noticed to redirect rfcomm0 to ttyS* with following cmds:
-    sudo rm /dev/ttyS0 -f && ln -s /dev/rfcomm0 /dev/ttyS0.
+    Generally, Bluez likes to use /dev/rfcomm0, but pyserial uses /dev/ttyS*.
     """
-    ser = serial.Serial()
-    ser.port = 0; ser.baudrate = 4800
+    try: ser = serial.Serial(port=sport, baudrate=4800) #default:/dev/ttyS0
+    except serial.serialutil.SerialException: 
+        print '\nCan NOT open port: %s\nExiting...' % sport
+        sys.exit(99)
+    except: raise
     ser.open()
 
     while True:
-        line = ser.readline()
+        try: line = ser.readline()
+        except OSError, (err_no, err_str):
+            delay = 0.1
+            if err_no == errno.EAGAIN: #11
+                print 'GPS read: %s, wait %.1f sec...' % (err_str, delay)
+            else: raise
+            time.sleep(delay)
+            continue
+        except serial.serialutil.SerialException, err: 
+            print '\n!!!GPS read: %s, Exiting...\n' % err.message
+            sys.exit(99)
+        except: raise
         sentence = line.split(',')
 
-        """
-        $GPGLL,3955.36937,N,11628.37507,E,011217.000,A,A*55
-        $GPGGA,011217.000,3955.36937,N,11628.37507,E,1,04,4.0,41.3,M,-7.9,M,,*75
-        $GPRMC,011217.000,A,3955.36937,N,11628.37507,E,,,271209,,,A*6D
-        """
+        # $GPGLL,3955.36937,N,11628.37507,E,011217.000,A,A*55
+        # $GPGGA,011217.000,3955.36937,N,11628.37507,E,1,04,4.0,41.3,M,-7.9,M,,*75
+        # $GPRMC,011217.000,A,3955.36937,N,11628.37507,E,,,271209,,,A*6D
         if sentence[0] == '$GPGLL' and len(sentence) == 8:
             try:
                 # Format of sentence[5](utc): hhmmss
@@ -31,8 +41,7 @@ def getGPS():
                 # Ugly 2 line for lat/lon check coming up.
                 if lat_tmp < 3900 or lon_tmp < 11600:
                     continue
-            except: 
-                continue
+            except: continue
 
         elif sentence[0] == '$GPGGA' and len(sentence) == 15:
             try:
@@ -42,8 +51,7 @@ def getGPS():
                 # Ugly 2 line for lat/lon check coming up.
                 if lat_tmp < 3900 or lon_tmp < 11600:
                     continue
-            except: 
-                continue
+            except: continue
 
         elif sentence[0] == '$GPRMC' and len(sentence) == 13:
             try:
@@ -53,10 +61,8 @@ def getGPS():
                 # Ugly 2 line for lat/lon check coming up.
                 if lat_tmp < 3900 or lon_tmp < 11600:
                     continue
-            except:
-                continue
-        else:
-            continue
+            except: continue
+        else: continue
 
         print line
 

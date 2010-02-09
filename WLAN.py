@@ -86,7 +86,7 @@ def _fcntl(request, args):
         except IOError, (err_no, err_str):
             if err_no == errno.EBUSY: #16
                 delay = 0.2
-                print '%s, wait %.1f sec...' % (err_str, delay)
+                print 'Fcntl.ioctl: %s, wait %.1f sec...' % (err_str, delay)
             else: raise
         except: raise
         else: break
@@ -131,7 +131,7 @@ def parse_all(data):
         # Unpack the header: length, cmd id
         length, cmd = struct.unpack('HH', data[:4])
         if length < 4: break;
-        print '%d, %x' % (length, cmd)
+        #print '%d, %x' % (length, cmd)
         # Put the events into their respective result data
         if cmd == 0x8B15: #SIOCGIWAP
             bssid = "%02X:%02X:%02X:%02X:%02X:%02X" % \
@@ -139,9 +139,11 @@ def parse_all(data):
         elif cmd == 0x8b07: # Operation mode
             length = 32
         elif cmd == 0x8c01: #Quality part of statistics (scan) 
-            rss = struct.unpack("B", data[5])[0] - 256
+            rss = struct.unpack("B", data[5])[0] #- 256
             aplist.append([bssid, rss])
         data = data[length:]
+    # For compatibility with offline code.
+    #aplist = [ [bssid, str(rss)] for bssid, rss in aplist ]
     return aplist
 
 
@@ -161,16 +163,16 @@ def scanWLAN_OS():
             status, result = syscall('wlan0', 0x8B19, datastr)
         except IOError, (err_no, err_str):
             if err_no == errno.E2BIG: #7
-                print '%s, resizing buffer...' % (err_no, err_str)
+                print 'WLAN scannnig: %s, resizing buffer...' % err_str
                 # Keep resizing the buffer until it's
                 #  large enough to hold the scan
                 pbuff, newlen = struct.unpack('Pi', datastr)
                 if bufflen < newlen: bufflen = newlen
                 else: bufflen = bufflen * 2
                 repack = True
-            elif (err_no == errno.EAGAIN): 
-                delay = 0.1
-                print '%s, wait %.1f sec...' % (err_str, delay)
+            elif err_no == errno.EAGAIN: #11
+                delay = 0.4
+                print 'WLAN scannnig: %s, wait %.1f sec...' % (err_str, delay)
                 time.sleep(delay)
             else: raise
         except: raise
