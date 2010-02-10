@@ -139,7 +139,7 @@ def parse_all(data):
         elif cmd == 0x8b07: # Operation mode
             length = 32
         elif cmd == 0x8c01: #Quality part of statistics (scan) 
-            rss = struct.unpack("B", data[5])[0] #- 256
+            rss = struct.unpack("B", data[5])[0] - 256
             aplist.append([bssid, rss])
         data = data[length:]
     # For compatibility with offline code.

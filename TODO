@@ -11,6 +11,7 @@ fix  when online top4 RSS values correspond to more than 4 MACs.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
 add  Summary information after radio map construction/online locationing.
 add  Statistical chart or figure and data spreadsheet generation.
+mod  fast fix when 'cfps' returned by mysql 'select' has only one element.
 --------
 mod  Refine WLAN RSS raw data collection method(syscall like pythonwifi).
 opt  data structure and related operation.
