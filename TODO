@@ -1,19 +1,21 @@
 MUST
-mod  Simplify mainly online arguments modification(discard those not for db).
-mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
+mod  Fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
 mod  Automate size reduction of intersection set of visible APs and keyaps.
-add  ssid.py for mapping MACs and essid names.
+mod  Simplify mainly online arguments modification(discard those not for db).
+mod  DB table: add 'cluster AP number' column in 'cidaps' for speedup when online visible AP less than 4.
+--------
+add  ssid.py for 1-1 mapping MAC and essid name.
 mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
-mod  minify number of global vars (cos it's slow).
-mod  DB increamental upload support.
+mod  Reduce the number of global vars (cos it's slow).
+mod  Increamental DB table records upload.
 --------
 fix  when online top4 RSS values correspond to more than 4 MACs.
+mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
 add  Summary information after radio map construction/online locationing.
 add  Statistical chart or figure and data spreadsheet generation.
-mod  fast fix when 'cfps' returned by mysql 'select' has only one element.
 --------
-mod  Refine WLAN RSS raw data collection method(syscall like pythonwifi).
+mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,etc).
 opt  data structure and related operation.
 
 MIGHT
