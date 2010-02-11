@@ -279,7 +279,7 @@ option:
     -n --no-dump           :  No data dumping to file.
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
-    -u --upload=<mode>     :  Upload clustered fingerprint tables into database, in certain mode: 
+    -u --upload=<updbmode> :  Upload clustered fingerprint tables into database, in certain mode: 
                               1-initial import(default); 2-increamental update.
     -v --verbose           :  Verbose mode.
 NOTE:

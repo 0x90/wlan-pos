@@ -1,7 +1,5 @@
 MUST
-mod  Fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
-mod  Automate size reduction of intersection set of visible APs and keyaps.
-mod  Simplify mainly online arguments modification(discard those not for db).
+mod  Automatic size reduction for intersection set of visible APs and keyaps.
 mod  DB table: add 'cluster AP number' column in 'cidaps' for speedup when online visible AP less than 4.
 --------
 add  ssid.py for 1-1 mapping MAC and essid name.

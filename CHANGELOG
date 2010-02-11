@@ -68,3 +68,7 @@
 2010-02-10
     1) Fix RSS calculation error(minus 256) in scanWLAN_OS() of WLAN module.
 	2) Update TODO list.
+2010-02-11
+    1) Fix issue 11, fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
+    2) Clean up online file related code, backward support terminated.
+    3) Opt data organization for DB config: store data in dicts.

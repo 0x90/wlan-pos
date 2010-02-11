@@ -19,12 +19,11 @@ option:
                             <key id>: 1-cmri; 2-home.
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
                             <mode id> 0:true scan; 1:cmri; 2:home.
-    -i --infile          :  Input raw or clustered(not avail) radio map file.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 example:
-    #online.py -a 2 -v -i /path/to/some/rmpfile
-    #online.py -f 2 -v -i /path/to/some/rmpfile
+    #online.py -a 2 -v 
+    #online.py -f 1 -v 
 """
 
 
@@ -35,18 +34,17 @@ def main():
             # with NO backward compatibility for file handling, so the relevant 
             # methods(os,pprint)/parameters(addr_book,XXXPATH) 
             # imported from standard or 3rd-party modules can be avoided.
-            "a:i:nf:hv",
-            ["address=","infile=","no-dump","fake","help","verbose"])
+            "a:f:hv",
+            ["address=","fake","help","verbose"])
     except getopt.GetoptError:
-        usage()
-        sys.exit(99)
+        usage(); sys.exit(99)
 
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
     times = 0; rmpfile = None; tfail = 0; subsearch = False
-    global verbose,pp,nodump,fake, addrid
-    verbose = False; pp = None; nodump = False; fake = 0; addrid = 1
+    #global verbose,pp,fake, addrid
+    verbose = False; fake = 0; addrid = 1#; pp = None;
 
     for o,a in opts:
         if o in ("-a", "--address"):
@@ -58,21 +56,6 @@ def main():
             print '\nIllegal address id: %s!' % a
             usage()
             sys.exit(99)
-        if o in ("-i", "--infile"):
-            if not os.path.isfile(a):
-                print '\nRadio map file NOT exist: %s' % a
-                sys.exit(99)
-            elif not a:
-                print '\nRadio map needed!\n'
-                usage()
-                sys.exit(99)
-            else: rmpfile = a
-        elif o in ("-v", "--verbose"):
-            verbose = True
-            pp = PrettyPrinter(indent=2)
-        elif o in ("-h", "--help"):
-            usage()
-            sys.exit(0)
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
                 fake = string.atoi(a)
@@ -82,6 +65,12 @@ def main():
             print '\nIllegal fake GPS id: %s!' % a
             usage()
             sys.exit(99)
+        elif o in ("-h", "--help"):
+            usage()
+            sys.exit(0)
+        elif o in ("-v", "--verbose"):
+            verbose = True
+            pp = PrettyPrinter(indent=2)
         else:
             print 'Parameter NOT supported: %s' % o
             usage()
@@ -123,12 +112,14 @@ def main():
 
 
     import MySQLdb
-    from config import hostname, username, password, dbname, \
-                       tbl_names, SQL_SELECT, SQL_SELECT_WHERE
+    from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE
     try:
-        conn = MySQLdb.connect(host=hostname, user=username, \
-                passwd=password, db=dbname, compress=1)
-                #cursorclass=MySQLdb.cursors.DictCursor)
+        conn = MySQLdb.connect(host = db_config['hostname'], 
+                               user = db_config['username'], 
+                             passwd = db_config['password'], 
+                                 db = db_config['dbname'], 
+                           compress = 1)
+                        #cursorclass = MySQLdb.cursors.DictCursor)
     except MySQLdb.Error,e:
         print "\nCan NOT connect %s@server: %s!" % (username, hostname)
         print "Error(%d): %s" % (e.args[0], e.args[1])
@@ -158,19 +149,16 @@ def main():
         if not keys: 
             print 'Subset search FAILED! Fingerprinting TERMINATED!'
             sys.exit(99)
-        else: print 'Subset keyed cluster(s) found:'
+        else: print 'Subset keyed cluster(s) found: '
         subsearch = True
     else: print 'Exact matched cluster(s) found: ' 
     pp.pprint(keys)
 
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
     # min_sums: [ minsum1, minsum2, ... ]
-    min_spids = []
-    min_sums = []
+    min_spids = []; min_sums = []
     import copy as cp
     for cid,keyaps in keys:
-        mmacs = cp.deepcopy(maxmacs)
-        mrsss = cp.deepcopy(maxrsss)
         try:
             # Returns values identified by field name(or field order if no arg).
             table = tbl_names['cfps']
@@ -184,21 +172,25 @@ def main():
             sys.exit(99)
         print 'cid: %s, keyaps: %s' % (cid, keyaps)
         print 'keycfps: %s' % keycfps
-
-        if subsearch is True:
-            rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
-            mmacs.pop(rm_idx); mrsss.pop(rm_idx)
-        take_idx = [ keyaps.index(x) for x in mmacs ]
-        print 'mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
+        # Fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
+        if len(keys) == 1 and cursor.rowcount == 1:
+            min_spids = keycfps
+            break
 
         keyrsss = np.char.array(keycfps)[:,4].split('|')
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
-        keyrsss = keyrsss.take(take_idx, axis=1)
-        #print 'keyrsss: '; pp.pprint(keyrsss)
+
+        if subsearch is True:
+            mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
+            rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
+            mmacs.pop(rm_idx); mrsss.pop(rm_idx)
+            take_idx = [ keyaps.index(x) for x in mmacs ]
+            print 'mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
+            keyrsss = keyrsss.take(take_idx, axis=1)
+        else: mrsss = maxrsss
 
         rss_dist = ( mrsss - keyrsss )**2
         #print 'squared rss distance: '; pp.pprint(rss_dist)
-
         sum_rss = rss_dist.sum(axis=1)
         print 'sum_rss: %s' % sum_rss
         idx_min = sum_rss.argmin()
@@ -207,7 +199,7 @@ def main():
         print '-'*60
 
 
-    if len(min_sums) > 1:
+    if len(min_spids) > 1:
         idxs_kmin = np.argsort(min_sums)[:KNN]
         min_spids = np.array(min_spids).reshape(-1,5)
         print 'dists: '; print np.array(min_sums)[idxs_kmin]
@@ -219,6 +211,8 @@ def main():
     conn.close()
     sys.exit(0)
 
+
+    # Deprecated: radio map file related operation code that is no longer used.
     # NOTE:
     #   The `numpy.core.defchararray` exists for backwards compatibility with
     #   Numarray, it is not recommended for new development. If one needs

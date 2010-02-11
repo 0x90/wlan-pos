@@ -6,10 +6,11 @@ CLUSTERKEYSIZE = 4
 KNN = 4
 
 # DB related configuration.
-hostname = 'localhost'
-username = 'pos'
-password = 'pos'
-dbname = 'wlanpos'
+db_config = {
+    'hostname' : 'localhost',
+    'username' : 'pos',
+    'password' : 'pos',
+    'dbname' : 'wlanpos' }
 # SQL table related data structs.
 tbl_names = { 'cidaps':'cidaps', 
                 'cfps':'cfps' }
