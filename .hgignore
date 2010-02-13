@@ -1,0 +1,16 @@
+syntax: glob
+*.swp
+*.backup
+*.orig
+*~
+*.pyc
+*-psyco
+dat/*
+tags
+log
+out
+test/*
+kml/ap.kml
+tbl/*-*.tbl
+tbl/cidaps.tbl
+tbl/cfprints.tbl

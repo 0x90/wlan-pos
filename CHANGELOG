@@ -1,0 +1,76 @@
+2010-01-06 
+    1) Parameters naming changed (-t,-s).
+    2) Mac list intersection solved (test/intersect.py).
+2010-01-08 
+    1) Add --no-dump parameter with no log file writting.
+    2) Mod MAC:RSS output format under verbose mode.
+2010-01-13
+    1) Add online location fingerprinting routine.
+2010-01-14
+    1) Mod returned spid,rss structure, and the final computation of the KNN location.
+    2) Add run test script
+    3) Mod online location result output format.
+    4) Fix ary_kmin array reshape error when there are not enough KNN fingerprints.
+    5) Opt WLAN scanned AP number less than INTERSIZE.
+2010-01-16
+    1) Add multiple fake GPS mode(home/cmri,etc) handling in online phase.
+    2) Add concise address information support.
+2010-01-17
+    1) Update issue 5: interset solution error when strongest AP is not in radio map.
+    2) Fix issue 5: break -> continue.
+    3) Mod fake WLAN data config.py.
+2010-01-20
+    1) Fix MAC:RSS descending order sorted based on RSS values for Radio map file generation.
+2010-01-21
+    1) Mod offline RadioMap(), only certain number(INTERSIZE) of max-rss APs left in radio map fingerprints.
+    2) Fix logical procedure bug for maxmacs generation, introduced by REV<e65c339eeb>.
+    3) Fix appending error for rss_scan_dist, introduced by using maxmacs instead of mac_inter.
+    4) Fix onopts bug in run script, introduced by REV<5bc8b654fd>.
+2010-01-22
+    1) Add offline clustering heuristics.
+2010-01-24
+    1) Clustering heuristics implementation: Cluster(rmpfile). The circumstance that fingerprint's APs included in member of sets_keyaps list should be considered.
+2010-01-25
+    1) KML interface agile development for sampling and location point demonstration.
+2010-01-26
+    1) KML related data structure specification and function encapsulation.
+    2) Clear up clustering heuristics.
+    3) mod  KML __main__ to contain testing data in dat/ap.dat, which should be deleted.
+2010-01-27
+    1) Data organization for two designated sql tables(cid_aps,cfps) in clustering routine.
+2010-01-28
+    1) Add MySQLdb interface for clustered fingerprints uploading into database tables.
+2010-01-29
+    1) Opt code trimming and efficiency of maxmacs and maxrsss construction routine with vectorized operation.
+    2) Add online db operation and immature data processing for location fingerprinting.
+2010-02-01
+    1) bare bone implementation of online processing.
+2010-02-02
+    1) Fix issue 7 by re-arranging RSSs according to key MACs in table 'cfps'.
+2010-02-03
+    1) Merge opt online list atof operation for keyrsss and todo list updating.
+2010-02-04
+    1) Update tbl data after offline calibration, filtering, clustering and sql importing.
+    2) Unclustered fingerprints spid printing in offline procedure.
+    3) Coherent offline processing support in run -n <start_spid> argument.
+2010-02-05
+    1) Fix issue 10 for maxmacs subset-searching in fingerprints.
+    2) Fix goon assignment error in run script.
+2010-02-07
+    1) Fix bug when wlan len == 0.
+    2) Fix bug when subset searching fails.
+    3) Mod trimming imported file handling related parameters.
+2010-02-08
+    1) Add *nix kernel syscall method for WLAN AP scanning.
+2010-02-09
+    1) Fix exception handling bug in scanWLAN_OS() of WLAN module.
+    2) Exception handling for GPS module.
+2010-02-10
+    1) Fix RSS calculation error(minus 256) in scanWLAN_OS() of WLAN module.
+	2) Update TODO list.
+2010-02-11
+    1) Fix issue 11, fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
+    2) Clean up online file related code, backward support terminated.
+    3) Opt data organization for DB config: store data in dicts.
+2010-02-12
+    1) Add db_config import in offline routine as what online does.

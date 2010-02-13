@@ -1,0 +1,27 @@
+MUST
+mod  Automatic size reduction for intersection set of visible APs and keyaps.
+mod  DB table: add 'cluster AP number' column in 'cidaps' for speedup when online visible AP less than 4.
+--------
+add  ssid.py for 1-1 mapping MAC and essid name.
+mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
+mod  Reduce the number of global vars (cos it's slow).
+mod  Increamental DB table records upload.
+--------
+fix  when online top4 RSS values correspond to more than 4 MACs.
+mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
+mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
+add  Summary information after radio map construction/online locationing.
+add  Statistical chart or figure and data spreadsheet generation.
+--------
+mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,etc).
+opt  data structure and related operation.
+
+MIGHT
+mod  Functionalize online procedure.
+mod  offline different key APs may correspond to same spid and physical address.
+add  Filtering out unreliable raw-scanned APs for radiomap to have 10 APs left(rule: descending order rss or min-correlation).
+
+LATER
+add  OO support.
+add  WLAN signal coverage level contour plot (referred to 'lewifi').
+
