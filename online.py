@@ -129,13 +129,13 @@ def main():
         cursor = conn.cursor()
         table = tbl_names['cidaps']
         print 'select from table: %s' % table
-        cursor.execute(SQL_SELECT % ('*' ,table))
+        cursor.execute(SQL_SELECT % ('*', table))
         cidaps = cursor.fetchall()
     except MySQLdb.Error,e:
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
 
-    # Fingerprints in same cluster should have same order for RSSs according to key MACs:
+    # FPs from same cluster *should* have the same RSS permutation as that of key MACs:
     # Though keyaps is logically defined and used as a SET, it's stored as ordered list.
     cidaps = np.char.array(cidaps)
     topaps = cidaps[:,1].split('|')
@@ -144,20 +144,21 @@ def main():
             if set_maxmacs == set(aps) ]
     if not keys:
         print 'Exact matched cluster NOT found! Go on with subset search...'
-        keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
-                if len(set_maxmacs & set(aps)) == 3 ]
+        INTERS = INTERSET - 1
+        keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps)
+                if len(set_maxmacs & set(aps)) == INTERS ]
         if not keys: 
             print 'Subset search FAILED! Fingerprinting TERMINATED!'
             sys.exit(99)
         else: print 'Subset keyed cluster(s) found: '
         subsearch = True
+        import copy as cp
     else: print 'Exact matched cluster(s) found: ' 
     pp.pprint(keys)
 
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
     # min_sums: [ minsum1, minsum2, ... ]
     min_spids = []; min_sums = []
-    import copy as cp
     for cid,keyaps in keys:
         try:
             # Returns values identified by field name(or field order if no arg).
@@ -172,14 +173,13 @@ def main():
             sys.exit(99)
         print 'cid: %s, keyaps: %s' % (cid, keyaps)
         print 'keycfps: %s' % keycfps
-        # Fast fix when ONLY 1 cluster selected in 'cidaps' has ONLY 1 spid selected in 'cfps'.
+        # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
         if len(keys) == 1 and cursor.rowcount == 1:
             min_spids = keycfps
             break
-
         keyrsss = np.char.array(keycfps)[:,4].split('|')
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
-
+        # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
         if subsearch is True:
             mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
             rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
@@ -188,9 +188,8 @@ def main():
             print 'mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
             keyrsss = keyrsss.take(take_idx, axis=1)
         else: mrsss = maxrsss
-
+        # Euclidean dist solving and sorting.
         rss_dist = ( mrsss - keyrsss )**2
-        #print 'squared rss distance: '; pp.pprint(rss_dist)
         sum_rss = rss_dist.sum(axis=1)
         print 'sum_rss: %s' % sum_rss
         idx_min = sum_rss.argmin()

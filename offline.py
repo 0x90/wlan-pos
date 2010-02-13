@@ -340,7 +340,7 @@ def main():
                     usage(); sys.exit(99)
                 else:
                     updb = True
-                    from config import hostname, username, password, dbname, \
+                    from config import db_config, \
                             tbl_names, tbl_forms, tbl_files, tbl_field, \
                             SQL_DROP, SQL_CREATE, SQL_CSVIN
             else: 
@@ -382,9 +382,12 @@ def main():
     if updb is True:
         import MySQLdb
         try:
-            conn = MySQLdb.connect(host=hostname, user=username, \
-                    passwd=password, db=dbname, compress=1)
-                    #cursorclass=MySQLdb.cursors.DictCursor)
+            conn = MySQLdb.connect(host = db_config['hostname'], 
+                                   user = db_config['username'], 
+                                 passwd = db_config['password'], 
+                                     db = db_config['dbname'], 
+                               compress = 1)
+                            #cursorclass = MySQLdb.cursors.DictCursor)
         except MySQLdb.Error,e:
             print "\nCan NOT connect %s@server: %s!" % (username, hostname)
             print "Error(%d): %s" % (e.args[0], e.args[1])
