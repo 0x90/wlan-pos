@@ -30,13 +30,13 @@ example:
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-            # FIXME: Simplifying option arguments for DB support ONLY 
-            # with NO backward compatibility for file handling, so the relevant 
+            # NO backward compatibility for file handling, so the relevant 
             # methods(os,pprint)/parameters(addr_book,XXXPATH) 
             # imported from standard or 3rd-party modules can be avoided.
             "a:f:hv",
             ["address=","fake","help","verbose"])
     except getopt.GetoptError:
+        print 'Error: getopt!\n'
         usage(); sys.exit(99)
 
     if not opts: usage(); sys.exit(0)
@@ -131,7 +131,7 @@ def main():
         print 'select from table: %s' % table
         cursor.execute(SQL_SELECT % ('*', table))
         cidaps = cursor.fetchall()
-    except MySQLdb.Error,e:
+    except MySQLdb.Error, e:
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
 
@@ -147,7 +147,7 @@ def main():
         INTERS = INTERSET - 1
         keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps)
                 if len(set_maxmacs & set(aps)) == INTERS ]
-        if not keys: 
+        if not keys or INTERS == 0: 
             print 'Subset search FAILED! Fingerprinting TERMINATED!'
             sys.exit(99)
         else: print 'Subset keyed cluster(s) found: '
