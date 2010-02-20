@@ -144,9 +144,9 @@ def main():
     topaps = cidaps[:,1].split('|')
     set_maxmacs = set(maxmacs)
 
-    ##### lst_NOInter: array of the number of intersect APs between visible APs and all clusters.
+    ##### lst_NOInter: list of number of intersect APs between visible APs and all clusters.
     ########### maxNI: the maximum element of lst_NOInter.
-    # idxs_maxNOInter: list of indices of clusters(in cids/topaps) with max intersect AP amount.
+    # idxs_maxNOInter: list of indices of cids/topaps with largest intersect AP set.
     lst_NOInter = np.array([ len(set_maxmacs & set(aps)) for aps in topaps ])
     idxs_sortedNOInter = np.argsort( lst_NOInter )
     maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
@@ -162,8 +162,8 @@ def main():
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
             import copy as cp
-        print 'Partly matched cluster(s) found! (max intersection size: %d)' % maxNI
-    else: print 'Full matched cluster(s) found!' 
+        print 'Partly matched cluster(s) found(max intersection size: %d):' % maxNI
+    else: print 'Full matched cluster(s) found:' 
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
@@ -189,6 +189,7 @@ def main():
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
     # min_sums: [ minsum1, minsum2, ... ]
     min_spids = []; min_sums = []
+    print '='*65
     for cid,keyaps in keys:
         try:
             # Returns values identified by field name(or field order if no arg).
@@ -202,7 +203,8 @@ def main():
             cursor.close(); conn.close()
             sys.exit(99)
         print ' keyaps: %s' % keyaps
-        print 'keycfps: %s' % keycfps
+        if len(keycfps) == 1: print 'keycfps: %s' % keycfps
+        else: print 'keycfps: '; pp.pprint(keycfps)
         # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
         if len(keys) == 1 and cursor.rowcount == 1:
             min_spids = keycfps
@@ -227,7 +229,7 @@ def main():
         idx_min = sum_rss.argmin()
         min_spids.append(list(keycfps[idx_min]))
         min_sums.append(sum_rss[idx_min])
-        print '-'*60
+        print '-'*65
 
 
     if len(min_spids) > 1:

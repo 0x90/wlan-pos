@@ -1,7 +1,5 @@
 MUST
-mod  Automatic size reduction for intersection set of visible APs and keyaps.
-mod  DB table: add 'cluster AP number' column in 'cidaps' for speedup when online visible AP less than 4.
---------
+add  test module for online location fingerprinting(logging).
 add  ssid.py for 1-1 mapping MAC and essid name.
 mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
 mod  Reduce the number of global vars (cos it's slow).
@@ -13,7 +11,7 @@ mod  Refine sort routine with both indices and elements returned (numpy.argsort(
 add  Summary information after radio map construction/online locationing.
 add  Statistical chart or figure and data spreadsheet generation.
 --------
-mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,etc).
+mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,SWIG,etc).
 opt  data structure and related operation.
 
 MIGHT
