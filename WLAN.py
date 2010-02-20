@@ -171,7 +171,7 @@ def scanWLAN_OS():
                 else: bufflen = bufflen * 2
                 repack = True
             elif err_no == errno.EAGAIN: #11
-                delay = 0.4
+                delay = 0.3
                 print 'WLAN scannnig: %s, wait %.1f sec...' % (err_str, delay)
                 time.sleep(delay)
             else: raise

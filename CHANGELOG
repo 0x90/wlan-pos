@@ -74,3 +74,6 @@
     3) Opt data organization for DB config: store data in dicts.
 2010-02-12
     1) Add db_config import in offline routine as what online does.
+2010-02-20
+    1) Fix robustness bug for optimizing intersection size by sorting and indexing intersection size list of all clusters, instead of using defected loop.
+    2) Fix issue 14 when interpart_offline=True, however interpart_online=False.

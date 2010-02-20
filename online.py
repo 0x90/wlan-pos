@@ -42,9 +42,10 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    times = 0; rmpfile = None; tfail = 0; subsearch = False
+    times = 0; rmpfile = None; tfail = 0
+    interpart_offline = False; interpart_online = False
     #global verbose,pp,fake, addrid
-    verbose = False; fake = 0; addrid = 1#; pp = None;
+    verbose = False; fake = 0; #addrid = 1; pp = None;
 
     for o,a in opts:
         if o in ("-a", "--address"):
@@ -135,25 +136,54 @@ def main():
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
 
-    # FPs from same cluster *should* have the same RSS permutation as that of key MACs:
-    # Though keyaps is logically defined and used as a SET, it's stored as ordered list.
+    # cidaps: (('cid1', 'mac11|mac12|...'), ('cid2', 'mac21|mac22|...'), ...)
+    #   cids: ['cid1', 'cid2', ...]
+    # topaps: [['mac11', 'mac12', ...], ['mac21', 'mac22', ...], ...]
     cidaps = np.char.array(cidaps)
+    cids = cidaps[:,0]
     topaps = cidaps[:,1].split('|')
     set_maxmacs = set(maxmacs)
-    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
-            if set_maxmacs == set(aps) ]
-    if not keys:
-        print 'Exact matched cluster NOT found! Go on with subset search...'
-        INTERS = INTERSET - 1
-        keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps)
-                if len(set_maxmacs & set(aps)) == INTERS ]
-        if not keys or INTERS == 0: 
-            print 'Subset search FAILED! Fingerprinting TERMINATED!'
-            sys.exit(99)
-        else: print 'Subset keyed cluster(s) found: '
-        subsearch = True
-        import copy as cp
-    else: print 'Exact matched cluster(s) found: ' 
+
+    ##### lst_NOInter: array of the number of intersect APs between visible APs and all clusters.
+    ########### maxNI: the maximum element of lst_NOInter.
+    # idxs_maxNOInter: list of indices of clusters(in cids/topaps) with max intersect AP amount.
+    lst_NOInter = np.array([ len(set_maxmacs & set(aps)) for aps in topaps ])
+    idxs_sortedNOInter = np.argsort( lst_NOInter )
+    maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
+    if maxNI == 0: # no intersection found
+        print 'NO overlapping cluster found! Fingerprinting TERMINATED!'
+        sys.exit(99)
+    elif 0 < maxNI < 4:
+        # size of intersection set < offline key AP set size:4, 
+        # only keymacs/keyrsss (not maxmacs/maxrsss) need to be cut down.
+        interpart_offline = True
+        if maxNI < len_scanAP:
+            # size of intersection set < online AP set size:len_scanAP, 
+            # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
+            interpart_online = True
+            import copy as cp
+        print 'Partly matched cluster(s) found! (max intersection size: %d)' % maxNI
+    else: print 'Full matched cluster(s) found!' 
+    idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
+    idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
+    keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
+
+
+    # Defected overlapping AP set solution thru loop.
+    #keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
+    #        if set_maxmacs == set(aps) ]
+    #if not keys:
+    #    print 'Exact matched cluster NOT found! Go on with subset search...'
+    #    INTERS = INTERSET - 1
+    #    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps)
+    #            if len(set_maxmacs & set(aps)) == INTERS ]
+    #    if not keys or INTERS == 0: 
+    #        print 'Subset search FAILED! Fingerprinting TERMINATED!'
+    #        sys.exit(99)
+    #    else: print 'Subset keyed cluster(s) found: '
+    #    interpart_offline = True
+    #    import copy as cp
+    #else: print 'Exact matched cluster(s) found: ' 
     pp.pprint(keys)
 
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
@@ -163,15 +193,15 @@ def main():
         try:
             # Returns values identified by field name(or field order if no arg).
             table = tbl_names['cfps']
-            print 'select from table: %s' % table
             state_where = 'cid = %s' % cid
+            print 'select %s from table %s' % (state_where, table)
             cursor.execute(SQL_SELECT_WHERE % ('*' , table, state_where))
             keycfps = cursor.fetchall()
         except MySQLdb.Error,e:
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        print 'cid: %s, keyaps: %s' % (cid, keyaps)
+        print ' keyaps: %s' % keyaps
         print 'keycfps: %s' % keycfps
         # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
         if len(keys) == 1 and cursor.rowcount == 1:
@@ -180,12 +210,14 @@ def main():
         keyrsss = np.char.array(keycfps)[:,4].split('|')
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
         # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
-        if subsearch is True:
-            mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
-            rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
-            mmacs.pop(rm_idx); mrsss.pop(rm_idx)
+        if interpart_offline is True:
+            if interpart_online is True:
+                mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
+                rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
+                mmacs.pop(rm_idx); mrsss.pop(rm_idx)
+            else: mmacs = maxmacs; mrsss = maxrsss
             take_idx = [ keyaps.index(x) for x in mmacs ]
-            print 'mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
+            print '  mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
             keyrsss = keyrsss.take(take_idx, axis=1)
         else: mrsss = maxrsss
         # Euclidean dist solving and sorting.
