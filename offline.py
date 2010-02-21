@@ -7,6 +7,8 @@ from WLAN import scanWLAN_RE
 from GPS import getGPS
 from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
+from KML import genKML
+from config import dict_encrypt_icon
 
 
 def getRaw():
@@ -120,6 +122,23 @@ def Fingerprint(rawfile):
 
     fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
     return fingerprint
+
+
+def genKMLfile(cfpsfile):
+    """
+    Generating KML format file with data in cfps sql table file.
+    format of cfps table file:
+    cluster id, spid, lat, lon, keyrsss
+    """
+    cfpsin = csv.reader( open(cfpsfile,'r') )
+    cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
+    cfps = [ [[c[2], c[3], 'cid:%s,spid:%s'%(c[0],c[1])]] for c in cfps ]
+    pp.pprint(cfps)
+    kfile = 'kml/ap.kml'
+    cwd = os.getcwd()
+    #homedir = os.path.expanduser('~')
+    dict_encrypt_icon['other'][1] = cwd + dict_encrypt_icon['other'][1]
+    genKML(cfps, kmlfile=kfile, icons=dict_encrypt_icon)
 
 
 def Cluster(rmpfile):
@@ -276,6 +295,7 @@ option:
     -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
     -h --help              :  Show this help.
     -i --spid=<spid>       :  Sampling point id.
+    -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
     -n --no-dump           :  No data dumping to file.
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
@@ -289,8 +309,9 @@ NOTE:
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:ns:t:u:v",
-            ["aio","cluster","fake","help","spid=","no-dump","raw-scan=","to-rmp=","upload","verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:ns:t:u:v",
+            ["aio","cluster","fake","help","spid=","kml=","no-dump",
+             "raw-scan=","to-rmp=","upload","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -299,7 +320,7 @@ def main():
 
     # global vars init.
     spid=0; times=0; tormp=False; updb=False
-    rawfile=None; tfail=0; docluster=False
+    rawfile=None; tfail=0; docluster=False; dokml=False
     global verbose,pp,nodump,fake,updbmode
     verbose=False; pp=None; nodump=False; fake=False; updbmode=1
 
@@ -328,6 +349,13 @@ def main():
             else: 
                 docluster = True
                 rmpfile = a
+        elif o in ("-k", "--kml"):
+            if not os.path.isfile(a):
+                print 'cfprints table file NOT exist: %s' % a
+                sys.exit(99)
+            else: 
+                dokml = True
+                cfpsfile = a
         elif o in ("-n", "--no-dump"):
             nodump = True
         elif o in ("-f", "--fake"):
@@ -407,6 +435,10 @@ def main():
 
         conn.commit()
         conn.close()
+
+    # KML generation.
+    if dokml is True:
+        genKMLfile(cfpsfile)
 
     # Ordinary fingerprints clustering.
     if docluster is True:

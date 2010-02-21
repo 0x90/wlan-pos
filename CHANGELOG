@@ -78,3 +78,5 @@
     1) Fix robustness bug for optimizing intersection size by sorting and indexing intersection size list of all clusters, instead of using defected loop.
     2) Fix issue 14 when interpart_offline=True, however interpart_online=False.
     3) Fix minor print formating bug when keycfps has more than 1 element.
+2010-02-21
+    1) Add KML generation routine for pinpointing offline sampling points.

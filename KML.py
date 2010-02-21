@@ -61,7 +61,7 @@ def genKML(data, kmlfile, icons):
         kmlout.write(' <description><![CDATA[\n\
                         <p style="font-size:8pt;font-family:monospace;">(%s, %s)</p>\n\
                         <ul>\n\
-                        <li> BSSID: %s </li>\n'
+                        <li> DESC: %s </li>\n'
                         % (lon, lat, desc) )
         if optional == 1:
             kmlout.write('<li> MACAddr: %s </li>\n\
