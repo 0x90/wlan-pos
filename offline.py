@@ -25,7 +25,7 @@ def getRaw():
     #wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
     #wlan = [ [] ]
     # judging whether the number of scanned wlan APs more than 4 is for clustering.
-    if wlan and (len(wlan) >= 4): num_fields = len(wlan[0])
+    if wlan and (len(wlan) >= CLUSTERKEYSIZE): num_fields = len(wlan[0])
     else: return rawdata
 
     # Raw data: time, lat, lon, mac1|mac2, rss1|rss2
@@ -426,7 +426,7 @@ def main():
                 else:
                     print 'Calibration at sampling point %d ... OK!' % spid
             else: 
-                # wlan scanned APs less than 4.
+                # wlan scanned APs less than CLUSTERKEYSIZE:4.
                 tfail += 1
                 print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
                 print '-'*65

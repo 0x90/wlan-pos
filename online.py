@@ -134,6 +134,7 @@ def main():
         cidaps = cursor.fetchall()
     except MySQLdb.Error, e:
         print "Error(%d): %s" % (e.args[0], e.args[1])
+        cursor.close(); conn.close()
         sys.exit(99)
 
     # cidaps: (('cid1', 'mac11|mac12|...'), ('cid2', 'mac21|mac22|...'), ...)
@@ -144,8 +145,8 @@ def main():
     topaps = cidaps[:,1].split('|')
     set_maxmacs = set(maxmacs)
 
-    ##### lst_NOInter: list of number of intersect APs between visible APs and all clusters.
-    ########### maxNI: the maximum element of lst_NOInter.
+    # lst_NOInter: list of number of intersect APs between visible APs and all clusters.
+    #       maxNI: the maximum element of lst_NOInter.
     # idxs_maxNOInter: list of indices of cids/topaps with largest intersect AP set.
     lst_NOInter = np.array([ len(set_maxmacs & set(aps)) for aps in topaps ])
     idxs_sortedNOInter = np.argsort( lst_NOInter )
@@ -153,7 +154,7 @@ def main():
     if maxNI == 0: # no intersection found
         print 'NO overlapping cluster found! Fingerprinting TERMINATED!'
         sys.exit(99)
-    elif 0 < maxNI < 4:
+    elif 0 < maxNI < CLUSTERKEYSIZE:
         # size of intersection set < offline key AP set size:4, 
         # only keymacs/keyrsss (not maxmacs/maxrsss) need to be cut down.
         interpart_offline = True
@@ -209,7 +210,7 @@ def main():
         if len(keys) == 1 and cursor.rowcount == 1:
             min_spids = keycfps
             break
-        keyrsss = np.char.array(keycfps)[:,4].split('|')
+        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order number in cfprints.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
         # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
         if interpart_offline is True:
