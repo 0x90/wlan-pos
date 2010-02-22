@@ -132,12 +132,11 @@ def genKMLfile(cfpsfile):
     """
     cfpsin = csv.reader( open(cfpsfile,'r') )
     cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
-    cfps = [ [[c[2], c[3], 'cid:%s,spid:%s'%(c[0],c[1])]] for c in cfps ]
+    cfps = [ [[c[2], c[3], '%s-%s'%(c[0],c[1])]] for c in cfps ]
     pp.pprint(cfps)
     kfile = 'kml/ap.kml'
-    cwd = os.getcwd()
     #homedir = os.path.expanduser('~')
-    dict_encrypt_icon['other'][1] = cwd + dict_encrypt_icon['other'][1]
+    dict_encrypt_icon['other'][1] = os.getcwd() + dict_encrypt_icon['other'][1]
     genKML(cfps, kmlfile=kfile, icons=dict_encrypt_icon)
 
 
