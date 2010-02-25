@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division
-import os,sys,getopt,string
+import os,sys,getopt,string,errno
 from WLAN import scanWLAN_OS#, scanWLAN_RE
 from pprint import pprint,PrettyPrinter
 from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
@@ -8,15 +8,16 @@ from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
 
 
 def usage():
+    import time
     print """
-online.py - Copyleft 2009-2010 Yan Xiaotian, xiaotian.yan@gmail.com.
+online.py - Copyleft 2009-%s Yan Xiaotian, xiaotian.yan@gmail.com.
 Location fingerprinting using deterministic/probablistic approaches.
 
 usage:
     offline <option> <infile>
 option:
     -a --address=<key id>:  key id of address book configured in address.py.
-                            <key id>: 1-cmri; 2-home.
+                            <key id>: 1-cmri; 2-home(temporarily closed).
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
                             <mode id> 0:true scan; 1:cmri; 2:home.
     -v --verbose         :  Verbose mode.
@@ -24,7 +25,7 @@ option:
 example:
     #online.py -a 2 -v 
     #online.py -f 1 -v 
-"""
+""" % time.strftime('%Y')
 
 
 def main():
@@ -39,7 +40,8 @@ def main():
         print 'Error: getopt!\n'
         usage(); sys.exit(99)
 
-    if not opts: usage(); sys.exit(0)
+    # Program terminated when NO argument followed!
+    #if not opts: usage(); sys.exit(0)
 
     # global vars init.
     times = 0; rmpfile = None; tfail = 0
@@ -71,20 +73,20 @@ def main():
             sys.exit(0)
         elif o in ("-v", "--verbose"):
             verbose = True
-            pp = PrettyPrinter(indent=2)
+            #pp = PrettyPrinter(indent=2)
         else:
             print 'Parameter NOT supported: %s' % o
             usage()
             sys.exit(99)
 
-    #if not rmpfile:
-    #    print '\nRadio map needed!'
-    #    usage()
-    #    sys.exit(99)
+    pp = PrettyPrinter(indent=2)
 
     if fake == 0:   # True
         #wlan = scanWLAN_RE()
         wlan = scanWLAN_OS()
+        if wlan == errno.EPERM: 
+            print 'For more information, please use \'-h/--help\'.'
+            sys.exit(99)
     else:           # CMRI or Home
         addrid = fake
         wlan = WLAN_FAKE[addrid]
@@ -94,7 +96,7 @@ def main():
     len_scanAP = len(wlan)
     print 'Online visible APs: %d' % len_scanAP
     if len(wlan) == 0: sys.exit(0)   
-    pp.pprint(wlan)
+    if verbose == True: pp.pprint(wlan)
 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
 
@@ -163,7 +165,7 @@ def main():
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
             import copy as cp
-        print 'Partly matched cluster(s) found(max intersection size: %d):' % maxNI
+        print 'Partly matched cluster(s) found(max intersect size: %d):' % maxNI
     else: print 'Full matched cluster(s) found:' 
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
@@ -185,12 +187,12 @@ def main():
     #    interpart_offline = True
     #    import copy as cp
     #else: print 'Exact matched cluster(s) found: ' 
-    pp.pprint(keys)
+    if verbose is True: pp.pprint(keys)
 
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
     # min_sums: [ minsum1, minsum2, ... ]
     min_spids = []; min_sums = []
-    print '='*65
+    print '='*35
     for cid,keyaps in keys:
         try:
             # Returns values identified by field name(or field order if no arg).
@@ -203,25 +205,30 @@ def main():
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        print ' keyaps: %s' % keyaps
-        if len(keycfps) == 1: print 'keycfps: %s' % keycfps
-        else: print 'keycfps: '; pp.pprint(keycfps)
+        if verbose is True:
+            print ' keyaps: %s' % keyaps
+            if len(keycfps) == 1: print 'keycfps: %s' % keycfps
+            else: print 'keycfps: '; pp.pprint(keycfps)
         # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
         if len(keys) == 1 and cursor.rowcount == 1:
-            min_spids = keycfps
+            min_spids = [ list(keycfps[0]) ]
             break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order number in cfprints.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
         # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
         if interpart_offline is True:
             if interpart_online is True:
-                mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
-                rm_idx = maxmacs.index(list(set_maxmacs - (set_maxmacs&set(keyaps)))[0])
-                mmacs.pop(rm_idx); mrsss.pop(rm_idx)
+                mmacs = cp.deepcopy(maxmacs) 
+                mrsss = cp.deepcopy(maxrsss)
+                # Intersection solutions.
+                #inters = list(set_maxmacs - (set_maxmacs&set(keyaps)))
+                idxs_inters = [ maxmacs.index(elem) for elem in maxmacs if elem in keyaps ]
+                mmacs = np.array(mmacs)[idxs_inters]
+                mrsss = np.array(mrsss)[idxs_inters]
             else: mmacs = maxmacs; mrsss = maxrsss
-            take_idx = [ keyaps.index(x) for x in mmacs ]
-            print '  mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
-            keyrsss = keyrsss.take(take_idx, axis=1)
+            idxs_taken = [ keyaps.index(x) for x in mmacs ]
+            if verbose is True: print '  mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
+            keyrsss = keyrsss.take(idxs_taken, axis=1)
         else: mrsss = maxrsss
         # Euclidean dist solving and sorting.
         rss_dist = ( mrsss - keyrsss )**2
@@ -230,16 +237,16 @@ def main():
         idx_min = sum_rss.argmin()
         min_spids.append(list(keycfps[idx_min]))
         min_sums.append(sum_rss[idx_min])
-        print '-'*65
+        print '-'*35
 
 
     if len(min_spids) > 1:
         idxs_kmin = np.argsort(min_sums)[:KNN]
         min_spids = np.array(min_spids).reshape(-1,5)
-        print 'dists: '; print np.array(min_sums)[idxs_kmin]
-        print 'locations: '; print min_spids[idxs_kmin]
+        print 'dists: '; print np.array(min_sums)[idxs_kmin,:-1]
+        print 'locations: '; print min_spids[idxs_kmin,:-1]
     else:
-        print 'location: %s' % min_spids
+        print 'location: %s' % min_spids[0][:-1]
 
     cursor.close()
     conn.close()
@@ -294,7 +301,7 @@ def main():
                 #print '\nNotice: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
                 continue
         #print 'mac_inters: '; pp.pprint(mac_inters)
-        #print '-'*65
+        #print '-'*60
     #print 'mac_inters: '; pp.pprint(mac_inters)
 
     # Solve final mac_inter ready for distance computation.
@@ -327,7 +334,7 @@ def main():
                 break
         #print 'rss_scan_dist: %s' % rss_scan_dist
         #print 'rss_rmap_dist: %s' % rss_rmap_dist
-        #print '-'*65
+        #print '-'*60
 
     rss_scan_dist = np.array(rss_scan_dist)
     rss_rmap_dist = np.array(rss_rmap_dist)

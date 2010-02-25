@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import struct,array,errno,fcntl,socket,time
-import re#,os#,sys
+import re,sys#,os
 from subprocess import Popen, PIPE
 
 
@@ -87,6 +87,8 @@ def _fcntl(request, args):
             if err_no == errno.EBUSY: #16
                 delay = 0.2
                 print 'Fcntl.ioctl: %s, wait %.1f sec...' % (err_str, delay)
+            elif err_no == errno.EPERM: #1
+                print 'Fcntl.ioctl: %s! Try it as ROOT!' % err_str
             else: raise
         except: raise
         else: break
@@ -108,6 +110,9 @@ def syscall(ifname, request, data=None):
             if err_no == errno.EBUSY: #16
                 delay = 0.2
                 print '%s, wait %.1f sec...' % (err_str, delay)
+            elif err_no == errno.EPERM: #1
+                print '\nFcntl.ioctl: %s! Please try it as ROOT(sudo)!\n' % err_str
+                return (errno.EPERM, errno.EPERM)
             else: raise
         except: raise
         else: break
@@ -148,9 +153,13 @@ def parse_all(data):
 
 
 def scanWLAN_OS():
+    """
+    return: return errno.EPERM(1) if WLAN resource access(fcntl.ioctl) not permitted. 
+    """
     datastr = struct.pack("Pii", 0, 0, 0)
     # SIOCSIWSCAN
     status, result = syscall('wlan0', 0x8B18, datastr)
+    if result == errno.EPERM: return result
 
     repack = False
     bufflen = 4096
@@ -197,6 +206,7 @@ if __name__ == "__main__":
     #wlan_re = scanWLAN_RE(pmode=2)
     #time.sleep(2)
     wlan_os = scanWLAN_OS()
+    if wlan_os == errno.EPERM: sys.exit(99)
 
     from pprint import pprint
     #print 'visible APs: %d' % len(wlan_re)

@@ -80,3 +80,6 @@
     3) Fix minor print formating bug when keycfps has more than 1 element.
 2010-02-21
     1) Add KML generation routine for pinpointing offline sampling points.
+2010-02-25
+    1) Fix issue 15 for 'interpart_online' is true with more than one overlapping macs.
+    2) Add exception handling for root permission error(errno.EPERM).

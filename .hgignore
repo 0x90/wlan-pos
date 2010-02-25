@@ -4,6 +4,7 @@ syntax: glob
 *.orig
 *~
 *.pyc
+*.pyo
 *-psyco
 dat/*
 tags
