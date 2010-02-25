@@ -213,7 +213,7 @@ def main():
         if len(keys) == 1 and cursor.rowcount == 1:
             min_spids = [ list(keycfps[0]) ]
             break
-        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order number in cfprints.tbl
+        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfprints.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
         # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
         if interpart_offline is True:
