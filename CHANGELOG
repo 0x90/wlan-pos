@@ -83,3 +83,6 @@
 2010-02-25
     1) Fix issue 15 for 'interpart_online' is true with more than one overlapping macs.
     2) Add exception handling for root permission error(errno.EPERM).
+2010-02-26
+    1) Add dumb test in run script with support for redirecting stdout, stderr to different logs.
+    2) Mod fake WLAN_FAKE id.

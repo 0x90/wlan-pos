@@ -19,7 +19,7 @@ option:
     -a --address=<key id>:  key id of address book configured in address.py.
                             <key id>: 1-cmri; 2-home(temporarily closed).
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
-                            <mode id> 0:true scan; 1:cmri; 2:home.
+                            <mode id> same as in WLAN_FAKE of config module.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 example:
@@ -62,10 +62,10 @@ def main():
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
                 fake = string.atoi(a)
-                if 0 <= fake <= 2: continue
+                if fake >= 0: continue
                 else: pass
             else: pass
-            print '\nIllegal fake GPS id: %s!' % a
+            print '\nIllegal fake WLAN scan ID: %s!' % a
             usage()
             sys.exit(99)
         elif o in ("-h", "--help"):
@@ -81,7 +81,7 @@ def main():
 
     pp = PrettyPrinter(indent=2)
 
-    if fake == 0:   # True
+    if fake == 0:   # True WLAN scan.
         #wlan = scanWLAN_RE()
         wlan = scanWLAN_OS()
         if wlan == errno.EPERM: 
@@ -150,6 +150,7 @@ def main():
     # lst_NOInter: list of number of intersect APs between visible APs and all clusters.
     #       maxNI: the maximum element of lst_NOInter.
     # idxs_maxNOInter: list of indices of cids/topaps with largest intersect AP set.
+    # keys: ID and key APs of matched cluster(s) with max intersect APs between offline & online FPs.
     lst_NOInter = np.array([ len(set_maxmacs & set(aps)) for aps in topaps ])
     idxs_sortedNOInter = np.argsort( lst_NOInter )
     maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
@@ -171,23 +172,8 @@ def main():
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
 
-
-    # Defected overlapping AP set solution thru loop.
-    #keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps) 
-    #        if set_maxmacs == set(aps) ]
-    #if not keys:
-    #    print 'Exact matched cluster NOT found! Go on with subset search...'
-    #    INTERS = INTERSET - 1
-    #    keys = [ [cidaps[idx,0], aps] for idx,aps in enumerate(topaps)
-    #            if len(set_maxmacs & set(aps)) == INTERS ]
-    #    if not keys or INTERS == 0: 
-    #        print 'Subset search FAILED! Fingerprinting TERMINATED!'
-    #        sys.exit(99)
-    #    else: print 'Subset keyed cluster(s) found: '
-    #    interpart_offline = True
-    #    import copy as cp
-    #else: print 'Exact matched cluster(s) found: ' 
     if verbose is True: pp.pprint(keys)
+
 
     # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
     # min_sums: [ minsum1, minsum2, ... ]
@@ -209,20 +195,19 @@ def main():
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
+
         # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
-        if len(keys) == 1 and cursor.rowcount == 1:
+        if len(keys) == cursor.rowcount == 1:
             min_spids = [ list(keycfps[0]) ]
             break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfprints.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
+
         # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
         if interpart_offline is True:
             if interpart_online is True:
-                mmacs = cp.deepcopy(maxmacs) 
-                mrsss = cp.deepcopy(maxrsss)
-                # Intersection solutions.
-                #inters = list(set_maxmacs - (set_maxmacs&set(keyaps)))
-                idxs_inters = [ maxmacs.index(elem) for elem in maxmacs if elem in keyaps ]
+                mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
+                idxs_inters = [ idx for idx,mac in enumerate(maxmacs) if mac in keyaps ]
                 mmacs = np.array(mmacs)[idxs_inters]
                 mrsss = np.array(mrsss)[idxs_inters]
             else: mmacs = maxmacs; mrsss = maxrsss
@@ -230,23 +215,24 @@ def main():
             if verbose is True: print '  mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
             keyrsss = keyrsss.take(idxs_taken, axis=1)
         else: mrsss = maxrsss
+
         # Euclidean dist solving and sorting.
-        rss_dist = ( mrsss - keyrsss )**2
-        sum_rss = rss_dist.sum(axis=1)
+        # min_spids: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
+        #  min_sums: [ min_sum1, min_sum2, ... ]
+        sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
         print 'sum_rss: %s' % sum_rss
         idx_min = sum_rss.argmin()
-        min_spids.append(list(keycfps[idx_min]))
-        min_sums.append(sum_rss[idx_min])
+        min_spids.append( list(keycfps[idx_min]) )
+        min_sums.append( sum_rss[idx_min] )
         print '-'*35
 
 
     if len(min_spids) > 1:
         idxs_kmin = np.argsort(min_sums)[:KNN]
-        min_spids = np.array(min_spids).reshape(-1,5)
-        print 'dists: '; print np.array(min_sums)[idxs_kmin,:-1]
-        print 'locations: '; print min_spids[idxs_kmin,:-1]
-    else:
-        print 'location: %s' % min_spids[0][:-1]
+        min_spids = np.array(min_spids)[:,:-1]
+        print 'dists: '; print np.array(min_sums)[idxs_kmin]
+        print 'locations: '; print min_spids[idxs_kmin]
+    else: print 'location:\n%s' % min_spids[0][:-1]
 
     cursor.close()
     conn.close()
