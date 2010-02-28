@@ -4,6 +4,7 @@ RMPSUFFIX = '.rmp'
 #INTERSIZE = 10
 CLUSTERKEYSIZE = 4
 KNN = 4
+KWIN = 1.25
 
 # DB related configuration.
 db_config = {

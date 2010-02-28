@@ -3,7 +3,7 @@ from __future__ import division
 import os,sys,getopt,string,errno
 from WLAN import scanWLAN_OS#, scanWLAN_RE
 from pprint import pprint,PrettyPrinter
-from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE
+from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 #from address import addr_book
 
 
@@ -88,8 +88,13 @@ def main():
             print 'For more information, please use \'-h/--help\'.'
             sys.exit(99)
     else:           # CMRI or Home
-        addrid = fake
-        wlan = WLAN_FAKE[addrid]
+        #addrid = fake
+        try:
+            wlan = WLAN_FAKE[fake]
+        except KeyError, e:
+            print "\nError(%s): Illegal WLAN fake ID: '%d'!" % (e, fake) 
+            print "Supported IDs: %s" % WLAN_FAKE.keys()
+            sys.exit(99)
     # Address book init.
     #addr = addr_book[addrid]
 
@@ -109,7 +114,8 @@ def main():
     # Necessary for different list comprehension for maxmacs and maxrsss.
     # TBE:tobe explained.
     maxmacs = list(wlan[0,maxidx])
-    maxrsss = [ string.atoi(rss) for rss in rsss[maxidx] ]
+    #maxrsss = [ string.atoi(rss) for rss in rsss[maxidx] ]
+    maxrsss = rsss[maxidx].astype(int)
     print 'maxmacs:'; pp.pprint(maxmacs)
     print 'maxrsss: %s' % maxrsss
 
@@ -150,7 +156,7 @@ def main():
     # lst_NOInter: list of number of intersect APs between visible APs and all clusters.
     #       maxNI: the maximum element of lst_NOInter.
     # idxs_maxNOInter: list of indices of cids/topaps with largest intersect AP set.
-    # keys: ID and key APs of matched cluster(s) with max intersect APs between offline & online FPs.
+    # keys: ID and key APs of matched cluster(s) with max intersect APs.
     lst_NOInter = np.array([ len(set_maxmacs & set(aps)) for aps in topaps ])
     idxs_sortedNOInter = np.argsort( lst_NOInter )
     maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
@@ -175,8 +181,8 @@ def main():
     if verbose is True: pp.pprint(keys)
 
 
-    # min_spids: [ [cid, spid, lat, lon, rsss], ... ]
-    # min_sums: [ minsum1, minsum2, ... ]
+    # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
+    #  min_sums: [ minsum1, minsum2, ... ]
     min_spids = []; min_sums = []
     print '='*35
     for cid,keyaps in keys:
@@ -196,14 +202,14 @@ def main():
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
 
-        # Fast fix when the ONLY 1 cid selected in 'cidaps' has 1 spid selected in 'cfps'.
+        # Fast fix when the ONLY 1 selected cid has ONLY 1 spid selected in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
             min_spids = [ list(keycfps[0]) ]
             break
-        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfprints.tbl
+        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
 
-        # Rearrange key MACs/RSSs in 'keyrsss' in according to intersection set 'keyaps'.
+        # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
         if interpart_offline is True:
             if interpart_online is True:
                 mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
@@ -227,12 +233,35 @@ def main():
         print '-'*35
 
 
+    # Location estimation.
     if len(min_spids) > 1:
+        # KNN
         idxs_kmin = np.argsort(min_sums)[:KNN]
-        min_spids = np.array(min_spids)[:,:-1]
-        print 'dists: '; print np.array(min_sums)[idxs_kmin]
-        print 'locations: '; print min_spids[idxs_kmin]
-    else: print 'location:\n%s' % min_spids[0][:-1]
+        sorted_sums = np.array(min_sums)[idxs_kmin]
+        sorted_spids = np.array(min_spids)[idxs_kmin,:-1]
+        if verbose is True:
+            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
+        # DKNN
+        idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN)
+        dknn_sums = sorted_sums[:idx_dkmin]
+        dknn_spids = sorted_spids[:idx_dkmin]
+        #print 'dknn kwin: %s' % str(sorted_sums[0]*KWIN)
+        print 'dk-dists: \n%s' % dknn_sums
+        print 'dk-locations: \n%s' % dknn_spids
+        # Weighted_AVG_DKNN.
+        if len(dknn_spids) > 1:
+            coors = dknn_spids[:,2:].astype(float)
+            weights = np.reciprocal(dknn_sums)
+            posfix = np.average(coors, axis=0, weights=weights)
+            if verbose is True: print 'coors: \n%s\nweights: %s' % (coors, w)
+            print 'avg_location: \n%s' % posfix
+        else: posfix = dknn_spids[0][2:]
+    else: 
+        min_spids = min_spids[0][:-1]
+        print 'location:\n%s' % min_spids
+        posfix = min_spids[2:]
+
+    print 'final posfix: \n%s' % posfix
 
     cursor.close()
     conn.close()

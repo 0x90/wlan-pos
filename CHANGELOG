@@ -86,3 +86,8 @@
 2010-02-26
     1) Add dumb test in run script with support for redirecting stdout, stderr to different logs.
     2) Mod fake WLAN_FAKE id.
+2010-02-27
+    1) Add exception handling for key looking up in dict WLAN_FAKE.
+2010-02-28
+    1) Mod solution of maxrsss thru array.astype(int) instead of list comprehension.
+    2) Opt DKNN location fix process.
