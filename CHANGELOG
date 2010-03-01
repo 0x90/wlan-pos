@@ -92,4 +92,6 @@
     1) Mod solution of maxrsss thru array.astype(int) instead of list comprehension.
     2) Opt DKNN location fix process.
 2010-03-01
-    1) Add functionalization for getWLAN(). Combine maxmacs/maxrsss into one array:wlan.
+	1) Fix CLUSTERKEYSIZE restriction on the number of offline visible APs.
+    2) Add functionalization for getWLAN(). Combine maxmacs/maxrsss into one array:wlan.
+	3) Fix date/timestamp fusion, fakegps init value and option error in run.

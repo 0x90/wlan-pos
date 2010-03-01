@@ -30,6 +30,7 @@ example:
     #online.py -f 1 -v 
 """ % time.strftime('%Y')
 
+
 def getWLAN(fake=0):
     """
     return: 
@@ -71,8 +72,7 @@ def getWLAN(fake=0):
 
 
 def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 
+    try: opts, args = getopt.getopt(sys.argv[1:], 
             # NO backward compatibility for file handling, so the relevant 
             # methods(os,pprint)/parameters(addr_book,XXXPATH) 
             # imported from standard or 3rd-party modules can be avoided.
@@ -187,8 +187,7 @@ def main():
     min_spids = []; min_sums = []
     print '='*35
     for cid,keyaps in keys:
-        try:
-            # Returns values identified by field name(or field order if no arg).
+        try: # Returns values identified by field name(or field order if no arg).
             table = tbl_names['cfps']
             state_where = 'cid = %s' % cid
             print 'select %s from table %s' % (state_where, table)
@@ -205,8 +204,7 @@ def main():
 
         # Fast fix when the ONLY 1 selected cid has ONLY 1 spid selected in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
-            min_spids = [ list(keycfps[0]) ]
-            break
+            min_spids = [ list(keycfps[0]) ]; break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
 

@@ -7,8 +7,9 @@ aio=0
 start_spid=1
 stop_spid=1
 runtimes=60
-fakegps=1
+fakegps=0
 nstop=0
+dumbtest=0
 dtest_times=200
 
 pathout=log/out
@@ -47,7 +48,7 @@ OPTION:
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
 -n     non-stop automated offline calibration
--r     number of samples for each spid(default: 30)
+-r     number of samples for each spid(default: 60)
 -t     stop spid number(included)(default: 1)
 -v     show version information
 
@@ -75,8 +76,6 @@ while getopts "adf:ghn:or:t:v" opt; do
         n ) 
             nstop=1 
 			cnt=$OPTARG
-            offopts="-v"
-            #offopts="-v -f"
         ;;
         r ) runtimes=$OPTARG ;;
         t ) stop_spid=$OPTARG ;;
@@ -92,13 +91,14 @@ done
 #echo "Left overs: $@"
 #exit 0
 
-date=`date +%Y-%m%d-%H%M`
+date=`date +%Y-%m%d`
+timestamp=`date +%Y-%m%d-%H%M`
 
 if [ $dumbtest -eq 1 ]; then
     [ -d $patherr ] || mkdir -p $patherr
     [ -d $pathout ] || mkdir -p $pathout
-    errfile=$patherr/dumbtest-$date.err
-    outfile=$pathout/dumbtest-$date.out
+    errfile=$patherr/dumbtest-$timestamp.err
+    outfile=$pathout/dumbtest-$timestamp.out
     for i in $(seq $dtest_times) 
     do
         echo "test $i"
@@ -119,7 +119,14 @@ if [ $nstop -eq 1 ]; then
         echo " $opt"
         if [ "$opt" != "n" -a "$opt" != "N" ]; then
             goon=1
-            sudo $offline $offopts -s $runtimes -i $cnt
+			echo "Sampling Point [$cnt]"
+			if [ $fakegps -eq 1 ]; then
+				offopts="-v -f" # Fake GPS
+				$offline $offopts -s $runtimes -i $cnt
+			else
+				offopts="-v"
+				sudo $offline $offopts -s $runtimes -i $cnt
+			fi
 			[ $? -eq 0 ] || exit 99
 
             spidfmt=`printf '%06d' $cnt`
@@ -134,8 +141,8 @@ if [ $nstop -eq 1 ]; then
     done
 
     echo -e "\nRenaming tbl files to be ready for clustering...\n"
-	[ -f tbl/cidaps.tbl ] && mv -f tbl/cidaps.tbl tbl/cidaps-$date.tbl.bak
-	[ -f tbl/cfprints.tbl ] && mv -f tbl/cfprints.tbl tbl/cfprints-$date.tbl.bak
+	[ -f tbl/cidaps.tbl ] && mv -f tbl/cidaps.tbl tbl/cidaps-$timestamp.tbl.bak
+	[ -f tbl/cfprints.tbl ] && mv -f tbl/cfprints.tbl tbl/cfprints-$timestamp.tbl.bak
 
     echo -e "\nClustering...\n"
     rmpfilename=$date.rmp
@@ -147,7 +154,7 @@ fi
 
 exit 0
 
-[ $fakegps = 1 ] && offopts="-v -f" || offopts="-v "
+[ $fakegps -eq 1 ] && offopts="-v -f" || offopts="-v "
 onopts="-v "
 #onopts="-v -a 2"
 

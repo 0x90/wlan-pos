@@ -27,7 +27,8 @@ def getRaw():
     #wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
     #wlan = [ [] ]
     # judging whether the number of scanned wlan APs more than 4 is for clustering.
-    if wlan and (len(wlan) >= CLUSTERKEYSIZE): num_fields = len(wlan[0])
+    #if wlan and (len(wlan) >= CLUSTERKEYSIZE): num_fields = len(wlan[0])
+    if wlan: num_fields = len(wlan[0])
     else: return rawdata
 
     # Raw data: time, lat, lon, mac1|mac2, rss1|rss2
@@ -108,7 +109,7 @@ def Fingerprint(rawfile):
     ary_fp = np.array(keys + mrss).reshape(2,-1)
     # The default ascending order of argsort() seems correct for finding max-rss macs here, 
     # because the respective sorted orders for strings and numbers are opposite.
-    ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:CLUSTERKEYSIZE] ]
+    ary_fp = ary_fp[ :, np.argsort(ary_fp[1]) ]#[:CLUSTERKEYSIZE] ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     print 'Unclustered fingerprint at sampling point [%d]: ' % spid
@@ -452,6 +453,7 @@ def main():
             rawdata.insert(0, spid)
             # Rawdata Integrity check,
             # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
+            print rawdata
             if len(rawdata) == 6: 
                 if verbose is True: 
                     pp.pprint(rawdata)
@@ -476,7 +478,7 @@ def main():
                 date = strftime('%Y-%m%d')
                 rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
                 dumpCSV(rfilename, rawdata)
-            print '-'*65
+            print '-'*50
         #Scan Summary
         print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
 

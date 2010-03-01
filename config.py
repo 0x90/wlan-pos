@@ -11,7 +11,7 @@ db_config = {
     'hostname' : 'localhost',
     'username' : 'pos',
     'password' : 'pos',
-    'dbname' : 'wlanpos' }
+      'dbname' : 'wlanpos' }
 # SQL table related data structs.
 tbl_names = { 'cidaps':'cidaps', 
                 'cfps':'cfps' }

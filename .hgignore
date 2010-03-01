@@ -1,6 +1,7 @@
 syntax: glob
 *.swp
 *.backup
+*.bak
 *.orig
 *~
 *.pyc
