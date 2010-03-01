@@ -156,9 +156,10 @@ def scanWLAN_OS():
     """
     return: return errno.EPERM(1) if WLAN resource access(fcntl.ioctl) not permitted. 
     """
+    ifname = 'wlan0'
     datastr = struct.pack("Pii", 0, 0, 0)
     # SIOCSIWSCAN
-    status, result = syscall('wlan0', 0x8B18, datastr)
+    status, result = syscall(ifname, 0x8B18, datastr)
     if result == errno.EPERM: return result
 
     repack = False
@@ -169,7 +170,7 @@ def scanWLAN_OS():
             buff, datastr = pack_wrq(bufflen)
         try:
             # SIOCGIWSCAN
-            status, result = syscall('wlan0', 0x8B19, datastr)
+            status, result = syscall(ifname, 0x8B19, datastr)
         except IOError, (err_no, err_str):
             if err_no == errno.E2BIG: #7
                 print 'WLAN scannnig: %s, resizing buffer...' % err_str

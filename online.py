@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 from __future__ import division
 import os,sys,getopt,string,errno
-from WLAN import scanWLAN_OS#, scanWLAN_RE
 from pprint import pprint,PrettyPrinter
-from config import KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
+import numpy as np
+import MySQLdb
+from WLAN import scanWLAN_OS#, scanWLAN_RE
+from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE, \
+        KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 #from address import addr_book
 
 
@@ -27,6 +30,45 @@ example:
     #online.py -f 1 -v 
 """ % time.strftime('%Y')
 
+def getWLAN(fake=0):
+    """
+    return: 
+    1) 2-row array *scannedwlan* consists of MACs and RSSs of all visible APs.
+    2) length of scannedwlan.
+    """
+    if fake == 0:   # True WLAN scan.
+        #scannedwlan = scanWLAN_RE()
+        scannedwlan = scanWLAN_OS()
+        if scannedwlan == errno.EPERM: # fcntl.ioctl() not permitted.
+            print 'For more information, please use \'-h/--help\'.'
+            sys.exit(99)
+    else:           # CMRI or Home.
+        #addrid = fake
+        try: scannedwlan = WLAN_FAKE[fake]
+        except KeyError, e:
+            print "\nError(%s): Illegal WLAN fake ID: '%d'!" % (e, fake) 
+            print "Supported IDs: %s" % WLAN_FAKE.keys()
+            sys.exit(99)
+    # Address book init.
+    #addr = addr_book[addrid]
+
+    len_scanAP = len(scannedwlan)
+    print 'Online visible APs: %d' % len_scanAP
+    if len(scannedwlan) == 0: sys.exit(0)   
+    #if verbose == True: pp.pprint(scannedwlan)
+
+    INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
+    # All integers in rss field returned by scanWLAN_OS() 
+    # are implicitly converted to strings during np.array(scannedwlan).
+    scannedwlan = np.array(scannedwlan).T
+    idxs_max = np.argsort(scannedwlan[1])[:INTERSET]
+    # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
+    scannedwlan = scannedwlan[:,idxs_max]
+    if verbose is True: pp.pprint(scannedwlan)
+    else: print scannedwlan
+
+    return (len_scanAP, scannedwlan)
+
 
 def main():
     try:
@@ -46,8 +88,8 @@ def main():
     # global vars init.
     times = 0; rmpfile = None; tfail = 0
     interpart_offline = False; interpart_online = False
-    #global verbose,pp,fake, addrid
-    verbose = False; fake = 0; #addrid = 1; pp = None;
+    global verbose, wlanfake, pp#, addrid
+    verbose = False; wlanfake = 0; pp = None#;addrid = 1
 
     for o,a in opts:
         if o in ("-a", "--address"):
@@ -61,8 +103,8 @@ def main():
             sys.exit(99)
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
-                fake = string.atoi(a)
-                if fake >= 0: continue
+                wlanfake = string.atoi(a)
+                if wlanfake >= 0: continue
                 else: pass
             else: pass
             print '\nIllegal fake WLAN scan ID: %s!' % a
@@ -73,62 +115,23 @@ def main():
             sys.exit(0)
         elif o in ("-v", "--verbose"):
             verbose = True
-            #pp = PrettyPrinter(indent=2)
+            pp = PrettyPrinter(indent=2)
         else:
             print 'Parameter NOT supported: %s' % o
             usage()
             sys.exit(99)
 
-    pp = PrettyPrinter(indent=2)
 
-    if fake == 0:   # True WLAN scan.
-        #wlan = scanWLAN_RE()
-        wlan = scanWLAN_OS()
-        if wlan == errno.EPERM: 
-            print 'For more information, please use \'-h/--help\'.'
-            sys.exit(99)
-    else:           # CMRI or Home
-        #addrid = fake
-        try:
-            wlan = WLAN_FAKE[fake]
-        except KeyError, e:
-            print "\nError(%s): Illegal WLAN fake ID: '%d'!" % (e, fake) 
-            print "Supported IDs: %s" % WLAN_FAKE.keys()
-            sys.exit(99)
-    # Address book init.
-    #addr = addr_book[addrid]
-
-    len_scanAP = len(wlan)
-    print 'Online visible APs: %d' % len_scanAP
-    if len(wlan) == 0: sys.exit(0)   
-    if verbose == True: pp.pprint(wlan)
-
-    INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
-
-    import numpy as np
-    # All integers in rss field returned by scanWLAN_OS() 
-    # are converted to strings during np.array(wlan).
-    wlan = np.array(wlan).T
-    rsss = wlan[1]
-    maxidx = np.argsort(rsss)[:INTERSET]
-    # Necessary for different list comprehension for maxmacs and maxrsss.
-    # TBE:tobe explained.
-    maxmacs = list(wlan[0,maxidx])
-    #maxrsss = [ string.atoi(rss) for rss in rsss[maxidx] ]
-    maxrsss = rsss[maxidx].astype(int)
-    print 'maxmacs:'; pp.pprint(maxmacs)
-    print 'maxrsss: %s' % maxrsss
+    # get WLAN scanning results.
+    len_wlan, wlan = getWLAN(wlanfake)
 
 
-    import MySQLdb
-    from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE
-    try:
-        conn = MySQLdb.connect(host = db_config['hostname'], 
-                               user = db_config['username'], 
-                             passwd = db_config['password'], 
-                                 db = db_config['dbname'], 
-                           compress = 1)
-                        #cursorclass = MySQLdb.cursors.DictCursor)
+    try: conn = MySQLdb.connect(host = db_config['hostname'], 
+                                user = db_config['username'], 
+                              passwd = db_config['password'], 
+                                  db = db_config['dbname'], 
+                            compress = 1)
+                         #cursorclass = MySQLdb.cursors.DictCursor)
     except MySQLdb.Error,e:
         print "\nCan NOT connect %s@server: %s!" % (username, hostname)
         print "Error(%d): %s" % (e.args[0], e.args[1])
@@ -149,9 +152,8 @@ def main():
     #   cids: ['cid1', 'cid2', ...]
     # topaps: [['mac11', 'mac12', ...], ['mac21', 'mac22', ...], ...]
     cidaps = np.char.array(cidaps)
-    cids = cidaps[:,0]
-    topaps = cidaps[:,1].split('|')
-    set_maxmacs = set(maxmacs)
+    cids = cidaps[:,0]; topaps = cidaps[:,1].split('|')
+    set_maxmacs = set(wlan[0])
 
     # lst_NOInter: list of number of intersect APs between visible APs and all clusters.
     #       maxNI: the maximum element of lst_NOInter.
@@ -167,8 +169,8 @@ def main():
         # size of intersection set < offline key AP set size:4, 
         # only keymacs/keyrsss (not maxmacs/maxrsss) need to be cut down.
         interpart_offline = True
-        if maxNI < len_scanAP:
-            # size of intersection set < online AP set size:len_scanAP, 
+        if maxNI < len_wlan: #TODO: TBE.
+            # size of intersection set < online AP set size:len_wlan < CLUSTERKEYSIZE, 
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
             import copy as cp
@@ -177,7 +179,6 @@ def main():
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
-
     if verbose is True: pp.pprint(keys)
 
 
@@ -212,15 +213,12 @@ def main():
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
         if interpart_offline is True:
             if interpart_online is True:
-                mmacs = cp.deepcopy(maxmacs); mrsss = cp.deepcopy(maxrsss)
-                idxs_inters = [ idx for idx,mac in enumerate(maxmacs) if mac in keyaps ]
-                mmacs = np.array(mmacs)[idxs_inters]
-                mrsss = np.array(mrsss)[idxs_inters]
-            else: mmacs = maxmacs; mrsss = maxrsss
-            idxs_taken = [ keyaps.index(x) for x in mmacs ]
-            if verbose is True: print '  mmacs: %s\tmrsss: %s' % (mmacs, mrsss)
+                wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
+                idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
+                wlan = wl[:,idxs_inters]
+            idxs_taken = [ keyaps.index(x) for x in wlan[0] ]
             keyrsss = keyrsss.take(idxs_taken, axis=1)
-        else: mrsss = maxrsss
+        mrsss = wlan[1].astype(int)
 
         # Euclidean dist solving and sorting.
         # min_spids: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
@@ -245,15 +243,13 @@ def main():
         idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN)
         dknn_sums = sorted_sums[:idx_dkmin]
         dknn_spids = sorted_spids[:idx_dkmin]
-        #print 'dknn kwin: %s' % str(sorted_sums[0]*KWIN)
-        print 'dk-dists: \n%s' % dknn_sums
-        print 'dk-locations: \n%s' % dknn_spids
+        print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_spids)
         # Weighted_AVG_DKNN.
         if len(dknn_spids) > 1:
             coors = dknn_spids[:,2:].astype(float)
             weights = np.reciprocal(dknn_sums)
             posfix = np.average(coors, axis=0, weights=weights)
-            if verbose is True: print 'coors: \n%s\nweights: %s' % (coors, w)
+            if verbose is True: print 'coors: \n%s\nweights: %s' % (coors, weights)
             print 'avg_location: \n%s' % posfix
         else: posfix = dknn_spids[0][2:]
     else: 
@@ -417,6 +413,7 @@ if __name__ == "__main__":
     try:
         import psyco
         psyco.bind(scanWLAN_OS)
+        psyco.bind(getWLAN)
         #psyco.full()
         #psyco.log()
         #psyco.profile(0.3)
