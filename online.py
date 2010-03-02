@@ -226,7 +226,7 @@ def fixPos(len_wlan, wlan, verb=False):
             posfix = np.average(coors, axis=0, weights=weights)
             if verb is True: print 'coors: \n%s\nweights: %s' % (coors, weights)
             print 'avg_location: \n%s' % posfix
-        else: posfix = dknn_spids[:,2:]
+        else: posfix = dknn_spids[0][2:]
     else: 
         min_spids = min_spids[0][:-1]
         print 'location:\n%s' % min_spids

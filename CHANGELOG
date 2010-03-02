@@ -100,3 +100,4 @@
 	2) Add fixPos() with uniformed returned loc, peel off getWLAN(), and rm global vars in online module.
 	3) Add ExtGPS data source connection script: bt-dev-con.
 	4) Add pyc compileall option '-m' for run.
+	5) Update and Fix issue 16.

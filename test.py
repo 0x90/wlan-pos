@@ -95,10 +95,10 @@ def main():
 
     # Log the fixed and referenced positioning record.
     # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon ].
-    locline = [ time.strftime('%Y-%m%d-%M%S') ]
-    locline.append('|'.join(wifis[0]))
-    locline.extend(list(fixloc))
-    locline.extend(list(refloc))
+    timestamp = time.strftime('%Y-%m%d-%H%M')
+    visMACs = '|'.join(wifis[0])
+    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1] ]
+    print locline
 
     date = time.strftime('%Y-%m%d')
     locfilename = DATPATH + date + LOCSUFFIX
