@@ -10,16 +10,18 @@ btcomport=rfcomm$btcomportid
 btcomdev=/dev/$btcomport
 
 echo
-[ "`pskill -l $btdaemon`" = "" ] \
-	&& (echo "starting $btdaemon..."; sudo $btinit start) \
-	|| echo "$btdaemon running!"
+[ "`pskill -l $btdaemon`" = "" ] && (echo "starting $btdaemon..."; sudo $btinit start) || echo "$btdaemon running!"
 echo -e "\nScanning hci dev [$bt_dev_name]..."
 echo "------------------------------"
 bt_dev_mac=`hcitool scan |grep ${bt_dev_name} |awk '{print $1}'`
 channel=`sdptool search SP |grep Channel |awk '{print $2}'`
 
-[ "$bt_dev_mac" = "" -o "$channel" = "" ] && (echo "Failed! Exiting..."; exit 99)
-printf "%8s: %-20s\n%8s: %-20s\n\n" "MAC Addr" ${bt_dev_mac} "Channel" $channel
+if [ "$bt_dev_mac" = "" -o "$channel" = "" ]; then
+   	echo "Failed! Exiting..." 
+	exit 99 
+else 
+	printf "OK\n%8s: %-20s\n%8s: %-20s\n\n" "MAC Addr" ${bt_dev_mac} "Channel" $channel
+fi
 
 
 if [ "`ls $btcomdev 2> /dev/null`" = "$btcomdev" ]; then
