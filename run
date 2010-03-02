@@ -8,6 +8,7 @@ start_spid=1
 stop_spid=1
 runtimes=60
 fakegps=0
+makepyc=0
 nstop=0
 dumbtest=0
 dtest_times=200
@@ -47,6 +48,7 @@ OPTION:
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
+-m     make pyc files of *.py
 -n     non-stop automated offline calibration
 -r     number of samples for each spid(default: 60)
 -t     stop spid number(included)(default: 1)
@@ -65,7 +67,7 @@ HELP
 
 [ $# -eq 0 ] && Usage
 #x=1   # Avoids an error if we get no options at all.
-while getopts "adf:ghn:or:t:v" opt; do
+while getopts "adf:ghmn:or:t:v" opt; do
     OPTERR=0 #error msg shutup
     case $opt in
         a ) aio=1 ;;
@@ -73,6 +75,7 @@ while getopts "adf:ghn:or:t:v" opt; do
         f ) start_spid=$OPTARG ;;
         g ) fakegps=1 ;;
         h ) Usage ;;
+        m ) makepyc=1 ;;
         n ) 
             nstop=1 
 			cnt=$OPTARG
@@ -150,6 +153,15 @@ if [ $nstop -eq 1 ]; then
 
     echo -e "\nUpload SQL tables...\n"
     #$offline -u 1
+fi
+
+
+if [ $makepyc -eq 1 ]; then
+	rm -f *.pyc 2>/dev/null
+    compileall_file=`locate compileall.py |grep -v pyc`
+    [ "${compileall_file##*/}" = "compileall.py" ] && echo "Found: $compileall_file" ||\
+         compileall_file="$PYTHONPATH/../compileall.py"
+    python $compileall_file .
 fi
 
 exit 0

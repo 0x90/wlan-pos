@@ -95,3 +95,8 @@
 	1) Fix CLUSTERKEYSIZE restriction on the number of offline visible APs.
     2) Add functionalization for getWLAN(). Combine maxmacs/maxrsss into one array:wlan.
 	3) Fix date/timestamp fusion, fakegps init value and option error in run.
+2010-03-02
+	1) Add test module for verification of algo performance.
+	2) Add fixPos() with uniformed returned loc, peel off getWLAN(), and rm global vars in online module.
+	3) Add ExtGPS data source connection script: bt-dev-con.
+	4) Add pyc compileall option '-m' for run.

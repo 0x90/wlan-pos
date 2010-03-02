@@ -272,13 +272,10 @@ def dumpCSV(csvfile, content):
     """
     Appendding csv-formed content line(s) into csvfile.
     """
-    if not content:
-        print 'Null: %s!' % content
-        sys.exit(99)
+    if not content: print 'dumpCSV: Null content!'; sys.exit(99)
     print 'Dumping data to %s' % csvfile
     csvout = csv.writer( open(csvfile,'a') )
-    if not isinstance(content[0], list):
-        content = [ content ]
+    if not isinstance(content[0], list): content = [ content ]
     csvout.writerows(content)
 
 

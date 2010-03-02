@@ -1,6 +1,7 @@
 DATPATH = 'dat/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
+LOCSUFFIX = '.loc'
 #INTERSIZE = 10
 CLUSTERKEYSIZE = 4
 KNN = 4

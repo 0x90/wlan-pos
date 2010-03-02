@@ -33,9 +33,17 @@ example:
 
 def getWLAN(fake=0):
     """
-    return: 
-    1) 2-row array *scannedwlan* consists of MACs and RSSs of all visible APs.
-    2) length of scannedwlan.
+    Returns the number and corresponding MAC/RSS info of online visible APs.
+    
+    Parameters
+    ----------
+    fake: fake WLAN scan option, int, default: 0
+        Use old WLAN scanned data stored in WLAN_FAKE if valid value is taken.
+    
+    Returns
+    -------
+    (len_scanAP, scannedwlan): tuple, (int, array)
+        Number and corresponding MAC/RSS info of online visible APs in tuple.
     """
     if fake == 0:   # True WLAN scan.
         #scannedwlan = scanWLAN_RE()
@@ -56,7 +64,6 @@ def getWLAN(fake=0):
     len_scanAP = len(scannedwlan)
     print 'Online visible APs: %d' % len_scanAP
     if len(scannedwlan) == 0: sys.exit(0)   
-    #if verbose == True: pp.pprint(scannedwlan)
 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
     # All integers in rss field returned by scanWLAN_OS() 
@@ -65,65 +72,35 @@ def getWLAN(fake=0):
     idxs_max = np.argsort(scannedwlan[1])[:INTERSET]
     # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
     scannedwlan = scannedwlan[:,idxs_max]
-    if verbose is True: pp.pprint(scannedwlan)
-    else: print scannedwlan
+    print scannedwlan
 
     return (len_scanAP, scannedwlan)
 
 
-def main():
-    try: opts, args = getopt.getopt(sys.argv[1:], 
-            # NO backward compatibility for file handling, so the relevant 
-            # methods(os,pprint)/parameters(addr_book,XXXPATH) 
-            # imported from standard or 3rd-party modules can be avoided.
-            "a:f:hv",
-            ["address=","fake","help","verbose"])
-    except getopt.GetoptError:
-        print 'Error: getopt!\n'
-        usage(); sys.exit(99)
 
-    # Program terminated when NO argument followed!
-    #if not opts: usage(); sys.exit(0)
-
-    # global vars init.
-    times = 0; rmpfile = None; tfail = 0
+def fixPos(len_wlan, wlan, verb=False):
+    """
+    Returns the online fixed user location in lat/lon format.
+    
+    Parameters
+    ----------
+    len_wlan: int, mandatory
+        Number of online visible WLAN APs.
+    wlan: np.array, string list, mandatory
+        Array of MAC/RSS for online visible APs.
+        e.g. [['00:15:70:9E:91:60' '00:15:70:9E:91:61' '00:15:70:9E:91:62' '00:15:70:9E:6C:6C']
+              ['-55' '-56' '-57' '-68']]. 
+    verb: verbose mode option, default: False
+        More debugging info if enabled(True).
+    
+    Returns
+    -------
+    posfix: np.array, float
+        Final fixed location(lat, lon).
+        e.g. [ 39.922942  116.472673 ]
+    """
     interpart_offline = False; interpart_online = False
-    global verbose, wlanfake, pp#, addrid
-    verbose = False; wlanfake = 0; pp = None#;addrid = 1
-
-    for o,a in opts:
-        if o in ("-a", "--address"):
-            if a.isdigit(): 
-                addrid = string.atoi(a)
-                if 1 <= addrid <= 2: continue
-                else: pass
-            else: pass
-            print '\nIllegal address id: %s!' % a
-            usage()
-            sys.exit(99)
-        elif o in ("-f", "--fake"):
-            if a.isdigit(): 
-                wlanfake = string.atoi(a)
-                if wlanfake >= 0: continue
-                else: pass
-            else: pass
-            print '\nIllegal fake WLAN scan ID: %s!' % a
-            usage()
-            sys.exit(99)
-        elif o in ("-h", "--help"):
-            usage()
-            sys.exit(0)
-        elif o in ("-v", "--verbose"):
-            verbose = True
-            pp = PrettyPrinter(indent=2)
-        else:
-            print 'Parameter NOT supported: %s' % o
-            usage()
-            sys.exit(99)
-
-
-    # get WLAN scanning results.
-    len_wlan, wlan = getWLAN(wlanfake)
+    if verb is True: pp = PrettyPrinter(indent=2)
 
 
     try: conn = MySQLdb.connect(host = db_config['hostname'], 
@@ -179,7 +156,7 @@ def main():
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
-    if verbose is True: pp.pprint(keys)
+    if verb is True: pp.pprint(keys)
 
 
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
@@ -197,7 +174,7 @@ def main():
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        if verbose is True:
+        if verb is True:
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
@@ -235,7 +212,7 @@ def main():
         idxs_kmin = np.argsort(min_sums)[:KNN]
         sorted_sums = np.array(min_sums)[idxs_kmin]
         sorted_spids = np.array(min_spids)[idxs_kmin,:-1]
-        if verbose is True:
+        if verb is True:
             print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
         # DKNN
         idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN)
@@ -247,18 +224,71 @@ def main():
             coors = dknn_spids[:,2:].astype(float)
             weights = np.reciprocal(dknn_sums)
             posfix = np.average(coors, axis=0, weights=weights)
-            if verbose is True: print 'coors: \n%s\nweights: %s' % (coors, weights)
+            if verb is True: print 'coors: \n%s\nweights: %s' % (coors, weights)
             print 'avg_location: \n%s' % posfix
-        else: posfix = dknn_spids[0][2:]
+        else: posfix = dknn_spids[:,2:]
     else: 
         min_spids = min_spids[0][:-1]
         print 'location:\n%s' % min_spids
-        posfix = min_spids[2:]
-
-    print 'final posfix: \n%s' % posfix
+        posfix = np.array(min_spids[2:])
 
     cursor.close()
     conn.close()
+
+    return posfix.astype(float)
+
+
+
+def main():
+    try: opts, args = getopt.getopt(sys.argv[1:], 
+            # NO backward compatibility for file handling, so the relevant 
+            # methods(os,pprint)/parameters(addr_book,XXXPATH) 
+            # imported from standard or 3rd-party modules can be avoided.
+            "a:f:hv",
+            ["address=","fake","help","verbose"])
+    except getopt.GetoptError:
+        print 'Error: getopt!\n'
+        usage(); sys.exit(99)
+
+    # Program terminated when NO argument followed!
+    #if not opts: usage(); sys.exit(0)
+
+    # vars init.
+    verbose = False; wlanfake = 0
+
+    for o,a in opts:
+        if o in ("-a", "--address"):
+            if a.isdigit(): 
+                addrid = string.atoi(a)
+                if 1 <= addrid <= 2: continue
+                else: pass
+            else: pass
+            print '\nIllegal address id: %s!' % a
+            usage(); sys.exit(99)
+        elif o in ("-f", "--fake"):
+            if a.isdigit(): 
+                wlanfake = string.atoi(a)
+                if wlanfake >= 0: continue
+                else: pass
+            else: pass
+            print '\nIllegal fake WLAN scan ID: %s!' % a
+            usage(); sys.exit(99)
+        elif o in ("-h", "--help"):
+            usage(); sys.exit(0)
+        elif o in ("-v", "--verbose"):
+            verbose = True
+        else:
+            print 'Parameter NOT supported: %s' % o
+            usage(); sys.exit(99)
+
+
+    # Get WLAN scanning results.
+    len_visAPs, wifis = getWLAN(wlanfake)
+
+    # Fix current position.
+    latlon = fixPos(len_visAPs, wifis, verbose)
+    print 'final posfix: \n%s' % latlon
+
     sys.exit(0)
 
 
@@ -412,6 +442,7 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(scanWLAN_OS)
         psyco.bind(getWLAN)
+        psyco.bind(fixPos)
         #psyco.full()
         #psyco.log()
         #psyco.profile(0.3)

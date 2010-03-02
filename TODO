@@ -2,7 +2,6 @@ MUST
 add  test module for online location fingerprinting(logging).
 add  ssid.py for 1-1 mapping MAC and essid name.
 mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
-mod  Reduce the number of global vars (cos it's slow).
 mod  Increamental DB table records upload.
 --------
 fix  when online top4 RSS values correspond to more than 4 MACs.
