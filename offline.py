@@ -109,7 +109,7 @@ def Fingerprint(rawfile):
     ary_fp = np.array(keys + mrss).reshape(2,-1)
     # The default ascending order of argsort() seems correct for finding max-rss macs here, 
     # because the respective sorted orders for strings and numbers are opposite.
-    ary_fp = ary_fp[ :, np.argsort(ary_fp[1]) ]#[:CLUSTERKEYSIZE] ]
+    ary_fp = ary_fp[ :, np.argsort(ary_fp[1])[:CLUSTERKEYSIZE] ]
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     print 'Unclustered fingerprint at sampling point [%d]: ' % spid
@@ -133,7 +133,7 @@ def genKMLfile(cfpsfile):
     """
     cfpsin = csv.reader( open(cfpsfile,'r') )
     cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
-    cfps = [ [[c[2], c[3], '%s-%s'%(c[0],c[1])]] for c in cfps ]
+    cfps = [ [[ c[2], c[3], '%s-%s'%(c[0],c[1]) ]] for c in cfps ]
     if verbose is True: pp.pprint(cfps)
     else: print cfps
     kfile = 'kml/ap.kml'
