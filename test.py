@@ -6,7 +6,8 @@ import numpy as np
 from offline import dumpCSV
 from online import fixPos, getWLAN
 from GPS import getGPS
-from config import WLAN_FAKE, DATPATH, LOCSUFFIX
+from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS
+from GEO import dist_on_unitshpere
 
 
 def usage():
@@ -32,9 +33,6 @@ example:
 
 def main():
     try: opts, args = getopt.getopt(sys.argv[1:], 
-            # NO backward compatibility for file handling, so the relevant 
-            # methods(os,pprint)/parameters(addr_book,XXXPATH) 
-            # imported from standard or 3rd-party modules can be avoided.
             "a:f:hv",
             ["address=","fake","help","verbose"])
     except getopt.GetoptError:
@@ -44,7 +42,6 @@ def main():
     # Program terminated when NO argument followed!
     #if not opts: usage(); sys.exit(0)
 
-    # Global vars init.
     verbose = False; wlanfake = 0
 
     for o,a in opts:
@@ -87,17 +84,20 @@ def main():
 
     # Fix current position.
     fixloc = fixPos(len_visAPs, wifis, verbose)
+    #fixloc = [ 39.922848,116.472895 ]
     print 'fixed location: \n%s' % fixloc
 
     # Get GPS referenced Position.
     refloc = getGPS()
+    #refloc = [ 39.922948,116.472895 ]
     print 'referenced location: \n%s' % refloc
 
     # Log the fixed and referenced positioning record.
-    # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon ].
+    # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon, error(meter) ].
     timestamp = time.strftime('%Y-%m%d-%H%M')
     visMACs = '|'.join(wifis[0])
-    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1] ]
+    error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
+    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1], error ]
     print locline
 
     date = time.strftime('%Y-%m%d')

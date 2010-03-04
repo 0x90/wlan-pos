@@ -60,6 +60,10 @@ with fake GPS enabled), followed by online locationing.
 #run -a -g -f 1 -t 100 -r 60
 Offline WLAN data calibration, filtering, clustering and sql tabling continuously.
 #run -n <start_spid>
+Compile all *.py to *.pyc
+#run -m
+Dumbtest for stability
+#run -d
 
 HELP
 	exit 0

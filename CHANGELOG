@@ -101,3 +101,7 @@
 	3) Add ExtGPS data source connection script: bt-dev-con.
 	4) Add pyc compileall option '-m' for run.
 	5) Update and Fix issue 16.
+2010-03-04
+    1) Add distance calculation between refloc and fixloc in test module.
+	2) reAdd CLUSTERKEYSIZE limit on number of APs for radio map generation. 
+    3) Fix bt-dev-con grep bug.
