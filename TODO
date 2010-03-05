@@ -1,4 +1,5 @@
 MUST
+add  title field for mandatory section in KML module.
 add  distance between fixed and ref locs in test module.
 add  test module for online location fingerprinting(logging).
 add  ssid.py for 1-1 mapping MAC and essid name.
