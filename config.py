@@ -6,7 +6,7 @@ LOCSUFFIX = '.loc'
 CLUSTERKEYSIZE = 4
 KNN = 4
 KWIN = 1.25
-RADIUS = 6378*(10**3) #meter
+RADIUS = 6378137 #meter
 
 # DB related configuration.
 db_config = {
