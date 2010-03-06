@@ -8,10 +8,11 @@ def genKML(data, kmlfile, icons):
 
     Parameters
     ----------
-    data : [ [mandatory, optional],...] = [ [[lat,lon,desc], [mac,rss,noise,encrypt]],...],
+    data: [ [mandatory, optional], ... ] =
+           [ [[lat,lon,title,desc], [mac,rss,noise,encrypt]], ... ],
         "desc" is either description for physical address or bssid for WLAN AP.
-    kmlfile : abs path & filename.
-    icons : icons used for pinpointing, {'keyword':['"title"', iconfile]}.
+    kmlfile: abs path & filename.
+    icons: icons used for pinpointing, {'key':['"key fullname"', iconfile]}.
     """
     optional = 0
 
@@ -20,30 +21,15 @@ def genKML(data, kmlfile, icons):
     kmlout.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     kmlout.write('<kml xmlns="http://earth.google.com/kml/2.0">\n')
     kmlout.write('<Document>\n')
-    kmlout.write(' <Style id=%s> \n\
-                    <IconStyle>\n\
-                      <Icon>\n\
-                          <href>%s</href>\n\
-                      </Icon>\n\
-                    </IconStyle>\n\
-                  </Style>\n\
-                  <Style id=%s>\n\
-                    <IconStyle>\n\
-                      <Icon>\n\
-                          <href>%s</href>\n\
-                      </Icon>\n\
-                    </IconStyle>\n\
-                  </Style>\n\
-                  <Style id=%s>\n\
-                    <IconStyle>\n\
-                      <Icon>\n\
-                          <href>%s</href>\n\
-                      </Icon>\n\
-                    </IconStyle>\n\
-                  </Style>\n'
-                  % (icons['on'][0], icons['on'][1],
-                    icons['off'][0], icons['off'][1],
-                  icons['other'][0], icons['other'][1]) )
+    for type in icons:
+        kmlout.write(' <Style id=%s> \n\
+                        <IconStyle>\n\
+                          <Icon>\n\
+                              <href>%s</href>\n\
+                          </Icon>\n\
+                        </IconStyle>\n\
+                       </Style>\n'
+                  % (icons[type][0], icons[type][1]) )
     kmlout.write('<name>WLAN Locationing Mapping</name>\n')
     kmlout.write('<Folder>\n')
     kmlout.write('<name>Offline Calibration/Online Location</name>\n')
@@ -54,18 +40,18 @@ def genKML(data, kmlfile, icons):
         if len(line) == 2:
             optional = 1
             mac = line[1][0]; rss = line[1][1]; noise = line[1][2]; encrypt = line[1][3]
-        desc=line[0][2]; lat = line[0][0]; lon = line[0][1]
+        title=line[0][2]; desc=line[0][3]; lat = line[0][0]; lon = line[0][1]
         kmlout.write('\n')
         kmlout.write(' <Placemark>\n')
-        kmlout.write(' <name>%s</name>\n' % desc)
+        kmlout.write(' <name>%s</name>\n' % title)
         kmlout.write(' <description><![CDATA[\n\
                         <p style="font-size:8pt;font-family:monospace;">(%s, %s)</p>\n\
                         <ul>\n\
-                        <li> DESC: %s </li>\n'
+                        <li> %s </li>\n'
                         % (lon, lat, desc) )
         if optional == 1:
-            kmlout.write('<li> MACAddr: %s </li>\n\
-                         <li> Encrypt: %s </li>\n'
+            kmlout.write('<li> %s </li>\n\
+                         <li> %s </li>\n'
                          % (mac,encrypt) )
         kmlout.write('</ul> ]]>\n\
                        </description>\n')
@@ -97,10 +83,9 @@ def genKML(data, kmlfile, icons):
 if __name__ == "__main__":
     from config import dict_encrypt_icon
     from pprint import pprint
-    cwd = os.getcwd()
     #homedir = os.path.expanduser('~')
-    dict_encrypt_icon['on'][1] = cwd + dict_encrypt_icon['on'][1]
-    dict_encrypt_icon['off'][1] = cwd + dict_encrypt_icon['off'][1]
+    for type in dict_encrypt_icon:
+        dict_encrypt_icon[type][1] = os.getcwd() + dict_encrypt_icon[type][1]
 
     #try:
     #   filename = sys.argv[1]
@@ -112,6 +97,6 @@ if __name__ == "__main__":
     rawdat=[['00:24:01:FE:0F:20','-70','-127','on', 'CMCC','39.9229416667','116.472673167'], 
             ['00:24:01:FE:0F:21','-79','-127','off','CMRI','39.9228416667','116.472573167']]
 
-    dat = [ [[line[5], line[6], line[4]], [line[0], line[1], line[2], line[3]]] for line in rawdat ]
+    dat = [ [[line[5], line[6], line[4], line[4]], [line[0], line[1], line[2], line[3]]] for line in rawdat ]
     kfile = 'kml/ap.kml'
     genKML(data=dat, kmlfile=kfile, icons=dict_encrypt_icon)

@@ -33,12 +33,12 @@ def Run(cmd, include_stderr=False, return_pipe=False,
     return fp.communicate()[0]
 
 
-def scanWLAN_RE(pmode=1):
+def scanWLAN_RE(ifname='wlan0', pmode=1):
     """
     *return: [ [mac1, rss1], [mac2, rss2], ... ]
     """
 
-    cmd = 'sudo iwlist wlan0 scan'.split()
+    cmd = [ 'sudo', 'iwlist', ifname, 'scan' ]
     results = Run(cmd)
     networks = results.split( 'Cell' )
     scan_result = []
@@ -152,11 +152,10 @@ def parse_all(data):
     return aplist
 
 
-def scanWLAN_OS():
+def scanWLAN_OS(ifname='wlan0'):
     """
     return: return errno.EPERM(1) if WLAN resource access(fcntl.ioctl) not permitted. 
     """
-    ifname = 'wlan0'
     datastr = struct.pack("Pii", 0, 0, 0)
     # SIOCSIWSCAN
     status, result = syscall(ifname, 0x8B18, datastr)
@@ -204,14 +203,12 @@ if __name__ == "__main__":
     except ImportError:
         pass
 
-    #wlan_re = scanWLAN_RE(pmode=2)
+    wlan = scanWLAN_RE(pmode=2)
     #time.sleep(2)
-    wlan_os = scanWLAN_OS()
-    if wlan_os == errno.EPERM: sys.exit(99)
+    #wlan = scanWLAN_OS()
+    if wlan == errno.EPERM: sys.exit(99)
 
     from pprint import pprint
-    #print 'visible APs: %d' % len(wlan_re)
-    #pprint(wlan_re)
-    print 'visible APs: %d' % len(wlan_os)
-    pprint(wlan_os)
+    print 'visible APs: %d' % len(wlan)
+    pprint(wlan)
 

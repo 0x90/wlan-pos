@@ -1,5 +1,5 @@
-User Guide
-
+Quick Start
+------------
 1.offline
     1) fingerprints calibration.
         a) ./tool/bt-dev-con && xgps &
@@ -16,3 +16,12 @@ User Guide
     sudo ./online.py -v
     2) Accuracy evaluation(GPS available).
     sudo ./test.py -v
+
+
+SP id assignment
+----------------
+    borq: floor 8: 1-12
+    floor 1-8: 100-899
+    dacheng floor 12: 1200-1299,  e.g. 1203:door1203.
+    home yjl: 90-99
+    home neighborhood: 30-89

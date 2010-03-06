@@ -1,16 +1,13 @@
 MUST
-add  title field for mandatory section in KML module.
-add  distance between fixed and ref locs in test module.
-add  test module for online location fingerprinting(logging).
-add  ssid.py for 1-1 mapping MAC and essid name.
-mod  Modularize radio map related operation, like Fingerprint(), Cluster() (BECAREFUL:global vars!).
-mod  Increamental DB table records upload.
+mod  Modularize radio map related operation, including Fingerprint(), Cluster() (BECAREFUL:global vars!).
 --------
-fix  when online top4 RSS values correspond to more than 4 MACs.
-mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
+add  2-level clustering for cluster and spid searching space reduction.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
-add  Summary information after radio map construction/online locationing.
-add  Statistical chart or figure and data spreadsheet generation.
+add  Statistical chart or figure and data spreadsheet generation for offline data.
+fix  when online top4 RSS values correspond to more than 4 MACs.
+add  Increamental DB table records upload.
+add  ssid.py for 1-1 mapping MAC and essid name.
+mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
 --------
 mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,SWIG,etc).
 opt  data structure and related operation.

@@ -7,13 +7,13 @@ syntax: glob
 *.pyc
 *.pyo
 *-psyco
-*.jpg
-*.png
 dat/*
+fig/*.*
+fig/*
+test/*
 tags
 log
 out
-test/*
 kml/ap.kml
 tbl/*-*.tbl
 tbl/cidaps.tbl

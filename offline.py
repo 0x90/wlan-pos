@@ -133,12 +133,13 @@ def genKMLfile(cfpsfile):
     """
     cfpsin = csv.reader( open(cfpsfile,'r') )
     cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
-    cfps = [ [[ c[2], c[3], '%s-%s'%(c[0],c[1]) ]] for c in cfps ]
+    cfps = [ [[ c[2], c[3], c[1], 'cluster:%s, spid:%s'%(c[0],c[1]) ]] for c in cfps ]
     if verbose is True: pp.pprint(cfps)
     else: print cfps
     kfile = 'kml/ap.kml'
     #homedir = os.path.expanduser('~')
-    dict_encrypt_icon['other'][1] = os.getcwd() + dict_encrypt_icon['other'][1]
+    for type in dict_encrypt_icon:
+        dict_encrypt_icon[type][1] = os.getcwd() + dict_encrypt_icon[type][1]
     genKML(cfps, kmlfile=kfile, icons=dict_encrypt_icon)
 
 
