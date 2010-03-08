@@ -108,3 +108,5 @@
 2010-03-06
     1) Add 'title' field in KML input data mandatory section.
     2) Add Google Map js interface wrapper.
+2010-03-08
+    1) Mod Map module.
