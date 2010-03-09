@@ -125,7 +125,7 @@ def main():
         print 'id:\'%s\',\tpoints:' % map.id
         for point in map.points: print point.getAttrs()
 
-    open('map.htm', 'wb').write(gmap.genHTML())   # generate test file
+    open('html/map.htm', 'wb').write(gmap.genHTML())   # generate test file
 
 
 if __name__ == "__main__":

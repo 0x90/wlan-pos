@@ -14,7 +14,6 @@ test/*
 tags
 log
 out
-map.htm
 kml/ap.kml
 tbl/*-*.tbl
 tbl/cidaps.tbl

@@ -245,4 +245,4 @@ if __name__ == "__main__":
         for point in map.points:
             print 'id:\'%-5s\'pts:\n\'%s\'' % (map.id, point.getAttrs())
     
-    open('map.htm','wb').write(gmap.genHTML())   # generate test file
+    open('html/map.htm','wb').write(gmap.genHTML())   # generate test file

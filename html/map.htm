@@ -1,0 +1,86 @@
+
+            <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+            <html xmlns="http://www.w3.org/1999/xhtml">
+              <head>
+                <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+                <title>GMap v2</title>
+                
+<script src="http://maps.google.com/maps?file=api&amp;v=2&amp;                    sensor=false&amp;key=ABQIAAAAUSoeJtepJhkFJBWO1OU4thR2L4ipJp-                    hfOESjcOm0U8jmW_-4RSJ9nbM2O84oU28-VALYyIZBa0JmQ" type="text/javascript"></script>
+        <script type="text/javascript">
+
+        function load() {
+            if (GBrowserIsCompatible()) {
+            function Point(lat,long,html,icon) {
+                  this.gpoint = new GMarker(new GLatLng(lat,long),icon);
+                  this.html = html;
+                  
+               }               
+               function Map(id,points,lat,long,zoom) {
+                  this.id = id;
+                  this.points = points;
+                  this.gmap = new GMap2(document.getElementById(this.id));
+                  this.gmap.setCenter(new GLatLng(lat, long), zoom);
+                  this.markerlist = markerlist;
+                  this.addmarker = addmarker;
+                  this.array2points = array2points;
+                   
+                  function markerlist(array) {
+                     for (var i in array) {
+                        this.addmarker(array[i]);
+                     }
+                  }
+                  function array2points(map_points) {            
+                      for (var i in map_points) {  
+                        points[i] = new Point(map_points[i][0], map_points[i][1],                                 map_points[i][2], map_points[i][3]);         }
+                      return points;   
+                    }                  
+                  function addmarker(point) {
+                     if (point.html) {
+                       // change click to mouseover or other mouse action
+                       GEvent.addListener(point.gpoint, "click", function() { 
+                           point.gpoint.openInfoWindowHtml(point.html);
+                        
+                       });
+                     }
+                     this.gmap.addOverlay(point.gpoint);  
+                  }
+                  this.points = array2points(this.points);
+                  this.markerlist(this.points);
+            }  
+                    var fixloc = new GIcon(); 
+                fixloc.image = "kml/icons/reddot.png";
+                fixloc.shadow = "kml/icons/dotshadow.png";
+                fixloc.iconSize = new GSize(12, 20);
+                fixloc.shadowSize = new GSize(22, 20);
+                fixloc.iconAnchor = new GPoint(6, 20);
+                fixloc.infoWindowAnchor = new GPoint(5, 1); 
+					var refloc = new GIcon(); 
+                refloc.image = "kml/icons/yellowdot.png";
+                refloc.shadow = "kml/icons/dotshadow.png";
+                refloc.iconSize = new GSize(12, 20);
+                refloc.shadowSize = new GSize(22, 20);
+                refloc.iconAnchor = new GPoint(6, 20);
+                refloc.infoWindowAnchor = new GPoint(5, 1); 
+					
+
+                    map_points = [[39.922848000000002, 116.47289499999999, 'alg: <br>[39.922848000000002, 116.47289499999999]', fixloc], [39.922648000000002, 116.47289499999999, 'gps: <br>[39.922648000000002, 116.47289499999999]', refloc]];
+				 var map = new Map('map', map_points, 39.9226251856, 116.472770962, 17);
+
+				map.gmap.addControl(new GMapTypeControl());
+
+                map.gmap.setMapType(G_SATELLITE_MAP);
+
+				map.gmap.addControl(new GSmallMapControl());
+
+
+            }
+        }
+        </script>
+        
+              </head>
+
+              <body onload="load()" onunload="GUnload()">
+                <div id="map" style="width: 1260px; height: 860px"></div>
+              </body>
+            </html> 
