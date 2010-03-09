@@ -211,7 +211,7 @@ class GMap:
         """returns a complete html page with google map(s)"""
         # select the max value for width/height of all self.maps
         map_width  = max([ map.width  for map in self.maps ])
-        map_height = min([ map.height for map in self.maps ])
+        map_height = max([ map.height for map in self.maps ])
         self.html = """
             <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
             "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
