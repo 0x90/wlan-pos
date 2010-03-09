@@ -100,10 +100,12 @@ icon_reddot     = '/kml/icons/reddot.png'
 icon_bluedot    = '/kml/icons/bluedot.png'
 icon_yellowdot  = '/kml/icons/yellowdot.png'
 icon_wifi       = '/kml/icons/wifi.png'
-dict_encrypt_icon = { 'on': [ '"encrypton"',  icon_encrypton ],
-                     'off': [ '"encryptoff"', icon_encryptoff],
-                  'reddot': [ '"reddot"',     icon_reddot],
-                 'bluedot': [ '"bluedot"',    icon_bluedot],
-               'yellowdot': [ '"yellowdot"',  icon_yellowdot],
-                    'wifi': [ '"wifi"',       icon_wifi],
+icon_dotshadow  = '/kml/icons/dotshadow.png'
+dict_encrypt_icon = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
+                     'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],
+                  'reddot': [ '"reddot"',     '/kml/icons/reddot.png'],
+                 'bluedot': [ '"bluedot"',    '/kml/icons/bluedot.png'],
+               'yellowdot': [ '"yellowdot"',  '/kml/icons/yellowdot.png'],
+                    'wifi': [ '"wifi"',       '/kml/icons/wifi.png'],
+               'dotshadow': [ '"dotshadow"',  '/kml/icons/dotshadow.png'],
 }

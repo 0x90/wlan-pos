@@ -6,7 +6,7 @@ import numpy as np
 from offline import dumpCSV
 from online import fixPos, getWLAN
 from GPS import getGPS
-from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS
+from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS, dict_encrypt_icon
 from GEO import dist_on_unitshpere
 from Map import GMap, Icon, Map, Point
 
@@ -107,9 +107,10 @@ def main():
     #dumpCSV(locfilename, locline)
 
     icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
-    icon_fix.image  = "kml/icons/reddot.png"
-    icon_ref.image  = "kml/icons/yellowdot.png"
-    icon_fix.shadow = icon_ref.shadow = "kml/icons/dotshadow.png"
+    cwd = os.getcwd()
+    icon_fix.image  = cwd + dict_encrypt_icon['reddot'][1]
+    icon_ref.image  = cwd + dict_encrypt_icon['yellowdot'][1]
+    icon_fix.shadow = icon_ref.shadow = cwd + dict_encrypt_icon['dotshadow'][1]
 
     ptFix = Point(loc=fixloc, txt='alg: ' + '<br>' + str(fixloc), iconid='fixloc')     
     ptRef = Point(loc=refloc, txt='gps: ' + '<br>' + str(refloc), iconid='refloc')     
