@@ -119,7 +119,7 @@ def main():
     gmap.maps[0].zoom   = 17
 
     print '\nicon types: (img: null when default)\n%s' % ('-'*35)
-    for icon in gmap.icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
+    for icon in gmap._icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
     print '\nmaps: \n%s' % ('-'*35)
     for map in gmap.maps: 
         print 'id:\'%s\',\tpoints:' % map.id

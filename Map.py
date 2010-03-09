@@ -7,7 +7,7 @@ class Icon:
         self.id = id
         self.image = ""             # default Google Maps icon
         self.shadow = ""
-        self.iconSize = (12, 20)    # these settings match above icons
+        self.iconSize = (12, 20)    # these settings match above icon
         self.shadowSize = (22, 20)
         self.iconAnchor = (6, 20)
         self.infoWindowAnchor = (5, 1)
@@ -43,6 +43,7 @@ class Map:
     def addpoint(self, point):
         """ Add a point (lat, long, html, icon) """
         self.points.append(point)
+        self.points = GMap._chkIcons(self.points)
 
 
 class GMap:
@@ -55,6 +56,7 @@ class GMap:
     def __str__(self):
         return "GMap"
     
+    _icons = [] # static attr, shared in this 'Map' module.
     def __init__(self, key=None, maplist=None, iconlist=None):
         """ Default values """
         if key == None:  # google key
@@ -65,22 +67,28 @@ class GMap:
         else: self.key = key
         if maplist == None: self.maps = [ Map() ]
         else: self.maps = maplist
-        if iconlist == None: self.icons = [ Icon() ]
-        else: self.icons = iconlist
+        if iconlist == None: GMap._icons = [ Icon() ]
+        else: GMap._icons = iconlist
 
-        self.chkIcons()
-
-    def chkIcons(self):
-        """ Icon id validation state check """
-        map_icons = [ icon.id for icon in self.icons ]
         for map in self.maps:
-            for point in map.points:
-                if not point.iconid in map_icons:
-                    print 'WARN: invalid iconid: \'%s\'! Correnting it...' % point.iconid
-                    point.iconid = 'icon'       # default icon id
+            map.points = GMap._chkIcons(map.points)
+
+    @staticmethod
+    def _chkIcons(points):
+        """ Icon id validation state check.
+            points: Point object list.
+        """
+        gmap_icons = [ icon.id for icon in GMap._icons ]
+        for point in points:
+            if not point.iconid in gmap_icons:
+                newid = gmap_icons[0]
+                print '\nInvalid icon id: \'%s\'! (point: %s)\nResetting to \'%s\'\n' %\
+                        (point.iconid, point.getAttrs()[:2], newid)
+                point.iconid = newid  # first existing icon id
+        return points
     
     def addicon(self, icon):
-        self.icons.append(icon)
+        GMap._icons.append(icon)
         
     def _navcontroljs(self,map):
         """ Returns the javascript for google maps control"""    
@@ -104,7 +112,7 @@ class GMap:
         js = js.replace(")", "]")
         js = js.replace("u'", "'")
         js = js.replace("''","")    
-        for icon in self.icons:
+        for icon in GMap._icons:
             js = js.replace("'" + icon.id + "'", icon.id)
         js += "%s var %s = new Map('%s', %s_points, %s, %s, %s);\n\n%s\n%s" % \
               ('\t'*4, map.id, map.id, map.id, map.center[0], map.center[1], map.zoom, 
@@ -128,8 +136,8 @@ class GMap:
      
     def _buildicons(self):
         js = ""
-        if (len(self.icons) > 0):
-            for icon in self.icons: 
+        if (len(GMap._icons) > 0):
+            for icon in GMap._icons: 
                 js = js + self._iconjs(icon) + '\n\t\t\t\t\t'  
         return js
     
@@ -238,11 +246,11 @@ if __name__ == "__main__":
     icon2.shadow = "kml/icons/dotshadow.png" 
     gmap.addicon(icon2)
     print 'icon types: (img: null when default)\n%s' % ('-'*35)
-    for icon in gmap.icons: 
+    for icon in gmap._icons: 
         print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
 
     gmap.maps[0].zoom = 17
-    apoint = Point(loc=[39.922625,116.472771], txt='<u>hello</u>!', iconid='icon2')     
+    apoint = Point(loc=[39.922625,116.472771], txt='<u>hello</u>!', iconid='icon3')     
     gmap.maps[0].addpoint(apoint)
     print 'maps: \n%s' % ('-'*35)
     for map in gmap.maps: 
