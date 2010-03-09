@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-class Icon:
+class Icon(object):
     """ Icon properities that can be used by different icon type of Point """
     def __init__(self, id='icon'):
         self.id = id
@@ -13,7 +13,7 @@ class Icon:
         self.infoWindowAnchor = (5, 1)
 
 
-class Point:
+class Point(object):
     """ icon properities that can be used by your points """
     def __init__(self, loc=[39.92263,116.47287], txt='new point', iconid='icon'):
         self.loc = loc       # (lat, lon)
@@ -24,7 +24,7 @@ class Point:
         return [ self.loc[0], self.loc[1], self.txt, self.iconid ]
 
         
-class Map:
+class Map(object):
     """ Basic map class that contains map properties and a list of points """
     def __init__(self, id="map", pointlist=None):
         self.id      = id      # div id        
@@ -46,7 +46,7 @@ class Map:
         self.points = GMap._chkIcons(self.points)
 
 
-class GMap:
+class GMap(object):
     """
     Python wrapper class for Google Maps API.
     GMap Holds all the maps and necesary html/javascript for a complete page/view. 
@@ -91,14 +91,14 @@ class GMap:
         GMap._icons.append(icon)
         
     def _navcontroljs(self,map):
-        """ Returns the javascript for google maps control"""    
+        """ Navigation bar control """    
         if map.navctls:
             return  "%s%s.gmap.addControl(new GSmallMapControl());\n" % \
                 ('\t'*4, map.id)
         else: return ""    
     
     def _mapcontroljs(self,map):
-        """ Returns the javascript for google maps control"""    
+        """ Map type(map/satellite/hybrid) bar control"""    
         if map.mapctls:
             return  "%s%s.gmap.addControl(new GMapTypeControl());\n\n\
                 %s.gmap.setMapType(G_SATELLITE_MAP);\n" % \
@@ -148,23 +148,19 @@ class GMap:
         return js
 
     def gmapjs(self):
-        """ Returns complete javacript for rendering google map """
+        """ Returns complete js frame for rendering google map """
         
         self.js = """\n<script src=\"http://maps.google.com/maps?file=api&amp;v=2&amp;\
-                sensor=false&amp;key=%s\" type="text/javascript"></script>
+                    sensor=false&amp;key=%s\" type="text/javascript"></script>
         <script type="text/javascript">
 
         function load() {
             if (GBrowserIsCompatible()) {
-                
-            
             function Point(lat,long,html,icon) {
                   this.gpoint = new GMarker(new GLatLng(lat,long),icon);
                   this.html = html;
                   
                }               
-               
-               
                function Map(id,points,lat,long,zoom) {
                   this.id = id;
                   this.points = points;
@@ -179,14 +175,12 @@ class GMap:
                         this.addmarker(array[i]);
                      }
                   }
-                  
                   function array2points(map_points) {            
                       for (var i in map_points) {  
                         points[i] = new Point(map_points[i][0], map_points[i][1], \
                                 map_points[i][2], map_points[i][3]);         }
                       return points;   
                     }                  
-                  
                   function addmarker(point) {
                      if (point.html) {
                        // change click to mouseover or other mouse action
@@ -194,7 +188,6 @@ class GMap:
                            point.gpoint.openInfoWindowHtml(point.html);
                         
                        });
-                       
                      }
                      this.gmap.addOverlay(point.gpoint);  
                   }
@@ -206,17 +199,12 @@ class GMap:
                     %s
             }
         }
-
         </script>
-        
-        
         """ % (self.key, self._buildicons(),self._buildmaps())
         return self.js 
     
-    
-        
     def genHTML(self):
-        """returns a complete html page with google map(s)"""
+        """returns a complete html page containing google map(s)"""
         # select the max value for width/height of all self.maps
         map_width  = max([ map.width  for map in self.maps ])
         map_height = max([ map.height for map in self.maps ])
@@ -250,7 +238,7 @@ if __name__ == "__main__":
         print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
 
     gmap.maps[0].zoom = 17
-    apoint = Point(loc=[39.922625,116.472771], txt='<u>hello</u>!', iconid='icon3')     
+    apoint = Point(loc=[39.922625,116.472771], txt='<u>hello</u>!', iconid='icon2')     
     gmap.maps[0].addpoint(apoint)
     print 'maps: \n%s' % ('-'*35)
     for map in gmap.maps: 

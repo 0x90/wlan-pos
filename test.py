@@ -106,17 +106,17 @@ def main():
     #locfilename = DATPATH + date + LOCSUFFIX
     #dumpCSV(locfilename, locline)
 
-    icon_fixloc = Icon('fixloc'); icon_refloc = Icon('refloc')
-    icon_fixloc.image  = "kml/icons/reddot.png"
-    icon_refloc.image  = "kml/icons/yellowdot.png"
-    icon_fixloc.shadow = icon_refloc.shadow = "kml/icons/dotshadow.png"
+    icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
+    icon_fix.image  = "kml/icons/reddot.png"
+    icon_ref.image  = "kml/icons/yellowdot.png"
+    icon_fix.shadow = icon_ref.shadow = "kml/icons/dotshadow.png"
 
-    pFixloc = Point(loc=fixloc, txt='alg: ' + '<br>' + str(fixloc), iconid='fixloc')     
-    pRefloc = Point(loc=refloc, txt='gps: ' + '<br>' + str(refloc), iconid='refloc')     
+    ptFix = Point(loc=fixloc, txt='alg: ' + '<br>' + str(fixloc), iconid='fixloc')     
+    ptRef = Point(loc=refloc, txt='gps: ' + '<br>' + str(refloc), iconid='refloc')     
 
-    gmap = GMap(maplist=[Map(pointlist=[pFixloc, pRefloc])], iconlist=[icon_fixloc, icon_refloc])
-    gmap.maps[0].width  = "1260px"; gmap.maps[0].height = "860px"
-    gmap.maps[0].zoom   = 17
+    gmap = GMap(maplist=[Map(pointlist=[ptFix, ptRef])], iconlist=[icon_fix, icon_ref])
+    gmap.maps[0].width = "1260px"; gmap.maps[0].height = "860px"
+    gmap.maps[0].zoom  = 17
 
     print '\nicon types: (img: null when default)\n%s' % ('-'*35)
     for icon in gmap._icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
