@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import math
+import config
 
 def dist_on_unitshpere(lat1, long1, lat2, long2):
 
@@ -34,6 +35,7 @@ def dist_on_unitshpere(lat1, long1, lat2, long2):
 
 
 if __name__ == '__main__':
-    print dist_on_unitshpere(
-            39.922848,116.472895,
-            39.922948,116.472895)*6378*(10**3)
+    lat1, lon1, lat2, lon2 = 39.922848,116.472895, 39.922948,116.472895
+    lat3, lon3, lat4, lon4 = 39.532838541666663,115.75, 39.532098524305553,115.7470920138889
+    print dist_on_unitshpere(lat1, lon1, lat2, lon2)*(config.RADIUS)
+    print dist_on_unitshpere(lat3, lon3, lat4, lon4)*(config.RADIUS)

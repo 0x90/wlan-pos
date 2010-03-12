@@ -48,7 +48,7 @@ SQL_SELECT_WHERE = 'SELECT %s FROM %s WHERE %s'
 # String length of 179 and 149 chars are used for each intersection set to have 
 # at most INTERSET APs, which should be enough for classification, very ugly though.
 dt_rmp_nocluster = {'names':('spid','lat','lon','macs','rsss'), 
-                       'formats':('i4','f4','f4','S179','S149')}
+                  'formats':('i4','f4','f4','S179','S149')}
 WLAN_FAKE = {
         1: #home
             [ ['00:25:86:23:A4:48', '-86'], ['00:24:01:FE:0F:20', '-90'], 
@@ -94,13 +94,6 @@ WLAN_FAKE = {
               ['00:23:89:3C:BD:32', '-75'], ['00:23:89:3C:BD:30', '-78'],
               ['02:1F:3B:00:01:52', '-76'] ]
 }
-icon_encrypton  = '/kml/icons/encrypton.png'
-icon_encryptoff = '/kml/icons/encryptoff.png'
-icon_reddot     = '/kml/icons/reddot.png'
-icon_bluedot    = '/kml/icons/bluedot.png'
-icon_yellowdot  = '/kml/icons/yellowdot.png'
-icon_wifi       = '/kml/icons/wifi.png'
-icon_dotshadow  = '/kml/icons/dotshadow.png'
 dict_encrypt_icon = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
                      'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],
                   'reddot': [ '"reddot"',     '/kml/icons/reddot.png'],
