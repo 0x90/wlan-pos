@@ -1,7 +1,47 @@
+import sys, time
 from struct import unpack
+from pprint import pprint
 import dbfUtils, math
-XY_POINT_RECORD_LENGTH = 16
-db = []
+
+#XY_POINT_RECORD_LENGTH = 16
+#db = []
+
+shapeTypes = {0:'Null',     1:'Point', 
+              3:'PolyLine', 5:'Polygon', 
+              8:'MultiPoint'}
+
+class Shapefile(object):
+
+    def __init__(self, shpfile=None):
+        self.shpfile = shpfile
+        self.mainheader = {'fcode':None, 'version':0, 'flen':0, 'type':None, 
+                            'bbox':{'Xmin':0, 'Xmax':0, 'Ymin':0, 'Ymax':0,
+                                    'Zmin':0, 'Zmax':0, 'Mmin':0, 'Mmax':0  } }
+        self._parseHeader()
+
+    def _parseHeader(self):
+        """ Main file header """
+        self.mainheader['fcode'] = self._unpack('>i', self.shpfile.read(4))        
+        self.shpfile.seek(24)
+        self.mainheader['flen'] = self._unpack('>i', self.shpfile.read(4))        
+        self.mainheader['version'] = self._unpack('i', self.shpfile.read(4))        
+
+        self.shpfile.seek(32)
+        self.mainheader['type'] = shapeTypes[ self._unpack('i', self.shpfile.read(4)) ]
+        self.mainheader['bbox'] = self._parseBoundingbox()
+    
+    def _unpack(self, type, data):
+        if data=='': return data
+        return unpack(type, data)[0]
+
+    def _parseBoundingbox(self):
+        bbox = {}
+        bbox['Xmin'] = readAndUnpack('d', self.shpfile.read(8))
+        bbox['Ymin'] = readAndUnpack('d', self.shpfile.read(8))
+        bbox['Xmax'] = readAndUnpack('d', self.shpfile.read(8))
+        bbox['Ymax'] = readAndUnpack('d', self.shpfile.read(8))
+        return bbox
+
 
 def loadShapefile(file_name):
     global db
@@ -16,19 +56,6 @@ def loadShapefile(file_name):
     dbf.close()
     fpSHP = open(file_name, 'rb')
     
-    # Main file header
-    file_code = readAndUnpack('>i', fpSHP.read(4))        
-    fpSHP.seek(24)
-    len_file = readAndUnpack('>i', fpSHP.read(4))        
-    version = readAndUnpack('i', fpSHP.read(4))        
-    print 'file_code: %d, length: %d, version: %d' % (file_code, len_file, version)
-
-    fpSHP.seek(32)
-    shp_type = readAndUnpack('i', fpSHP.read(4))        
-    print 'shp_type: %s' % shapeTypes[shp_type]
-    shp_bounding_box = readBoundingBox(fpSHP)
-    print 'bounds: %s' % shp_bounding_box
-    
     # Records contents
     fpSHP.seek(100)
     while True:
@@ -38,7 +65,6 @@ def loadShapefile(file_name):
     
     return records    
 
-shapeTypes = {0:'Null', 1:'Point', 3:'PolyLine', 5:'Polygon', 8:'MultiPoint'}
 
 def createRecord(fp):
     # Record header
@@ -282,3 +308,23 @@ def overlap(feature1, feature2):
         return True
     else:
         return False
+
+
+
+if __name__ == '__main__':
+
+    filename = sys.argv[1]
+    print 'Loading shapefile \'%s\'...' % filename
+    t1 = time.time()
+    #shps = loadShapefile( filename )
+    shpfile = Shapefile(open(filename, 'rb'))
+    t2 = time.time()
+    print '[%0.4f] seconds load time' %( t2 - t1 )
+
+    #lenShps = len(shps)
+    #print 'shp total: %d' % lenShps
+    pprint(shpfile.mainheader)
+    sys.exit(0)
+    for cnt in range(lenShps-1, lenShps):
+        print '\ncnt: %d' % cnt
+        pprint(shps[cnt])

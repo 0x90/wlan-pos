@@ -113,3 +113,6 @@
 2010-03-09
     1) Fix issue 17 for mismatching relation between GMap.icons and map.points.iconids.
     2) Fix height computation error for multiple maps.
+2010-03-14
+    1) Add shapefile handling code.
+    2) Refactor shapefile handling code to be OO.

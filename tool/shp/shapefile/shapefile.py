@@ -155,7 +155,7 @@ class Shapefile:
         self.readShp(inShp)
         inShp.close()
         
-        #self.table=databasefile.DatabaseFile([],[],[],inName+".dbf")
+        self.table=databasefile.DatabaseFile([],[],[],inName+".dbf")
 
     def readShp(self,inShp):
         #shp file header

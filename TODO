@@ -1,4 +1,5 @@
 MUST
+Mod  Exception raised instead of being printed.
 mod  Modularize radio map related operation, including Fingerprint(), Cluster() (BECAREFUL:global vars!).
 --------
 add  2-level clustering for cluster and spid searching space reduction.
