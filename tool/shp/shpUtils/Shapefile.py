@@ -3,163 +3,121 @@ from struct import unpack
 from pprint import pprint
 import dbfUtils, math
 
-#XY_POINT_RECORD_LENGTH = 16
-#db = []
 
-shapeTypes = {0:'Null',     1:'Point', 
-              3:'PolyLine', 5:'Polygon', 
-              8:'MultiPoint'}
+shapeTypes = {0:'Null',    
+              1:'Point',   3:'PolyLine',   5:'Polygon',   8:'MultiPoint',
+             11:'PointZ', 13:'PolyLineZ', 15:'PolygonZ', 18:'MultiPointZ',
+             21:'PointM', 23:'PolyLineM', 25:'PolygonM', 28:'MultiPointM',
+             31:'MultiPatch' }
 
 class Shapefile(object):
+    #TODO: class method to handle file ptr
 
     def __init__(self, shpfile=None):
         self.shpfile = shpfile
         self.mainheader = {'fcode':None, 'version':0, 'flen':0, 'type':None, 
                             'bbox':{'Xmin':0, 'Xmax':0, 'Ymin':0, 'Ymax':0,
                                     'Zmin':0, 'Zmax':0, 'Mmin':0, 'Mmax':0  } }
+        self.main_content = []
         self._parseHeader()
+        if not self.mainheader['type'] == shapeTypes[0]:
+            self._parseMainContent()
+
 
     def _parseHeader(self):
         """ Main file header """
-        self.mainheader['fcode'] = self._unpack('>i', self.shpfile.read(4))        
+        self.mainheader['fcode'] = self._unpackInt('>i')        
         self.shpfile.seek(24)
-        self.mainheader['flen'] = self._unpack('>i', self.shpfile.read(4))        
-        self.mainheader['version'] = self._unpack('i', self.shpfile.read(4))        
+        self.mainheader['flen'] = self._unpackInt('>i')        
+        self.mainheader['version'] = self._unpackInt('i')        
 
         self.shpfile.seek(32)
-        self.mainheader['type'] = shapeTypes[ self._unpack('i', self.shpfile.read(4)) ]
+        self.mainheader['type'] = shapeTypes[ self._unpackInt('i') ]
         self.mainheader['bbox'] = self._parseBoundingbox()
+
     
-    def _unpack(self, type, data):
-        if data=='': return data
-        return unpack(type, data)[0]
+    def _unpackInt(self, fmt):
+        data = self.shpfile.read(4)
+        if data == '': return data
+        return unpack(fmt, data)[0]
+
+    def _unpackDouble(self, fmt):
+        data = self.shpfile.read(8)
+        if data == '': return data
+        return unpack(fmt, data)[0]
+
+    def _unpack(self, fmt, data):
+        if data == '': return data
+        return unpack(fmt, data)[0]
 
     def _parseBoundingbox(self):
         bbox = {}
-        bbox['Xmin'] = readAndUnpack('d', self.shpfile.read(8))
-        bbox['Ymin'] = readAndUnpack('d', self.shpfile.read(8))
-        bbox['Xmax'] = readAndUnpack('d', self.shpfile.read(8))
-        bbox['Ymax'] = readAndUnpack('d', self.shpfile.read(8))
+        bbox['Xmin'] = self._unpackDouble('d')
+        bbox['Ymin'] = self._unpackDouble('d')
+        bbox['Xmax'] = self._unpackDouble('d')
+        bbox['Ymax'] = self._unpackDouble('d')
         return bbox
 
+    def _parseMainContent(self):
+        # Records contents
+        self.shpfile.seek(100)
+        while True:
+            shp_record = self._parseRecord()
+            if shp_record == None: break
+            self.main_content.append(shp_record)
 
-def loadShapefile(file_name):
-    global db
-    shp_bounding_box = []
-    shp_type = 0
-    file_name = file_name
-    records = []
-    # open dbf file and get records as a list
-    dbf_file = file_name[0:-4] + '.dbf'
-    dbf = open(dbf_file, 'rb')
-    db = list(dbfUtils.dbfreader(dbf))
-    dbf.close()
-    fpSHP = open(file_name, 'rb')
-    
-    # Records contents
-    fpSHP.seek(100)
-    while True:
-        shp_record = createRecord(fpSHP)
-        if shp_record == False: break
-        records.append(shp_record)
-    
-    return records    
+    def _parseRecord(self):
+        # Record header
+        record_number = self._unpackInt('>i')
+        if record_number == '': return None
+        content_length = self._unpackInt('>i')
+        record_shape_type = self._unpackInt('i')
 
+        # Read main contents
+        shp_record = {}
+        shp_record['type'] = shapeTypes[record_shape_type]
+        if record_shape_type == 0: return shp_record # Null
+        elif record_shape_type == 1:                 # Point
+            shp_record = self._parseRecordPoint()
+        elif record_shape_type == 3 or record_shape_type == 5: # PolyLine, Polygon
+            shp_record = self._parseBoundingbox()
+            shp_record['numparts']  = self._unpackInt('i')
+            shp_record['numpoints'] = self._unpackInt('i')
 
-def createRecord(fp):
-    # Record header
-    record_number = readAndUnpack('>I', fp.read(4))
-    if record_number == '': return False
-    content_length = readAndUnpack('>I', fp.read(4))
-    record_shape_type = readAndUnpack('I', fp.read(4))
+            shp_record['parts'] = []
+            for i in xrange(shp_record['numparts']):
+                shp_record['parts'].append(self._unpackInt('i'))
+            ptr_pts_start = self.shpfile.tell()
 
-    shp_data = readRecordAny(fp,record_shape_type)
-    dbf_data = {}
-    for i in range(len(db[record_number+1])):
-        dbf_data[db[0][i]] = db[record_number+1][i].strip()
-    
-    return {'shp_data':shp_data, 'dbf_data':dbf_data}       
-    
-# Reading defs
+            pts_cnt = 0
+            for idx_part in range(shp_record['numparts']):
+                idx_1stpt = shp_record['parts'][idx_part] # Index of 1st part point in points array
+                shp_record['parts'][idx_part] = {}
+                shp_record['parts'][idx_part]['points'] = []
+                
+                prevPoint = []
+                while (pts_cnt < shp_record['numpoints']):
+                    currPoint = self._parseRecordPoint()
+                    shp_record['parts'][idx_part]['points'].append(currPoint)
+                    pts_cnt += 1
+                    if not prevPoint or pts_cnt == 0: prevPoint = currPoint
+                    elif currPoint == prevPoint: prevPoint = []; break
+                    
+            self.shpfile.seek(ptr_pts_start + (pts_cnt * 16)) # 16: point record storage cost
+        elif record_shape_type == 8:                 # MultiPoint
+            shp_record['bbox'] = self._parseBoundingbox()
+            shp_record['numpoints'] = self._unpackInt('i')    
+            shp_record['points'] = []
+            for i in xrange(shp_record['numpoints']):
+                shp_record['points'].append(self._parseRecordPoint())
+        else: shp_record = None                      # Illigal shp type
+        return shp_record
 
-def readRecordAny(fp, type):
-    if type==0:
-        return readRecordNull(fp)
-    elif type==1:
-        return readRecordPoint(fp)
-    elif type==8:
-        return readRecordMultiPoint(fp)
-    elif type==3 or type==5:
-        return readRecordPolyLine(fp)
-    else:
-        return False
-
-def readRecordNull(fp):
-    data = {}
-    return data
-
-point_count = 0
-def readRecordPoint(fp):
-    global point_count
-    data = {}
-    data['x'] = readAndUnpack('d', fp.read(8))
-    data['y'] = readAndUnpack('d', fp.read(8))
-    point_count += 1
-    return data
-
-    
-def readRecordMultiPoint(fp):
-    data = readBoundingBox(fp)
-    data['numpoints'] = readAndUnpack('i', fp.read(4))    
-    for i in range(0,data['numpoints']):
-        data['points'].append(readRecordPoint(fp))
-    return data
-
-    
-def readRecordPolyLine(fp):
-    data = readBoundingBox(fp)
-    data['numparts']  = readAndUnpack('i', fp.read(4))
-    data['numpoints'] = readAndUnpack('i', fp.read(4))
-    data['parts'] = []
-    for i in range(0, data['numparts']):
-        data['parts'].append(readAndUnpack('i', fp.read(4)))
-    points_initial_index = fp.tell()
-    points_read = 0
-    for part_index in range(0, data['numparts']):
-        point_index = data['parts'][part_index]
-        
-        # if(!isset(data['parts'][part_index]['points']) or !is_array(data['parts'][part_index]['points'])):
-        data['parts'][part_index] = {}
-        data['parts'][part_index]['points'] = []
-        
-        # while( ! in_array( points_read, data['parts']) and points_read < data['numpoints'] and !feof(fp)):
-        checkPoint = []
-        while (points_read < data['numpoints']):
-            currPoint = readRecordPoint(fp)
-            data['parts'][part_index]['points'].append(currPoint)
-            points_read += 1
-            if points_read == 0 or checkPoint == []:
-                checkPoint = currPoint
-            elif currPoint == checkPoint:
-                checkPoint = []
-                break
-            
-    fp.seek(points_initial_index + (points_read * XY_POINT_RECORD_LENGTH))
-    return data
-
-# General defs
-    
-def readBoundingBox(fp):
-    data = {}
-    data['xmin'] = readAndUnpack('d',fp.read(8))
-    data['ymin'] = readAndUnpack('d',fp.read(8))
-    data['xmax'] = readAndUnpack('d',fp.read(8))
-    data['ymax'] = readAndUnpack('d',fp.read(8))
-    return data
-
-def readAndUnpack(type, data):
-    if data=='': return data
-    return unpack(type, data)[0]
+    def _parseRecordPoint(self):
+        point = {}
+        point['X'] = self._unpackDouble('d')
+        point['Y'] = self._unpackDouble('d')
+        return point
 
 
 ####
@@ -314,17 +272,14 @@ def overlap(feature1, feature2):
 if __name__ == '__main__':
 
     filename = sys.argv[1]
-    print 'Loading shapefile \'%s\'...' % filename
+    print '\nLoading shapefile \'%s\'...' % filename
     t1 = time.time()
-    #shps = loadShapefile( filename )
     shpfile = Shapefile(open(filename, 'rb'))
     t2 = time.time()
-    print '[%0.4f] seconds load time' %( t2 - t1 )
+    print 'Elapsed time: %0.4f/sec' %( t2 - t1 )
 
-    #lenShps = len(shps)
-    #print 'shp total: %d' % lenShps
     pprint(shpfile.mainheader)
-    sys.exit(0)
-    for cnt in range(lenShps-1, lenShps):
-        print '\ncnt: %d' % cnt
-        pprint(shps[cnt])
+    print 
+    lenShps = len(shpfile.main_content)
+    print 'Total valid shapes: %d' % lenShps
+    pprint(shpfile.main_content[:2])
