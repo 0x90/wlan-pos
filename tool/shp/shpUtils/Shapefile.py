@@ -1,5 +1,5 @@
-import sys, time
-from struct import unpack
+import sys, time, datetime, decimal, itertools
+from struct import unpack, calcsize
 from pprint import pprint
 import dbfUtils, math
 
@@ -13,12 +13,18 @@ shapeTypes = {0:'Null',
 class Shapefile(object):
     #TODO: class method to handle file ptr
 
-    def __init__(self, shpfile=None):
-        self.shpfile = shpfile
+    def __init__(self, mainfile_name=None):
+        self.shpfile = open(mainfile_name, 'rb')
+        dbf_name = mainfile_name[0:-4] + '.dbf'
+        self.dbfile = open(dbf_name, 'rb')
+        self.dbase_raw = list(self._parseDBF())
+
         self.mainheader = {'fcode':None, 'version':0, 'flen':0, 'type':None, 
                             'bbox':{'Xmin':0, 'Xmax':0, 'Ymin':0, 'Ymax':0,
                                     'Zmin':0, 'Zmax':0, 'Mmin':0, 'Mmax':0  } }
-        self.main_content = []
+        self.main_content = []  # Shapefile main file content
+        self.dbase = []         # Shapefile db file (.dbf) content
+
         self._parseHeader()
         if not self.mainheader['type'] == shapeTypes[0]:
             self._parseMainContent()
@@ -73,6 +79,12 @@ class Shapefile(object):
         content_length = self._unpackInt('>i')
         record_shape_type = self._unpackInt('i')
 
+        # Read dBASE record
+        dbase = {}
+        for i in range(len(self.dbase_raw[record_number+1])):
+            dbase[self.dbase_raw[0][i]] = self.dbase_raw[record_number+1][i].strip()
+        self.dbase.append(dbase)
+
         # Read main contents
         shp_record = {}
         shp_record['type'] = shapeTypes[record_shape_type]
@@ -91,7 +103,7 @@ class Shapefile(object):
 
             pts_cnt = 0
             for idx_part in range(shp_record['numparts']):
-                idx_1stpt = shp_record['parts'][idx_part] # Index of 1st part point in points array
+                idx_1stpt = shp_record['parts'][idx_part] # idx of 1st part pt in pts array
                 shp_record['parts'][idx_part] = {}
                 shp_record['parts'][idx_part]['points'] = []
                 
@@ -103,7 +115,7 @@ class Shapefile(object):
                     if not prevPoint or pts_cnt == 0: prevPoint = currPoint
                     elif currPoint == prevPoint: prevPoint = []; break
                     
-            self.shpfile.seek(ptr_pts_start + (pts_cnt * 16)) # 16: point record storage cost
+            self.shpfile.seek(ptr_pts_start + (pts_cnt * 16)) # 16: pt storage cost
         elif record_shape_type == 8:                 # MultiPoint
             shp_record['bbox'] = self._parseBoundingbox()
             shp_record['numpoints'] = self._unpackInt('i')    
@@ -118,6 +130,61 @@ class Shapefile(object):
         point['X'] = self._unpackDouble('d')
         point['Y'] = self._unpackDouble('d')
         return point
+
+    def _parseDBF(self):
+        """Returns an iterator over records in a Xbase DBF file.
+
+        The first row returned contains the field names.
+        The second row contains field specs: (type, size, decimal places).
+        Subsequent rows contain the data records.
+        If a record is marked as deleted, it is skipped.
+
+        File should be opened for binary reads.
+
+        """
+        # See DBF format spec at:
+        #     http://www.pgts.com.au/download/public/xbase.htm#DBF_STRUCT
+
+        numrec, lenheader = unpack('<xxxxLH22x', self.dbfile.read(32))    
+        numfields = (lenheader - 33) // 32
+
+        fields = []
+        for fieldno in xrange(numfields):
+            name, typ, size, deci = unpack('<11sc4xBB14x', self.dbfile.read(32))
+            name = name.replace('\0', '')       # eliminate NULs from string   
+            fields.append((name, typ, size, deci))
+        yield [field[0] for field in fields]
+        yield [tuple(field[1:]) for field in fields]
+
+        terminator = self.dbfile.read(1)
+        assert terminator == '\r'
+
+        fields.insert(0, ('DeletionFlag', 'C', 1, 0))
+        fmt = ''.join(['%ds' % fieldinfo[2] for fieldinfo in fields])
+        fmtsiz = calcsize(fmt)
+        for i in xrange(numrec):
+            record = unpack(fmt, self.dbfile.read(fmtsiz))
+            if record[0] != ' ':
+                continue                        # deleted record
+            result = []
+            for (name, typ, size, deci), value in itertools.izip(fields, record):
+                if name == 'DeletionFlag':
+                    continue
+                if typ == "N":
+                    value = value.replace('\0', '').lstrip()
+                    if value == '':
+                        value = 0
+                    elif deci:
+                        value = decimal.Decimal(value)
+                    else:
+                        value = int(value)
+                elif typ == 'D':
+                    y, m, d = int(value[:4]), int(value[4:6]), int(value[6:8])
+                    value = datetime.date(y, m, d)
+                elif typ == 'L':
+                    value = (value in 'YyTt' and 'T') or (value in 'NnFf' and 'F') or '?'
+                result.append(value)
+            yield result
 
 
 ####
@@ -274,7 +341,7 @@ if __name__ == '__main__':
     filename = sys.argv[1]
     print '\nLoading shapefile \'%s\'...' % filename
     t1 = time.time()
-    shpfile = Shapefile(open(filename, 'rb'))
+    shpfile = Shapefile(filename)
     t2 = time.time()
     print 'Elapsed time: %0.4f/sec' %( t2 - t1 )
 
@@ -283,3 +350,4 @@ if __name__ == '__main__':
     lenShps = len(shpfile.main_content)
     print 'Total valid shapes: %d' % lenShps
     pprint(shpfile.main_content[:2])
+    pprint(shpfile.dbase[:2])

@@ -118,3 +118,5 @@
     2) Refactor shapefile handling code to be OO.
 2010-03-15
     1) Mod Shapefile class, finished shape types: Null, Point, PolyLine, Polygon, MultiPoint.
+2010-03-16
+    1) Add Shapefile database file (.dbf) record read methods.
