@@ -26,8 +26,8 @@ class Shapefile(object):
         self.dbase = []         # Shapefile db file (.dbf) content
 
         self._parseHeader()
-        if not self.mainheader['type'] == shapeTypes[0]:
-            self._parseMainContent()
+        #if not self.mainheader['type'] == shapeTypes[0]:
+        self._parseMainContent()
 
 
     def _parseHeader(self):
@@ -349,5 +349,7 @@ if __name__ == '__main__':
     print 
     lenShps = len(shpfile.main_content)
     print 'Total valid shapes: %d' % lenShps
-    pprint(shpfile.main_content[:2])
+    print 'main file data:'
+    pprint(shpfile.main_content[:1])
+    print 'dBASE file data:'
     pprint(shpfile.dbase[:2])
