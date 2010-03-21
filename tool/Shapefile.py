@@ -1,7 +1,6 @@
-import sys, time, datetime, decimal, itertools
+import sys, time, datetime, decimal, itertools, math
 from struct import unpack, calcsize
 from pprint import pprint
-import dbfUtils, math
 
 
 shapeTypes = {0:'Null',    
