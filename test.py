@@ -82,30 +82,31 @@ def main():
             sys.exit(99)
 
     # Get WLAN scanning results.
-    #len_visAPs, wifis = getWLAN(wlanfake)
+    len_visAPs, wifis = getWLAN(wlanfake)
 
     # Fix current position.
-    #fixloc = fixPos(len_visAPs, wifis, verbose)
-    fixloc = [ 39.922848,116.472895 ]
+    fixloc = fixPos(len_visAPs, wifis, verbose)
+    #fixloc = [ 39.922848,116.472895 ]
     print 'fixed location: \n%s' % fixloc
 
     # Get GPS referenced Position.
-    #refloc = getGPS()
-    refloc = [ 39.922648,116.472895 ]
+    refloc = getGPS()
+    #refloc = [ 39.922648,116.472895 ]
     print 'referenced location: \n%s' % refloc
 
     # Log the fixed and referenced positioning record.
     # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon, error(meter) ].
     timestamp = time.strftime('%Y-%m%d-%H%M')
-    #visMACs = '|'.join(wifis[0])
-    #error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
-    #locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1], error ]
-    #print 'locline:\n%s' % locline
+    visMACs = '|'.join(wifis[0])
+    error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
+    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1], error ]
+    print 'locline:\n%s' % locline
 
-    #date = time.strftime('%Y-%m%d')
-    #locfilename = DATPATH + date + LOCSUFFIX
-    #dumpCSV(locfilename, locline)
+    date = time.strftime('%Y-%m%d')
+    locfilename = DATPATH + date + LOCSUFFIX
+    dumpCSV(locfilename, locline)
 
+    # map html generation
     icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
     cwd = os.getcwd()
     icon_fix.image  = cwd + dict_encrypt_icon['reddot'][1]
@@ -126,7 +127,7 @@ def main():
         print 'id:\'%s\',\tpoints:' % map.id
         for point in map.points: print point.getAttrs()
 
-    open('html/map.htm', 'wb').write(gmap.genHTML())   # map html for location visualization 
+    open('html/map.htm', 'wb').write(gmap.genHTML())   # map html generation
 
 
 if __name__ == "__main__":

@@ -120,3 +120,5 @@
     1) Mod Shapefile class, finished shape types: Null, Point, PolyLine, Polygon, MultiPoint.
 2010-03-16
     1) Add Shapefile database file (.dbf) record read methods.
+2010-03-23
+    1) Mod run script to support dumbtest evaluation for (indoor) logical location.

@@ -49,22 +49,22 @@
                   this.markerlist(this.points);
             }  
                     var fixloc = new GIcon(); 
-                fixloc.image = "/home/alexy/downloads/src/wlan-pos/kml/icons/reddot.png";
-                fixloc.shadow = "/home/alexy/downloads/src/wlan-pos/kml/icons/dotshadow.png";
+                fixloc.image = "/YanXT/src/wlan-pos/kml/icons/reddot.png";
+                fixloc.shadow = "/YanXT/src/wlan-pos/kml/icons/dotshadow.png";
                 fixloc.iconSize = new GSize(12, 20);
                 fixloc.shadowSize = new GSize(22, 20);
                 fixloc.iconAnchor = new GPoint(6, 20);
                 fixloc.infoWindowAnchor = new GPoint(5, 1); 
 					var refloc = new GIcon(); 
-                refloc.image = "/home/alexy/downloads/src/wlan-pos/kml/icons/yellowdot.png";
-                refloc.shadow = "/home/alexy/downloads/src/wlan-pos/kml/icons/dotshadow.png";
+                refloc.image = "/YanXT/src/wlan-pos/kml/icons/yellowdot.png";
+                refloc.shadow = "/YanXT/src/wlan-pos/kml/icons/dotshadow.png";
                 refloc.iconSize = new GSize(12, 20);
                 refloc.shadowSize = new GSize(22, 20);
                 refloc.iconAnchor = new GPoint(6, 20);
                 refloc.infoWindowAnchor = new GPoint(5, 1); 
 					
 
-                    map_points = [[39.922848000000002, 116.47289499999999, 'alg: <br>[39.922848000000002, 116.47289499999999]', fixloc], [39.922648000000002, 116.47289499999999, 'gps: <br>[39.922648000000002, 116.47289499999999]', refloc]];
+                    map_points = [[39.922624999999996, 116.47277099999999, 'alg: <br>[  39.922625  116.472771]', fixloc], [39.922505833333339, 116.47267050000001, 'gps: <br>[39.922505833333339, 116.47267050000001]', refloc]];
 				 var map = new Map('map', map_points, 39.9226251856, 116.472770962, 17);
 
 				map.gmap.addControl(new GMapTypeControl());
