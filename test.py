@@ -112,8 +112,8 @@ def main():
     icon_ref.image  = cwd + dict_encrypt_icon['yellowdot'][1]
     icon_fix.shadow = icon_ref.shadow = cwd + dict_encrypt_icon['dotshadow'][1]
 
-    ptFix = Point(loc=fixloc, txt='alg: ' + '<br>' + str(fixloc), iconid='fixloc')     
-    ptRef = Point(loc=refloc, txt='gps: ' + '<br>' + str(refloc), iconid='refloc')     
+    ptFix = Point(loc=fixloc, txt='alg: '+'<br>'+str(fixloc), iconid='fixloc')     
+    ptRef = Point(loc=refloc, txt='gps: '+'<br>'+str(refloc), iconid='refloc')     
 
     gmap = GMap(maplist=[Map(pointlist=[ptFix, ptRef])], iconlist=[icon_fix, icon_ref])
     gmap.maps[0].width = "1260px"; gmap.maps[0].height = "860px"
@@ -126,7 +126,7 @@ def main():
         print 'id:\'%s\',\tpoints:' % map.id
         for point in map.points: print point.getAttrs()
 
-    open('html/map.htm', 'wb').write(gmap.genHTML())   # generate test file
+    open('html/map.htm', 'wb').write(gmap.genHTML())   # map html for location visualization 
 
 
 if __name__ == "__main__":

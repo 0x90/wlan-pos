@@ -12,6 +12,7 @@ makepyc=0
 nstop=0
 dumbtest=0
 dtest_times=200
+log_analysis=0
 
 pathout=log/out
 patherr=log/err
@@ -48,6 +49,7 @@ OPTION:
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
+-l     logical symbol location evaluation with log files (*.err or *.out)
 -m     make pyc files of *.py
 -n     non-stop automated offline calibration
 -r     number of samples for each spid(default: 60)
@@ -71,14 +73,21 @@ HELP
 
 [ $# -eq 0 ] && Usage
 #x=1   # Avoids an error if we get no options at all.
-while getopts "adf:ghmn:or:t:v" opt; do
+while getopts "adf:ghl:mn:or:t:v" opt; do
     OPTERR=0 #error msg shutup
     case $opt in
         a ) aio=1 ;;
-        d ) dumbtest=1 ;;
+        d ) 
+			dumbtest=1 
+			log_analysis=1
+		;;
         f ) start_spid=$OPTARG ;;
         g ) fakegps=1 ;;
         h ) Usage ;;
+        l ) 
+			log_analysis=1 
+			logfile=$OPTARG
+		;;
         m ) makepyc=1 ;;
         n ) 
             nstop=1 
@@ -104,14 +113,80 @@ timestamp=`date +%Y-%m%d-%H%M`
 if [ $dumbtest -eq 1 ]; then
     [ -d $patherr ] || mkdir -p $patherr
     [ -d $pathout ] || mkdir -p $pathout
-    errfile=$patherr/dumbtest-$timestamp.err
-    outfile=$pathout/dumbtest-$timestamp.out
+    errf=$patherr/dumbtest-$timestamp.err
+    outf=$pathout/dumbtest-$timestamp.out
     for i in $(seq $dtest_times) 
     do
         echo "test $i"
-        (sudo $online -v 2>&1 1>&3 |tee -a $errfile) 3>&1 1>&2 |tee -a $outfile
+        (sudo $online -v 2>&1 1>&3 |tee -a $errf) 3>&1 1>&2 |tee -a $outf
         sleep 4
     done
+fi
+
+if [ $log_analysis -eq 1 ]; then
+	if [ ! $dumbtest -eq 1 ]; then
+		logf=`basename $logfile`
+		mainfile=${logf%\.*}
+		suffix=${logf##*\.}
+		if [ "$suffix" = "out" ]; then
+			outf=$pathout/$logf
+			errf=$patherr/${mainfile}.err
+		elif [ "$suffix" = "err" ]; then
+			errf=$patherr/$logf
+			outf=$pathout/${mainfile}.out
+		else
+			echo "Unsupported suffix: [$suffix]!"
+			Usage
+		fi
+	fi
+	# error file
+	if [ -s $errf ]; then
+		echo -e "\nError detected in $errf !!!\n"
+	else
+		echo -e "\nAll Passed: $errf !!!\n"
+	fi
+	# out file
+	logtmp=$outf-$$
+	egrep -A2 '^location:|^dk-location' $outf |grep '^ *\[' > $logtmp
+	cnt_dknn=`grep '^\[\[.*\]\]$' $logtmp  |wc -l`
+	cnt_direct=`grep '^\[[^\[]' $logtmp |wc -l`
+	cnt_avg=`grep "^\[\[.*'\]$" $logtmp |wc -l`
+	cnt_tot=$((cnt_dknn+cnt_direct+cnt_avg))
+	printf "%5s: %-10s\n-----------\n" "Item" "count"
+	printf "%6s %-10s\n" "dknn" "$cnt_dknn"
+	printf "%6s %-10s\n" "direct" "$cnt_direct"
+	printf "%6s %-10s\n-----------\n" "avg" "$cnt_avg"
+	printf "%6s %-10s\n" "total" "$cnt_tot"
+
+	declare -a spset_dknn=(`grep '^\[\[.*\]\]$' $logtmp  |awk -F\' '{print $4}' |sort |uniq`)
+	printf "\nDKNN\n%4s: %-5s  %5s\n---------------------\n" "spid" "count" "ratio"
+	for cnt in $( seq ${#spset_dknn[@]} )
+	do
+		idx=$((cnt-1))
+		sp=${spset_dknn[$idx]}
+		cnt_sp=`grep '^\[\[.*\]\]$' $logtmp  |grep "'$sp'" |wc -l`
+		printf "%5d %5d  %-2.2f\n" $sp $cnt_sp `echo "scale=4;($cnt_sp)/($cnt_tot)*100" |bc`
+	done
+	declare -a spset_direct=(`grep '^\[[^\[]' $logtmp |awk -F, '{print $2}' |sort |uniq`)
+	printf "\nDirect\n%4s: %-5s  %5s\n---------------------\n" "spid" "count" "ratio"
+	for cnt in $( seq ${#spset_direct[@]} )
+	do
+		idx=$((cnt-1))
+		sp=${spset_direct[$idx]}
+		cnt_sp=`grep '^\[[^\[]' $logtmp |grep ", $sp, " |wc -l`
+		printf "%5d %5d  %-2.2f\n" $sp $cnt_sp `echo "scale=4;($cnt_sp)/($cnt_tot)*100" |bc`
+	done
+	declare -a spset_avg=(`grep "^\[\[.*'\]$" $logtmp |awk -F\' '{print $4}' |sort |uniq`)
+	printf "\nAVG\n%4s: %-5s  %5s\n---------------------\n" "spid" "count" "ratio"
+	for cnt in $( seq ${#spset_avg[@]} )
+	do
+		idx=$((cnt-1))
+		sp=${spset_avg[$idx]}
+		cnt_sp=`grep "^\[\[.*'\]$" $logtmp |grep "'$sp'" |wc -l`
+		printf "%5d %5d  %-2.2f\n" $sp $cnt_sp `echo "scale=4;($cnt_sp)/($cnt_tot)*100" |bc`
+	done
+
+	rm -f $logtmp
 fi
 
 
