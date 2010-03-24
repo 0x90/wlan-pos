@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 from __future__ import division
-import os,sys,getopt,string,errno
+import sys
+import getopt
+import string
+import errno
 from pprint import pprint,PrettyPrinter
+
 import numpy as np
 import MySQLdb
+
 from WLAN import scanWLAN_OS#, scanWLAN_RE
 from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
-#from address import addr_book
 
 
 def usage():
@@ -100,7 +104,7 @@ def fixPos(len_wlan, wlan, verb=False):
         e.g. [ 39.922942  116.472673 ]
     """
     interpart_offline = False; interpart_online = False
-    if verb is True: pp = PrettyPrinter(indent=2)
+    if verb: pp = PrettyPrinter(indent=2)
 
 
     try: conn = MySQLdb.connect(host = db_config['hostname'], 
@@ -156,7 +160,7 @@ def fixPos(len_wlan, wlan, verb=False):
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
-    if verb is True: pp.pprint(keys)
+    if verb: pp.pprint(keys)
 
 
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
@@ -174,7 +178,7 @@ def fixPos(len_wlan, wlan, verb=False):
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        if verb is True:
+        if verb:
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
@@ -186,8 +190,8 @@ def fixPos(len_wlan, wlan, verb=False):
         keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
 
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
-        if interpart_offline is True:
-            if interpart_online is True:
+        if interpart_offline:
+            if interpart_online:
                 wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
                 idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
                 wlan = wl[:,idxs_inters]
@@ -212,7 +216,7 @@ def fixPos(len_wlan, wlan, verb=False):
         idxs_kmin = np.argsort(min_sums)[:KNN]
         sorted_sums = np.array(min_sums)[idxs_kmin]
         sorted_spids = np.array(min_spids)[idxs_kmin,:-1]
-        if verb is True:
+        if verb:
             print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
         # DKNN
         idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN)
@@ -224,7 +228,7 @@ def fixPos(len_wlan, wlan, verb=False):
             coors = dknn_spids[:,2:].astype(float)
             weights = np.reciprocal(dknn_sums)
             posfix = np.average(coors, axis=0, weights=weights)
-            if verb is True: print 'coors: \n%s\nweights: %s' % (coors, weights)
+            if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
             print 'avg_location: \n%s' % posfix
         else: posfix = dknn_spids[0][2:]
     else: 

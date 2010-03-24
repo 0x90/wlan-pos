@@ -81,11 +81,11 @@ def genKML(data, kmlfile, icons):
 
 
 if __name__ == "__main__":
-    from config import dict_encrypt_icon
+    from config import icon_types
     from pprint import pprint
     #homedir = os.path.expanduser('~')
-    for type in dict_encrypt_icon:
-        dict_encrypt_icon[type][1] = os.getcwd() + dict_encrypt_icon[type][1]
+    for type in icon_types:
+        icon_types[type][1] = os.getcwd() + icon_types[type][1]
 
     #try:
     #   filename = sys.argv[1]
@@ -99,4 +99,4 @@ if __name__ == "__main__":
 
     dat = [ [[line[5], line[6], line[4], line[4]], [line[0], line[1], line[2], line[3]]] for line in rawdat ]
     kfile = 'kml/ap.kml'
-    genKML(data=dat, kmlfile=kfile, icons=dict_encrypt_icon)
+    genKML(data=dat, kmlfile=kfile, icons=icon_types)

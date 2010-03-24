@@ -122,3 +122,5 @@
     1) Add Shapefile database file (.dbf) record read methods.
 2010-03-23
     1) Mod run script to support dumbtest evaluation for (indoor) logical location.
+2010-03-24
+    1) Add statistical evaluation related methods to obtain MEAN, STDEV, CDF, GMap: evalLoc(), testLoc(), drawPointpairs().

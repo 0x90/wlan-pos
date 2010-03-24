@@ -94,11 +94,11 @@ WLAN_FAKE = {
               ['00:23:89:3C:BD:32', '-75'], ['00:23:89:3C:BD:30', '-78'],
               ['02:1F:3B:00:01:52', '-76'] ]
 }
-dict_encrypt_icon = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
-                     'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],
-                  'reddot': [ '"reddot"',     '/kml/icons/reddot.png'],
-                 'bluedot': [ '"bluedot"',    '/kml/icons/bluedot.png'],
-               'yellowdot': [ '"yellowdot"',  '/kml/icons/yellowdot.png'],
-                    'wifi': [ '"wifi"',       '/kml/icons/wifi.png'],
-               'dotshadow': [ '"dotshadow"',  '/kml/icons/dotshadow.png'],
+icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
+              'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],
+           'reddot': [ '"reddot"',     '/kml/icons/reddot.png'],
+          'bluedot': [ '"bluedot"',    '/kml/icons/bluedot.png'],
+        'yellowdot': [ '"yellowdot"',  '/kml/icons/yellowdot.png'],
+             'wifi': [ '"wifi"',       '/kml/icons/wifi.png'],
+        'dotshadow': [ '"dotshadow"',  '/kml/icons/dotshadow.png'],
 }

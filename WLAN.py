@@ -165,7 +165,7 @@ def scanWLAN_OS(ifname='wlan0'):
     bufflen = 4096
     buff, datastr = pack_wrq(bufflen)
     while True:
-        if repack is True:
+        if repack:
             buff, datastr = pack_wrq(bufflen)
         try:
             # SIOCGIWSCAN

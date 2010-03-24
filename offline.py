@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 from __future__ import division
-import os,sys,csv,getopt,string
+import os
+import sys
+import csv
+import getopt
+import string
 from time import strftime
+
 import numpy as np
+from pprint import pprint,PrettyPrinter
+
 from WLAN import scanWLAN_RE
 from GPS import getGPS
-from pprint import pprint,PrettyPrinter
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
 from KML import genKML
-from config import dict_encrypt_icon
+from config import icon_types
 
 
 def getRaw():
@@ -17,7 +23,7 @@ def getRaw():
     *return: rawdata=[ time, lat, lon, mac1|mac2, rss1|rss2 ]
     """
     #FIXME:exception handling
-    if fake is True: rawdata = [ 39.9229416667, 116.472673167 ]
+    if fake: rawdata = [ 39.9229416667, 116.472673167 ]
     else: rawdata = getGPS(); 
     timestamp = strftime('%Y%m%d-%H%M%S')
     rawdata.insert(0,timestamp)
@@ -113,7 +119,7 @@ def Fingerprint(rawfile):
     mac_interset_rmp = '|'.join( list(ary_fp[0]) )
     rss_interset_rmp = '|'.join( list(ary_fp[1]) )
     print 'Unclustered fingerprint at sampling point [%d]: ' % spid
-    if verbose is True:
+    if verbose:
         print 'mac_interset_rmp:rss_interset_rmp'
         pp.pprint( [mac+' : '+rss for mac,rss in zip( 
             mac_interset_rmp.split('|'), rss_interset_rmp.split('|') )] )
@@ -134,13 +140,13 @@ def genKMLfile(cfpsfile):
     cfpsin = csv.reader( open(cfpsfile,'r') )
     cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
     cfps = [ [[ c[2], c[3], c[1], 'cluster:%s, spid:%s'%(c[0],c[1]) ]] for c in cfps ]
-    if verbose is True: pp.pprint(cfps)
+    if verbose: pp.pprint(cfps)
     else: print cfps
     kfile = 'kml/ap.kml'
     #homedir = os.path.expanduser('~')
-    for type in dict_encrypt_icon:
-        dict_encrypt_icon[type][1] = os.getcwd() + dict_encrypt_icon[type][1]
-    genKML(cfps, kmlfile=kfile, icons=dict_encrypt_icon)
+    for type in icon_types:
+        icon_types[type][1] = os.getcwd() + icon_types[type][1]
+    genKML(cfps, kmlfile=kfile, icons=icon_types)
 
 
 def Cluster(rmpfile):
@@ -239,7 +245,7 @@ def Cluster(rmpfile):
     # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss].
     cfprints = crmp[:,[0,1,2,3,5]]
 
-    if verbose is True:
+    if verbose:
         print 'topaps:'; pp.pprint(topaps)
         print 'sets_keyaps:'; pp.pprint(sets_keyaps)
         print 'idxs_keyaps:'; pp.pprint(idxs_keyaps)
@@ -384,7 +390,7 @@ def main():
             usage(); sys.exit(99)
 
     # Raw data to fingerprint convertion.
-    if tormp is True:
+    if tormp:
         fingerprint = []
         fingerprint = Fingerprint(rawfile)
         if not fingerprint:
@@ -400,13 +406,13 @@ def main():
             else:
                 usage(); sys.exit(99)
         else:
-            if verbose is True: pp.pprint(fingerprint)
+            if verbose: pp.pprint(fingerprint)
             else: print fingerprint
             sys.exit(0)
 
     # Uploading to database.
     #TODO: upload mode 2
-    if updb is True:
+    if updb:
         import MySQLdb
         try:
             conn = MySQLdb.connect(host = db_config['hostname'], 
@@ -436,11 +442,11 @@ def main():
         conn.close()
 
     # KML generation.
-    if dokml is True:
+    if dokml:
         genKMLfile(cfpsfile)
 
     # Ordinary fingerprints clustering.
-    if docluster is True:
+    if docluster:
         Cluster(rmpfile)
 
     # WLAN & GPS scan for raw data collection.
@@ -453,7 +459,7 @@ def main():
             # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
             print rawdata
             if len(rawdata) == 6: 
-                if verbose is True: 
+                if verbose: 
                     pp.pprint(rawdata)
                 else:
                     print 'Calibration at sampling point %d ... OK!' % spid
