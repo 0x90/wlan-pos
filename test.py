@@ -55,9 +55,9 @@ def evalLoc(locfile):
     print '%8d  %-16.4f%-14.4f' % (cnt_tot, mean_error, stdev)
     #TODO: plot the above statistics info, boxplot the data, with matplotlib or gnuplot.
     sortErrs = np.array( sorted(errors) )
-    pickedErrs = range(5, 80, 10)
+    pickedErrs = range(sortErrs[0], sortErrs[-1], 10)
     cdf = [[err, sortErrs.searchsorted(err,side='right')/cnt_tot] for err in pickedErrs]
-    print cdf
+    for pt in cdf: print pt
 
     #pointpairs = locs[:,:-1]
     #drawPointpairs(pointpairs)
@@ -98,7 +98,7 @@ def drawPointpairs(ptpairs):
     open('html/map.htm', 'wb').write(gmap.genHTML())
 
 
-def testLoc(wlanfake=0):
+def testLoc(wlanfake=0, verbose=False):
     # Get WLAN scanning results.
     len_visAPs, wifis = getWLAN(wlanfake)
 
