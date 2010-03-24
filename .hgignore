@@ -18,3 +18,7 @@ kml/ap.kml
 tbl/*-*.tbl
 tbl/cidaps.tbl
 tbl/cfprints.tbl
+cdf.mp
+mp/cdf.eps
+mp/cdf.jpg
+mp/cdf.mp

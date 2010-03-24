@@ -8,6 +8,7 @@ import time
 import csv
 
 import numpy as np
+import Gnuplot, Gnuplot.funcutils
 
 from offline import dumpCSV
 from online import fixPos, getWLAN
@@ -39,12 +40,16 @@ example:
 """ % time.strftime('%Y')
 
 
-def evalLoc(locfile):
+def evalLoc(locfile=None):
     """
     Evaluate the count, mean error, std deviation for location records in locfile,
-    and optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
+    optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
     """
-    locin = csv.reader( open(locfile,'r') )
+    if not os.path.isfile(locfile):
+        print 'loc file NOT exist: %s' % locfile
+        sys.exit(99)
+
+    locin = csv.reader( open(locfile, 'r') )
     locs = np.array([ locline for locline in locin ])[:,2:].astype(float)
     cnt_tot = len(locs)
     errors = locs[:,-1]
@@ -55,12 +60,33 @@ def evalLoc(locfile):
     print '%8d  %-16.4f%-14.4f' % (cnt_tot, mean_error, stdev)
     #TODO: plot the above statistics info, boxplot the data, with matplotlib or gnuplot.
     sortErrs = np.array( sorted(errors) )
-    pickedErrs = range(sortErrs[0], sortErrs[-1], 10)
-    cdf = [[err, sortErrs.searchsorted(err,side='right')/cnt_tot] for err in pickedErrs]
-    for pt in cdf: print pt
+    pickedErrs = range(sortErrs[0], 100, 10)
+    #cdf = [[err, sortErrs.searchsorted(err,side='right')/cnt_tot] for err in pickedErrs]
+    cdf = [sortErrs.searchsorted(err,side='right')/cnt_tot for err in pickedErrs]
 
-    #pointpairs = locs[:,:-1]
-    #drawPointpairs(pointpairs)
+    g = Gnuplot.Gnuplot(debug=1)
+    g('set terminal mp latex "Romans" 7')
+    outf = 'cdf.mp'
+    outp = 'set output "%s"' % outf; g(outp)
+
+    g('set size .8, .8')
+    g('set key right bottom')
+    g.xlabel("error/m")
+    g('set xrange [0:100]')
+    g('set xtics 10'); g('set ytics')
+    g('set xtics nomirror'); g('set ytics nomirror')
+    g('set border 3')
+    g('set grid ls 8')
+
+    ti = 'set title "CDF"'; g(ti)
+    g.ylabel("probability")
+    g('set yrange [0:1]'); g('set ytics .2')
+    gCDF = Gnuplot.Data(pickedErrs, cdf, title=locfile, with_='lp')
+            #with_='lp lw 1.5 lc -1 lt 1 pt 4 ps 0.8')
+    g.plot(gCDF)
+
+    pointpairs = locs[:,:-1]
+    drawPointpairs(pointpairs)
 
 
 def drawPointpairs(ptpairs):
@@ -78,8 +104,12 @@ def drawPointpairs(ptpairs):
     for idx,ptpair in enumerate(ptpairs):
         fixloc = [ ptpair[0], ptpair[1] ]
         refloc = [ ptpair[2], ptpair[3] ]
-        ptFix = Point(loc=fixloc, txt=str(idx)+': alg: '+'<br>'+str(fixloc), iconid='fixloc')     
-        ptRef = Point(loc=refloc, txt=str(idx)+': gps: '+'<br>'+str(refloc), iconid='refloc')     
+        ptFix = Point(loc=fixloc, 
+                      txt=str(idx)+': alg: '+'<br>'+str(fixloc), 
+                      iconid='fixloc')     
+        ptRef = Point(loc=refloc, 
+                      txt=str(idx)+': gps: '+'<br>'+str(refloc), 
+                      iconid='refloc')     
         ptlist.append(ptFix)
         ptlist.append(ptRef)
 
