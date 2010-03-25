@@ -19,6 +19,7 @@ tbl/*-*.tbl
 tbl/cidaps.tbl
 tbl/cfprints.tbl
 cdf.mp
+cdf_*.jpg
 mp/cdf.eps
 mp/cdf.jpg
 mp/cdf.mp

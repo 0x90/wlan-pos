@@ -1,3 +1,4 @@
+#-*- encoding=utf8 -*-
 DATPATH = 'dat/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
@@ -102,3 +103,36 @@ icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
              'wifi': [ '"wifi"',       '/kml/icons/wifi.png'],
         'dotshadow': [ '"dotshadow"',  '/kml/icons/dotshadow.png'],
 }
+
+props_jpg = {'term':'jpeg', # MUST be recognized by Gnuplot.
+         'outfname':'cdf.jpg',
+             'font':'"/usr/share/fonts/truetype/arphic/gbsn00lp.ttf, 14"',
+             'size':'', # default: 1,1
+            'title':'误差累积函数',
+           'xlabel':'误差/米',
+           'ylabel':'概率',
+           'legend':'',
+              'key':'right bottom',
+           'xrange':[0,100],
+           'yrange':[0,1],
+            'xtics':'nomirror 10',
+            'ytics':'nomirror .05',
+             'grid':'x y', # default: off
+           'border':3,
+             'with':'lp pt 4'}
+props_mp = { 'term':'mp latex', # MUST be recognized by Gnuplot.
+         'outfname':'cdf.mp',
+             'font':'"Romans" 7',
+             'size':'.8, .8', # default: 1,1
+            'title':'CDF',
+           'xlabel':'error/m',
+           'ylabel':'probability',
+           'legend':'',
+              'key':'right bottom',
+           'xrange':[0,100],
+           'yrange':[0,1],
+            'xtics':'nomirror 10',
+            'ytics':'nomirror .05',
+             'grid':'x y', # default: off
+           'border':3,
+             'with':'lp pt 4'}

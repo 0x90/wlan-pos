@@ -125,3 +125,5 @@
 2010-03-24
     1) Add statistical evaluation related methods to obtain MEAN, STDEV, CDF, GMap: evalLoc(), testLoc(), drawPointpairs().
     2) Add CDF plot support with Gnuplot interface.
+2010-03-25
+    1) Refactor test module for better reuse, effectiveness.

@@ -13,7 +13,7 @@ import Gnuplot, Gnuplot.funcutils
 from offline import dumpCSV
 from online import fixPos, getWLAN
 from GPS import getGPS
-from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS, icon_types
+from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS, icon_types, props_jpg
 from GEO import dist_on_unitshpere
 from Map import GMap, Icon, Map, Point
 
@@ -41,7 +41,7 @@ example:
 
 
 def evalLoc(locfile=None):
-    """
+    """ *Deprecated*
     Evaluate the count, mean error, std deviation for location records in locfile,
     optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
     """
@@ -51,42 +51,82 @@ def evalLoc(locfile=None):
 
     locin = csv.reader( open(locfile, 'r') )
     locs = np.array([ locline for locline in locin ])[:,2:].astype(float)
-    cnt_tot = len(locs)
     errors = locs[:,-1]
-    mean_error = errors.mean()
-    stdev = errors.std(ddof=1)
+
     print 'Statistics: %s' % locfile
-    print '%8s  %-16s%-14s\n%s' % ('count', 'mean error(m)', 'stdev(m)', '-'*38)
-    print '%8d  %-16.4f%-14.4f' % (cnt_tot, mean_error, stdev)
-    #TODO: plot the above statistics info, boxplot the data, with matplotlib or gnuplot.
-    sortErrs = np.array( sorted(errors) )
-    pickedErrs = range(sortErrs[0], 100, 10)
-    #cdf = [[err, sortErrs.searchsorted(err,side='right')/cnt_tot] for err in pickedErrs]
-    cdf = [sortErrs.searchsorted(err,side='right')/cnt_tot for err in pickedErrs]
+    getStats(errors)
 
-    g = Gnuplot.Gnuplot(debug=1)
-    g('set terminal mp latex "Romans" 7')
-    outf = 'cdf.mp'
-    outp = 'set output "%s"' % outf; g(outp)
+    x, y = solveCDF(errors) 
 
-    g('set size .8, .8')
-    g('set key right bottom')
-    g.xlabel("error/m")
-    g('set xrange [0:100]')
-    g('set xtics 10'); g('set ytics')
-    g('set xtics nomirror'); g('set ytics nomirror')
-    g('set border 3')
-    g('set grid ls 8')
+    props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
+    props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
+    plotXY(X=x, Y=y, props=props_jpg, verb=0)
 
-    ti = 'set title "CDF"'; g(ti)
-    g.ylabel("probability")
-    g('set yrange [0:1]'); g('set ytics .2')
-    gCDF = Gnuplot.Data(pickedErrs, cdf, title=locfile, with_='lp')
-            #with_='lp lw 1.5 lc -1 lt 1 pt 4 ps 0.8')
-    g.plot(gCDF)
-
+    # GMap html generation.
     pointpairs = locs[:,:-1]
     drawPointpairs(pointpairs)
+
+
+def solveCDF(data=None):
+    """ 
+    Parameters
+    ----------
+    data: numpy array that contains what to be solved.
+
+    Returned
+    ----------
+    [X(sampled data), Y(probs)]
+    """
+    # CDF calculation and visualization.
+    cnt_tot = len(data)
+    sortErrs = np.array( sorted(data) )
+    pickedErrs = range(sortErrs[0], 100, 10)
+    probs = [sortErrs.searchsorted(err,side='right')/cnt_tot for err in pickedErrs]
+    return (pickedErrs, probs)
+
+
+def getStats(data=None):
+    """ data: numpy array """
+    # Total count, mean error, standard deviation of errors.
+    cnt_tot = len(data)
+    mean_error = data.mean()
+    stdev = data.std(ddof=1)
+    print '%8s  %-16s%-14s\n%s' % ('count', 'mean value(m)', 'stdev(m)', '-'*38)
+    print '%8d  %-16.4f%-14.4f' % (cnt_tot, mean_error, stdev)
+
+
+def plotXY(X=None, Y=None, props=None, verb=0):
+    """ 
+    plot 2D graph with vector data 'X,Y' and properties 'props' using gnuplot.
+    Note: Commented lines go with gplot mp latex term.
+    """
+    #TODO: support more than one cdf plot: [ [X,Y], ... ]
+    if not X or not Y: print 'Invalid input data!'; sys.exit(99)
+    if not props: props = props_jpg
+    g = Gnuplot.Gnuplot(debug=verb)
+    g('set terminal %s font %s' % (props['term'], props['font']))
+    outp = 'set output "%s"' % props['outfname']; g(outp)
+    ti = 'set title "%s"' % props['title']; g(ti)
+
+    if props['size']: g('set size %s' % props['size'])
+    g('set border %s' % props['border'])
+    if props['grid']: g('set grid %s' % props['grid'])
+    g('set key %s' % props['key'])
+
+    g.xlabel('%s' % props['xlabel'])
+    g.ylabel('%s' % props['ylabel'])
+    g('set xrange [%s:%s]' % (props['xrange'][0], props['xrange'][1])) 
+    g('set yrange [%s:%s]' % (props['yrange'][0], props['yrange'][1])) 
+    g('set xtics %s' % props['xtics']) 
+    g('set ytics %s' % props['ytics']) 
+
+    if props['with']: utils = props['with']
+    else: utils = 'lp'
+    if props['legend']: leg = props['legend']
+    else: leg = props['title']
+
+    gCDF = Gnuplot.Data(X, Y, title=props['legend'], with_=utils)
+    g.plot(gCDF)
 
 
 def drawPointpairs(ptpairs):
@@ -121,8 +161,8 @@ def drawPointpairs(ptpairs):
     for icon in gmap._icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
     print '\nmaps: \n%s' % ('-'*35)
     for map in gmap.maps: 
-        print 'id:\'%s\',\tpoints:' % map.id
-        for point in map.points: 
+        print 'id:\'%s\',\t(10 out of all)points:' % map.id
+        for point in map.points[:10]: 
             print point.getAttrs()
 
     open('html/map.htm', 'wb').write(gmap.genHTML())
@@ -175,7 +215,8 @@ def main():
                 sys.exit(99)
             else: 
                 eval = True
-                locfile = a
+                #locfile = a
+                locfiles = sys.argv[1:]
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
                 wlanfake = string.atoi(a)
@@ -207,16 +248,44 @@ def main():
 
     if test: testLoc(wlanfake)
 
-    if eval: evalLoc(locfile)
+    if eval:
+        for locfile in locfiles:
+            # Evaluate the count, mean error, std deviation for location records in locfile,
+            # optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
+            if not os.path.isfile(locfile):
+                print 'loc file NOT exist: %s!' % locfile
+                continue
+
+            locin = csv.reader( open(locfile, 'r') )
+            locs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            errors = locs[:,-1]
+
+            print 'Statistics: %s' % locfile
+            getStats(errors)
+
+            x, y = solveCDF(errors) 
+
+            props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
+            props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
+            plotXY(X=x, Y=y, props=props_jpg, verb=0)
+
+            # GMap html generation.
+            pointpairs = locs[:,:-1]
+            drawPointpairs(pointpairs)
 
 
 if __name__ == "__main__":
     try:
         import psyco
-        psyco.bind(main)
+        psyco.bind(solveCDF)
+        psyco.bind(getStats)
+        psyco.bind(plotXY)
+        psyco.bind(drawPointpairs)
+        psyco.bind(testLoc)
         #psyco.full()
         #psyco.log()
         #psyco.profile(0.3)
     except ImportError:
         pass
+
     main()
