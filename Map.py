@@ -30,7 +30,7 @@ class Map(object):
         self.id      = id      # div id        
         self.width   = "1000px" # map div width
         self.height  = "600px" # map div height
-        self.center  = (39.9226251856,116.472770962)  # center of init view
+        self.center  = (39.8957421333,116.344589908)  # center of init view
         self.zoom    = "1"     # zoom level
         self.navctls = True    # show google map navigation controls
         self.mapctls = True    # show toogle map type (sat/map/hybrid) controls

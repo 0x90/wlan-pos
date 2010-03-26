@@ -127,3 +127,6 @@
     2) Add CDF plot support with Gnuplot interface.
 2010-03-25
     1) Refactor test module for better reuse, effectiveness.
+2010-03-26
+    1) Mod argument list for methods in test module.
+    2) Fix bug in mp latex term script for gnuplot.

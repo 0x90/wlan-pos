@@ -1,5 +1,6 @@
 #-*- encoding=utf8 -*-
 DATPATH = 'dat/'
+LOCPATH = DATPATH+ '/loc/'
 RAWSUFFIX = '.raw'
 RMPSUFFIX = '.rmp'
 LOCSUFFIX = '.loc'

@@ -1,4 +1,5 @@
 MUST
+Fix  loop test error.
 Mod  Exception raised instead of being printed.
 mod  Modularize radio map related operation, including Fingerprint(), Cluster() (BECAREFUL:global vars!).
 --------

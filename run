@@ -10,7 +10,7 @@ runtimes=60
 fakegps=0
 makepyc=0
 nstop=0
-dumbtest=0
+stabtest=0
 dtest_times=200
 log_analysis=0
 
@@ -45,7 +45,7 @@ run -- WLAN location fingerprinting running script.
 USAGE: run [OPTION] ...
 OPTION: 
 -a     all in one processing(default: no, only offline processing)
--d     dumb test for dtest_times(default=200) times.
+-d     stability test for dtest_times(default=200) times.
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
@@ -78,7 +78,7 @@ while getopts "adf:ghl:mn:or:t:v" opt; do
     case $opt in
         a ) aio=1 ;;
         d ) 
-			dumbtest=1 
+			stabtest=1 
 			log_analysis=1
 		;;
         f ) start_spid=$OPTARG ;;
@@ -110,11 +110,11 @@ done
 date=`date +%Y-%m%d`
 timestamp=`date +%Y-%m%d-%H%M`
 
-if [ $dumbtest -eq 1 ]; then
+if [ $stabtest -eq 1 ]; then
     [ -d $patherr ] || mkdir -p $patherr
     [ -d $pathout ] || mkdir -p $pathout
-    errf=$patherr/dumbtest-$timestamp.err
-    outf=$pathout/dumbtest-$timestamp.out
+    errf=$patherr/stabtest-$timestamp.err
+    outf=$pathout/stabtest-$timestamp.out
     for i in $(seq $dtest_times) 
     do
         echo "test $i"
@@ -124,7 +124,7 @@ if [ $dumbtest -eq 1 ]; then
 fi
 
 if [ $log_analysis -eq 1 ]; then
-	if [ ! $dumbtest -eq 1 ]; then
+	if [ ! $stabtest -eq 1 ]; then
 		logf=`basename $logfile`
 		mainfile=${logf%\.*}
 		suffix=${logf##*\.}

@@ -13,7 +13,7 @@ import Gnuplot, Gnuplot.funcutils
 from offline import dumpCSV
 from online import fixPos, getWLAN
 from GPS import getGPS
-from config import WLAN_FAKE, DATPATH, LOCSUFFIX, RADIUS, icon_types, props_jpg
+from config import WLAN_FAKE, LOCPATH, LOCSUFFIX, RADIUS, icon_types, props_jpg
 from GEO import dist_on_unitshpere
 from Map import GMap, Icon, Map, Point
 
@@ -67,22 +67,22 @@ def evalLoc(locfile=None):
     drawPointpairs(pointpairs)
 
 
-def solveCDF(data=None):
+def solveCDF(data=None, pickedX=None):
     """ 
     Parameters
     ----------
     data: numpy array that contains what to be solved.
+    pickedX: selected X=[x1, x2, ...] that play as xtics in CDF graph.
 
     Returned
     ----------
-    [X(sampled data), Y(probs)]
+    Y(probs)
     """
     # CDF calculation and visualization.
     cnt_tot = len(data)
-    sortErrs = np.array( sorted(data) )
-    pickedErrs = range(sortErrs[0], 100, 10)
-    probs = [sortErrs.searchsorted(err,side='right')/cnt_tot for err in pickedErrs]
-    return (pickedErrs, probs)
+    sortData = np.array( sorted(data) )
+    probs = [sortData.searchsorted(x,side='right')/cnt_tot for x in pickedX]
+    return probs
 
 
 def getStats(data=None):
@@ -191,7 +191,7 @@ def testLoc(wlanfake=0, verbose=False):
     print 'locline:\n%s' % locline
 
     date = time.strftime('%Y-%m%d')
-    locfilename = DATPATH + date + LOCSUFFIX
+    locfilename = LOCPATH + date + LOCSUFFIX
     dumpCSV(locfilename, locline)
 
 
@@ -237,11 +237,11 @@ def main():
             usage(); sys.exit(99)
 
     # Check if the logging dir exists.
-    if not os.path.isdir(DATPATH):
+    if not os.path.isdir(LOCPATH):
         try: 
             os.umask(0) #linux system default umask: 022.
-            os.mkdir(DATPATH,0777)
-            #os.chmod(DATPATH,0777)
+            os.mkdir(LOCPATH,0777)
+            #os.chmod(LOCPATH,0777)
         except OSError, errmsg:
             print "Failed: %d" % str(errmsg)
             sys.exit(99)
@@ -263,7 +263,8 @@ def main():
             print 'Statistics: %s' % locfile
             getStats(errors)
 
-            x, y = solveCDF(errors) 
+            x = range(0, 200, 20)
+            y = solveCDF(data=errors, pickedX=x) 
 
             props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
             props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
