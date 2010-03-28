@@ -27,13 +27,14 @@ Location fingerprinting using deterministic/probablistic approaches.
 usage:
     offline <option> <infile>
 option:
-    -e --eval=<loc file> :  Evaluate fingerprinting quality for records in loc file,
-                            including positioning count, mean error, std error.
-    -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
-                            <mode id> same as in WLAN_FAKE of config module.
-    -t --test            :  Online fingerprinting test with related info logged in loc file.
-    -h --help            :  Show this help.
-    -v --verbose         :  Verbose mode.
+    -e --eval=<loc file(s)> :  Evaluate fingerprinting quality for records in loc file,
+                               including positioning count, mean error, std error.
+    -f --fake=<mode id>     :  Fake WLAN scan results in case of bad WLAN coverage.
+                               <mode id> same as in WLAN_FAKE of config module.
+    -m --map=<loc file(s)>  :  Pinpoint fix/ref point pairs in <loc file> into GMap.
+    -t --test               :  Online fingerprinting test with related info logged in loc file.
+    -h --help               :  Show this help.
+    -v --verbose            :  Verbose mode.
 example:
     #sudo python test.py -t 
     #python test.py -e /path/to/locfile 
@@ -136,8 +137,8 @@ def drawPointpairs(ptpairs):
     """
     icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
     cwd = os.getcwd()
-    icon_fix.image  = cwd + icon_types['reddot'][1]
-    icon_ref.image  = cwd + icon_types['yellowdot'][1]
+    icon_fix.image  = cwd + icon_types['yellowdot'][1]
+    icon_ref.image  = cwd + icon_types['reddot'][1]
     icon_fix.shadow = icon_ref.shadow = cwd + icon_types['dotshadow'][1]
 
     ptlist = []
@@ -197,8 +198,8 @@ def testLoc(wlanfake=0, verbose=False):
 
 def main():
     try: opts, args = getopt.getopt(sys.argv[1:], 
-            "e:f:htv",
-            ["eval=","fake=","help","test","verbose"])
+            "e:f:hm:tv",
+            ["eval=","fake=","help","map","test","verbose"])
     except getopt.GetoptError:
         print 'Error: getopt!\n'
         usage(); sys.exit(99)
@@ -206,7 +207,7 @@ def main():
     # Program terminated when NO argument followed!
     if not opts: usage(); sys.exit(0)
 
-    verbose = False; wlanfake = 0; eval = False; test = False
+    verbose = False; wlanfake = 0; eval = False; test = False; makemap = False
 
     for o,a in opts:
         if o in ("-e", "--eval"):
@@ -227,6 +228,13 @@ def main():
             usage(); sys.exit(99)
         elif o in ("-h", "--help"):
             usage(); sys.exit(0)
+        elif o in ("-m", "--map"):
+            if not os.path.isfile(a):
+                print 'Loc file NOT exist: %s!' % a
+                sys.exit(99)
+            else: 
+                makemap = True
+                locfiles = sys.argv[1:]
         elif o in ("-t", "--test"):
             test = True
         elif o in ("-v", "--verbose"):
@@ -272,6 +280,18 @@ def main():
 
             # GMap html generation.
             pointpairs = locs[:,:-1]
+            drawPointpairs(pointpairs)
+
+
+    if makemap:
+        for locfile in locfiles:
+            # Make GMap with fix/ref point pairs in locfile(s).
+            if not os.path.isfile(locfile):
+                print 'loc file NOT exist: %s!' % locfile
+                continue
+
+            locin = csv.reader( open(locfile, 'r') )
+            pointpairs = np.array([ locline for locline in locin ])[:,2:-1].astype(float)
             drawPointpairs(pointpairs)
 
 

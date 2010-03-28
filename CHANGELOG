@@ -130,3 +130,6 @@
 2010-03-26
     1) Mod argument list for methods in test module.
     2) Fix bug in mp latex term script for gnuplot.
+2010-03-28
+    1) Add GMap makeup method in test module with point pairs in loc file(s).
+    2) Mod icon style definition for fix/ref point.
