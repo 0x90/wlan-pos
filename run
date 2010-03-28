@@ -11,7 +11,7 @@ fakegps=0
 makepyc=0
 nstop=0
 stabtest=0
-dtest_times=200
+stabtest_times=200
 log_analysis=0
 
 pathout=log/out
@@ -45,14 +45,15 @@ run -- WLAN location fingerprinting running script.
 USAGE: run [OPTION] ...
 OPTION: 
 -a     all in one processing(default: no, only offline processing)
--d     stability test for dtest_times(default=200) times.
 -f     start spid number(included)(default: 1)
 -g     offline fake GPS receiving(default: yes)
 -h     show this help
--l     logical symbol location evaluation with log files (*.err or *.out)
+-l     location evaluation for data in log files (*.err or *.out)
 -m     make pyc files of *.py
 -n     non-stop automated offline calibration
 -r     number of samples for each spid(default: 60)
+-s     stability test for stabtest_times(default=200) times, with stdout/stderr logged.
+	   usage: <basename> -s <cmdname> '<cmdarg1> ...'.
 -t     stop spid number(included)(default: 1)
 -v     show version information
 
@@ -64,8 +65,8 @@ Offline WLAN data calibration, filtering, clustering and sql tabling continuousl
 #run -n <start_spid>
 Compile all *.py to *.pyc
 #run -m
-Dumbtest for stability
-#run -d
+Loop test for stability
+#run -s test.py '-t -g -f 1'
 
 HELP
 	exit 0
@@ -73,14 +74,10 @@ HELP
 
 [ $# -eq 0 ] && Usage
 #x=1   # Avoids an error if we get no options at all.
-while getopts "adf:ghl:mn:or:t:v" opt; do
+while getopts "af:ghl:mn:or:s:t:v" opt; do
     OPTERR=0 #error msg shutup
     case $opt in
         a ) aio=1 ;;
-        d ) 
-			stabtest=1 
-			log_analysis=1
-		;;
         f ) start_spid=$OPTARG ;;
         g ) fakegps=1 ;;
         h ) Usage ;;
@@ -94,6 +91,30 @@ while getopts "adf:ghl:mn:or:t:v" opt; do
 			cnt=$OPTARG
         ;;
         r ) runtimes=$OPTARG ;;
+		# NOTE: To guarantee security, in case the cmdargs contains same args as this script's.
+		# 		usage: $0 -s <cmd> '<cmdarg1> <cmdarg2> ...' 
+		s )  
+			stabtest=1
+			declare -a input=( "$@" )
+			posptr=1
+			cmdname="${input[$posptr]}" 
+			hassudo=0
+			if [ "$cmdname" = "sudo" ]; then
+				posptr=`expr $posptr + 1`
+				cmdname=./${input[$posptr]}
+				hassudo=1
+			fi	
+			if [ -f ${cmdname} -a -x ${cmdname} ]; then
+				posptr=`expr $posptr + 1`
+				[ $hassudo -eq 1 ] && cmdname=sudo" ./"${cmdname}
+				declare -a cmdargs=( "${input[@]:$posptr}" )
+				log_analysis=1
+			else
+				echo -e "\nCommand NOT available: ${cmdname}!!"
+				echo -e "NOTE: Make sure the file is executable, and located/linked in CWD!"
+				Usage
+			fi
+		;;
         t ) stop_spid=$OPTARG ;;
         v ) Version ;;
         * )
@@ -107,18 +128,19 @@ done
 #echo "Left overs: $@"
 #exit 0
 
-date=`date +%Y-%m%d`
 timestamp=`date +%Y-%m%d-%H%M`
+#date=`date +%Y-%m%d`
+date=${timestamp%-*}
 
 if [ $stabtest -eq 1 ]; then
     [ -d $patherr ] || mkdir -p $patherr
     [ -d $pathout ] || mkdir -p $pathout
     errf=$patherr/stabtest-$timestamp.err
     outf=$pathout/stabtest-$timestamp.out
-    for i in $(seq $dtest_times) 
+    for i in $(seq $stabtest_times) 
     do
-        echo "test $i"
-        (sudo $online -v 2>&1 1>&3 |tee -a $errf) 3>&1 1>&2 |tee -a $outf
+        echo -e "\n*****TEST [$i]*****"
+        ($cmdname $cmdargs 2>&1 1>&3 |tee -a $errf) 3>&1 1>&2 |tee -a $outf
         sleep 4
     done
 fi

@@ -29,8 +29,9 @@ usage:
 option:
     -e --eval=<loc file(s)> :  Evaluate fingerprinting quality for records in loc file,
                                including positioning count, mean error, std error.
-    -f --fake=<mode id>     :  Fake WLAN scan results in case of bad WLAN coverage.
+    -f --fakewlan=<mode id> :  Fake AP scan results in case of bad WLAN coverage.
                                <mode id> same as in WLAN_FAKE of config module.
+    -g --gpsfake            :  Fake coords results in case of bad GPS coverage.
     -m --map=<loc file(s)>  :  Pinpoint fix/ref point pairs in <loc file> into GMap.
     -t --test               :  Online fingerprinting test with related info logged in loc file.
     -h --help               :  Show this help.
@@ -169,7 +170,7 @@ def drawPointpairs(ptpairs):
     open('html/map.htm', 'wb').write(gmap.genHTML())
 
 
-def testLoc(wlanfake=0, verbose=False):
+def testLoc(wlanfake=0, gpsfake=False, verbose=False):
     # Get WLAN scanning results.
     len_visAPs, wifis = getWLAN(wlanfake)
 
@@ -179,8 +180,8 @@ def testLoc(wlanfake=0, verbose=False):
     print 'fixed location: \n%s' % fixloc
 
     # Get GPS referenced Position.
-    refloc = getGPS()
-    #refloc = [ 39.922648,116.472895 ]
+    if not gpsfake: refloc = getGPS()
+    else: refloc = [ 39.922648,116.472895 ]
     print 'referenced location: \n%s' % refloc
 
     # Log the fixed and referenced positioning record.
@@ -198,8 +199,8 @@ def testLoc(wlanfake=0, verbose=False):
 
 def main():
     try: opts, args = getopt.getopt(sys.argv[1:], 
-            "e:f:hm:tv",
-            ["eval=","fake=","help","map","test","verbose"])
+            "e:f:ghm:tv",
+            ["eval=","fakewlan=","gpsfake","help","map","test","verbose"])
     except getopt.GetoptError:
         print 'Error: getopt!\n'
         usage(); sys.exit(99)
@@ -207,7 +208,8 @@ def main():
     # Program terminated when NO argument followed!
     if not opts: usage(); sys.exit(0)
 
-    verbose = False; wlanfake = 0; eval = False; test = False; makemap = False
+    verbose = False; wlanfake = 0; gpsfake = False
+    eval = False; test = False; makemap = False
 
     for o,a in opts:
         if o in ("-e", "--eval"):
@@ -226,6 +228,8 @@ def main():
             else: pass
             print '\nIllegal fake WLAN scan ID: %s!' % a
             usage(); sys.exit(99)
+        elif o in ("-g", "--gpsfake"):
+            gpsfake = True
         elif o in ("-h", "--help"):
             usage(); sys.exit(0)
         elif o in ("-m", "--map"):
@@ -254,7 +258,7 @@ def main():
             print "Failed: %d" % str(errmsg)
             sys.exit(99)
 
-    if test: testLoc(wlanfake)
+    if test: testLoc(wlanfake, gpsfake)
 
     if eval:
         for locfile in locfiles:

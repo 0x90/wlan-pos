@@ -133,3 +133,4 @@
 2010-03-28
     1) Add GMap makeup method in test module with point pairs in loc file(s).
     2) Mod icon style definition for fix/ref point.
+    3) Add stability loop test for any executable file in CWD, like 'run -s sudo test.py '-t -g -f 1'.
