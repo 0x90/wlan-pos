@@ -134,3 +134,6 @@
     1) Add GMap makeup method in test module with point pairs in loc file(s).
     2) Mod icon style definition for fix/ref point.
     3) Add stability loop test for any executable file in CWD, like 'run -s sudo test.py '-t -g -f 1'.
+2010-04-02
+    1) Fix the start index of -e/-m options for test module.
+    2) Add max print support for getStats().

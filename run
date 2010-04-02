@@ -11,7 +11,7 @@ fakegps=0
 makepyc=0
 nstop=0
 stabtest=0
-stabtest_times=200
+stabtest_times=50
 log_analysis=0
 
 pathout=log/out

@@ -89,12 +89,13 @@ def solveCDF(data=None, pickedX=None):
 
 def getStats(data=None):
     """ data: numpy array """
-    # Total count, mean error, standard deviation of errors.
+    # Total count, mean/max error, standard deviation of errors.
     cnt_tot = len(data)
-    mean_error = data.mean()
+    mean = data.mean()
     stdev = data.std(ddof=1)
-    print '%8s  %-16s%-14s\n%s' % ('count', 'mean value(m)', 'stdev(m)', '-'*38)
-    print '%8d  %-16.4f%-14.4f' % (cnt_tot, mean_error, stdev)
+    max = data.max()
+    print '%8s  %-10s%-10s%-10s\n%s' % ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38)
+    print '%8d  %-10.4f%-10.4f%-10.4f' % (cnt_tot, mean, max, stdev)
 
 
 def plotXY(X=None, Y=None, props=None, verb=0):
@@ -219,7 +220,7 @@ def main():
             else: 
                 eval = True
                 #locfile = a
-                locfiles = sys.argv[1:]
+                locfiles = sys.argv[2:]
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
                 wlanfake = string.atoi(a)
@@ -238,7 +239,7 @@ def main():
                 sys.exit(99)
             else: 
                 makemap = True
-                locfiles = sys.argv[1:]
+                locfiles = sys.argv[2:]
         elif o in ("-t", "--test"):
             test = True
         elif o in ("-v", "--verbose"):
