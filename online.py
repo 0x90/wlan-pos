@@ -194,10 +194,12 @@ def fixPos(len_wlan, wlan, verb=False):
             if interpart_online:
                 wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
                 idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
-                wlan = wl[:,idxs_inters]
-            idxs_taken = [ keyaps.index(x) for x in wlan[0] ]
+                wl = wl[:,idxs_inters]
+            else: wl = wlan
+            idxs_taken = [ keyaps.index(x) for x in wl[0] ]
             keyrsss = keyrsss.take(idxs_taken, axis=1)
-        mrsss = wlan[1].astype(int)
+        else: wl = wlan
+        mrsss = wl[1].astype(int)
 
         # Euclidean dist solving and sorting.
         # min_spids: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]

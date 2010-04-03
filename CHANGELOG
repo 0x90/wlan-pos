@@ -137,3 +137,5 @@
 2010-04-02
     1) Fix the start index of -e/-m options for test module.
     2) Add max print support for getStats().
+2010-04-03
+    1) Fix issue 20 that 'wlan' will be reassigned during the mrsss/sum_rss solution loop.
