@@ -139,3 +139,5 @@
     2) Add max print support for getStats().
 2010-04-03
     1) Fix issue 20 that 'wlan' will be reassigned during the mrsss/sum_rss solution loop.
+2010-04-04
+    1) Fix issue 21 that sorted_sums[:idx_dkmin] bumps into indexing error cos idx_dkmin set to 0 when the minimum of sorted_sums is 0, add side='right' option to searchsorted().

@@ -221,7 +221,7 @@ def fixPos(len_wlan, wlan, verb=False):
         if verb:
             print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
         # DKNN
-        idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN)
+        idx_dkmin = np.searchsorted(sorted_sums, sorted_sums[0]*KWIN, side='right')
         dknn_sums = sorted_sums[:idx_dkmin]
         dknn_spids = sorted_spids[:idx_dkmin]
         print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_spids)
