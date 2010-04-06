@@ -152,7 +152,7 @@ props_jpg = {'term':'jpeg', # MUST be recognized by Gnuplot.
             'ytics':'nomirror .05',
              'grid':'x y', # default: off
            'border':3,
-             'with':'lp pt 3'}
+             'with':'lp pt 3 lc 1'}
 props_mp = { 'term':'mp latex', # MUST be recognized by Gnuplot.
          'outfname':'cdf.mp',
              'font':'"Romans" 7',

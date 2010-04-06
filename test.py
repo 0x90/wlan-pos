@@ -59,29 +59,33 @@ def solveCDF(data=None, pickedX=None):
     probs = [sortData.searchsorted(x,side='right')/cnt_tot for x in pickedX]
 
     feat_ratio = [.67, .95]
-    feat_points = [ [ sortData[int(rat*cnt_tot)], rat ] for rat in feat_ratio ]
-    pickedX.append(feat_points[0][0]); probs.append(feat_points[0][1])
-    pickedX.append(feat_points[1][0]); probs.append(feat_points[1][1])
+    feat_points = [ sortData[int(rat*cnt_tot)] for rat in feat_ratio ]
+    pickedX.extend(feat_points)
+    probs.extend(feat_ratio)
 
     pickedX=sorted(pickedX); probs=sorted(probs)
 
-    return (pickedX, probs, feat_points)
+    return (pickedX, probs, zip(feat_points,feat_ratio))
 
 
 def getStats(data=None):
-    """ data: numpy array """
-    # Total count, mean/max error, standard deviation of errors.
+    """ 
+    Get total count, mean/max val, standard deviation of values.
+    data: numpy array 
+    Returns
+    -------
+    (cnt_tot, mean, max, stdev)
+    """
     cnt_tot = len(data)
     mean = data.mean()
-    stdev = data.std(ddof=1)
     max = data.max()
-    print '%8s  %-10s%-10s%-10s\n%s' % ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38)
-    print '%8d  %-10.2f%-10.2f%-10.2f' % (cnt_tot, mean, max, stdev)
+    stdev = data.std(ddof=1)
+    return (cnt_tot, mean ,max ,stdev)
 
 
-def plotCDF(X=None, Y=None, props=None, fPts=None, verb=0):
+def plotCDF(X=None, Y=None, props=None, pts=None, verb=0):
     """ 
-    plot 2D graph with vector data 'X,Y' and properties 'props' using gnuplot.
+    plot 2D line(X,Y) and points(pts) with properties 'props' using gnuplot.
     Note: Commented lines go with gplot mp latex term.
     """
     #TODO: support more than one cdf plot: [ [X,Y], ... ]
@@ -111,18 +115,18 @@ def plotCDF(X=None, Y=None, props=None, fPts=None, verb=0):
 
     gCDF = Gnuplot.Data(X, Y, title=props['legend'], with_=utils)
 
-    x67, y67 = fPts[0]
-    x95, y95 = fPts[1]
-    gPt67 = Gnuplot.Data(x67, y67, title='67\%', with_='p pt 4 ps 2')
-    gPt95 = Gnuplot.Data(x95, y95, title='95\%', with_='p pt 8 ps 2')
+    x67, y67 = pts[0]; x95, y95 = pts[1]
+    gPt67 = Gnuplot.Data(x67, y67, title='%10.2fm: 67%%' % x67, with_='p pt 4 ps 2')
+    gPt95 = Gnuplot.Data(x95, y95, title='%10.2fm: 95%%' % x95, with_='p pt 8 ps 2')
 
     g.plot(gCDF, gPt67, gPt95)
 
 
-def drawPointpairs(ptpairs):
+def drawPointpairs(refpt=None, fixpts=None):
     """ 
         Plot point pairs  into GMap.
-        ptpairs: [ [fixpoint, refpoint], ... ]
+        refpt: [ reflat, reflon ]
+       fixpts: [ fixpoint1, refpoint2, ... ]
     """
     icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
     cwd = os.getcwd()
@@ -131,17 +135,16 @@ def drawPointpairs(ptpairs):
     icon_fix.shadow = icon_ref.shadow = cwd + icon_types['dotshadow'][1]
 
     ptlist = []
-    for idx,ptpair in enumerate(ptpairs):
-        fixloc = [ ptpair[0], ptpair[1] ]
-        refloc = [ ptpair[2], ptpair[3] ]
+    for idx,fixpt in enumerate(fixpts):
+        fixloc = [ fixpt[0], fixpt[1] ]
         ptFix = Point(loc=fixloc, 
-                      txt=str(idx)+': alg: '+'<br>'+str(fixloc), 
+                      txt=str(idx)+': Alg: '+'<br>'+str(fixloc), 
                       iconid='fixloc')     
-        ptRef = Point(loc=refloc, 
-                      txt=str(idx)+': gps: '+'<br>'+str(refloc), 
-                      iconid='refloc')     
         ptlist.append(ptFix)
-        ptlist.append(ptRef)
+    ptRef = Point(loc=refpt, 
+                  txt='Ref: '+'<br>'+str(refpt), 
+                  iconid='refloc')     
+    ptlist.append(ptRef)
 
     gmap = GMap(maplist=[Map(pointlist=ptlist)], iconlist=[icon_fix, icon_ref])
     gmap.maps[0].width = "1260px"; gmap.maps[0].height = "860px"
@@ -151,7 +154,7 @@ def drawPointpairs(ptpairs):
     for icon in gmap._icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
     print 'maps: \n%s' % ('-'*35)
     for map in gmap.maps: 
-        print 'id:\'%s\',\t(10 out of all)points:' % map.id
+        print 'id:\'%s\',\t(10 out of %d)points:' % (map.id, len(map.points))
         for point in map.points[:10]: 
             print point.getAttrs()
 
@@ -251,7 +254,7 @@ def main():
     if eval:
         for locfile in locfiles:
             # Evaluate the count, mean error, std deviation for location records in locfile,
-            # optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
+            # optionally, the fixloc and refloc point pairs can be drawn in gmap.
             if not os.path.isfile(locfile):
                 print 'loc file NOT exist: %s!' % locfile
                 continue
@@ -260,23 +263,33 @@ def main():
             pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
             fixcoords = pointpairs[:,:2]
             meanref = np.mean(pointpairs[:,2:], axis=0)
-            errors = np.array([ dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS
-                                for flat,flon in fixcoords ])
+            errors = np.array([ 
+                dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS 
+                for flat,flon in fixcoords ])
 
             print 'Statistics: %s' % locfile
-            getStats(errors)
+            cntallerr, meanerr, maxerr, stdeverr = getStats(errors)
+            print '%8s  %-10s%-10s%-10s\n%s\n%8d  %-10.2f%-10.2f%-10.2f' % \
+                    ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
+                    cntallerr, meanerr, maxerr, stdeverr)
 
-            x = range(0, 500, 50)
+            if 10 < maxerr < 100: 
+                xmax = (int(maxerr/10)+1)*10
+                xtics = 10
+            elif maxerr < 10: 
+                xmax = int(maxerr)+1
+                xtics = 1
+            x = range(0, xmax+5*xtics+1, xtics)
             x, y, feat_pts = solveCDF(data=errors, pickedX=x) 
 
             props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
             props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
-            props_jpg['xrange'] = [0,500]
-            props_jpg['xtics'] = 50
-            plotCDF(X=x, Y=y, props=props_jpg, fPts=feat_pts, verb=0)
+            props_jpg['xrange'] = [0, xmax+5*xtics]
+            props_jpg['xtics'] = xtics
+            plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=1)
 
             # GMap html generation.
-            drawPointpairs(pointpairs)
+            drawPointpairs(refpt=meanref, fixpts=fixcoords)
 
 
     if makemap:
