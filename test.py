@@ -42,33 +42,6 @@ example:
 """ % time.strftime('%Y')
 
 
-def evalLoc(locfile=None):
-    """ *Deprecated*
-    Evaluate the count, mean error, std deviation for location records in locfile,
-    optionally, the fixloc and refloc point pairs can be drawn in gmap for visualization.
-    """
-    if not os.path.isfile(locfile):
-        print 'loc file NOT exist: %s' % locfile
-        sys.exit(99)
-
-    locin = csv.reader( open(locfile, 'r') )
-    locs = np.array([ locline for locline in locin ])[:,2:].astype(float)
-    errors = locs[:,-1]
-
-    print 'Statistics: %s' % locfile
-    getStats(errors)
-
-    x, y = solveCDF(errors) 
-
-    props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
-    props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
-    plotXY(X=x, Y=y, props=props_jpg, verb=0)
-
-    # GMap html generation.
-    pointpairs = locs[:,:-1]
-    drawPointpairs(pointpairs)
-
-
 def solveCDF(data=None, pickedX=None):
     """ 
     Parameters
@@ -78,13 +51,21 @@ def solveCDF(data=None, pickedX=None):
 
     Returned
     ----------
-    Y(probs)
+    ( X(sampled sorted data), Y(probs), [ [x(.67),.67], [x(.95),.95] ] )
     """
     # CDF calculation and visualization.
     cnt_tot = len(data)
     sortData = np.array( sorted(data) )
     probs = [sortData.searchsorted(x,side='right')/cnt_tot for x in pickedX]
-    return probs
+
+    feat_ratio = [.67, .95]
+    feat_points = [ [ sortData[int(rat*cnt_tot)], rat ] for rat in feat_ratio ]
+    pickedX.append(feat_points[0][0]); probs.append(feat_points[0][1])
+    pickedX.append(feat_points[1][0]); probs.append(feat_points[1][1])
+
+    pickedX=sorted(pickedX); probs=sorted(probs)
+
+    return (pickedX, probs, feat_points)
 
 
 def getStats(data=None):
@@ -95,10 +76,10 @@ def getStats(data=None):
     stdev = data.std(ddof=1)
     max = data.max()
     print '%8s  %-10s%-10s%-10s\n%s' % ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38)
-    print '%8d  %-10.4f%-10.4f%-10.4f' % (cnt_tot, mean, max, stdev)
+    print '%8d  %-10.2f%-10.2f%-10.2f' % (cnt_tot, mean, max, stdev)
 
 
-def plotXY(X=None, Y=None, props=None, verb=0):
+def plotCDF(X=None, Y=None, props=None, fPts=None, verb=0):
     """ 
     plot 2D graph with vector data 'X,Y' and properties 'props' using gnuplot.
     Note: Commented lines go with gplot mp latex term.
@@ -129,7 +110,13 @@ def plotXY(X=None, Y=None, props=None, verb=0):
     else: leg = props['title']
 
     gCDF = Gnuplot.Data(X, Y, title=props['legend'], with_=utils)
-    g.plot(gCDF)
+
+    x67, y67 = fPts[0]
+    x95, y95 = fPts[1]
+    gPt67 = Gnuplot.Data(x67, y67, title='67\%', with_='p')
+    gPt95 = Gnuplot.Data(x95, y95, title='95\%', with_='p')
+
+    g.plot(gCDF, gPt67, gPt95)
 
 
 def drawPointpairs(ptpairs):
@@ -162,7 +149,7 @@ def drawPointpairs(ptpairs):
 
     print '\nicon types: (img: null when default)\n%s' % ('-'*35)
     for icon in gmap._icons: print 'id:\'%-5s\' img:\'%s\'' % (icon.id, icon.image)
-    print '\nmaps: \n%s' % ('-'*35)
+    print 'maps: \n%s' % ('-'*35)
     for map in gmap.maps: 
         print 'id:\'%s\',\t(10 out of all)points:' % map.id
         for point in map.points[:10]: 
@@ -186,11 +173,11 @@ def testLoc(wlanfake=0, gpsfake=False, verbose=False):
     print 'referenced location: \n%s' % refloc
 
     # Log the fixed and referenced positioning record.
-    # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon, error(meter) ].
+    # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon ].
     timestamp = time.strftime('%Y-%m%d-%H%M')
     visMACs = '|'.join(wifis[0])
-    error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
-    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1], error ]
+    #error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
+    locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1] ]
     print 'locline:\n%s' % locline
 
     date = time.strftime('%Y-%m%d')
@@ -201,7 +188,7 @@ def testLoc(wlanfake=0, gpsfake=False, verbose=False):
 def main():
     try: opts, args = getopt.getopt(sys.argv[1:], 
             "e:f:ghm:tv",
-            ["eval=","fakewlan=","gpsfake","help","map","test","verbose"])
+            ["eval=","fakewlan=","gpsfake","help","map=","test","verbose"])
     except getopt.GetoptError:
         print 'Error: getopt!\n'
         usage(); sys.exit(99)
@@ -270,21 +257,25 @@ def main():
                 continue
 
             locin = csv.reader( open(locfile, 'r') )
-            locs = np.array([ locline for locline in locin ])[:,2:].astype(float)
-            errors = locs[:,-1]
+            pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            fixcoords = pointpairs[:,:2]
+            meanref = np.mean(pointpairs[:,2:], axis=0)
+            errors = np.array([ dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS
+                                for flat,flon in fixcoords ])
 
             print 'Statistics: %s' % locfile
             getStats(errors)
 
-            x = range(0, 200, 20)
-            y = solveCDF(data=errors, pickedX=x) 
+            x = range(0, 500, 50)
+            x, y, feat_pts = solveCDF(data=errors, pickedX=x) 
 
             props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
             props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
-            plotXY(X=x, Y=y, props=props_jpg, verb=0)
+            props_jpg['xrange'] = [0,500]
+            props_jpg['xtics'] = 50
+            plotCDF(X=x, Y=y, props=props_jpg, fPts=feat_pts, verb=0)
 
             # GMap html generation.
-            pointpairs = locs[:,:-1]
             drawPointpairs(pointpairs)
 
 
@@ -305,7 +296,7 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(solveCDF)
         psyco.bind(getStats)
-        psyco.bind(plotXY)
+        psyco.bind(plotCDF)
         psyco.bind(drawPointpairs)
         psyco.bind(testLoc)
         #psyco.full()
