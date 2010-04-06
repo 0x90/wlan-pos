@@ -113,8 +113,8 @@ def plotCDF(X=None, Y=None, props=None, fPts=None, verb=0):
 
     x67, y67 = fPts[0]
     x95, y95 = fPts[1]
-    gPt67 = Gnuplot.Data(x67, y67, title='67\%', with_='p')
-    gPt95 = Gnuplot.Data(x95, y95, title='95\%', with_='p')
+    gPt67 = Gnuplot.Data(x67, y67, title='67\%', with_='p pt 4 ps 2')
+    gPt95 = Gnuplot.Data(x95, y95, title='95\%', with_='p pt 8 ps 2')
 
     g.plot(gCDF, gPt67, gPt95)
 
