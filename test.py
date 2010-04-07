@@ -273,12 +273,20 @@ def main():
                     ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
                     cntallerr, meanerr, maxerr, stdeverr)
 
-            if 10 < maxerr < 100: 
-                xmax = (int(maxerr/10)+1)*10
-                xtics = 10
-            elif maxerr < 10: 
-                xmax = int(maxerr)+1
+            if maxerr < 10: 
                 xtics = 1
+            elif 10 <= maxerr < 100: 
+                xtics = 20
+            elif 100 <= maxerr < 500: 
+                xtics = 50
+            elif 500 <= maxerr < 1000: 
+                xtics = 75
+            elif 1000 <= maxerr < 2000: 
+                xtics = 150
+            else:
+                print '\n!!!Max Err: %10.2f!!!\n' % maxerr
+                xtics = maxerr/10
+            xmax = (int(maxerr/xtics)+1)*xtics
             x = range(0, xmax+5*xtics+1, xtics)
             x, y, feat_pts = solveCDF(data=errors, pickedX=x) 
 
@@ -286,7 +294,7 @@ def main():
             props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
             props_jpg['xrange'] = [0, xmax+5*xtics]
             props_jpg['xtics'] = xtics
-            plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=1)
+            plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=0)
 
             # GMap html generation.
             drawPointpairs(refpt=meanref, fixpts=fixcoords)

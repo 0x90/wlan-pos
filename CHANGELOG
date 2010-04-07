@@ -143,3 +143,5 @@
     1) Fix issue 21 that sorted_sums[:idx_dkmin] bumps into indexing error cos idx_dkmin set to 0 when the minimum of sorted_sums is 0, add side='right' option to searchsorted().
 2010-04-06
     1) Add featured points in solveCDF(), like points with .67 and .95 probabilities.
+2010-04-07
+    1) Fix xtics bug for CDF plot properties.

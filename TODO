@@ -1,5 +1,4 @@
 MUST
-Add  error values for .67 and .95 featured points.
 Mod  Exception raised instead of being printed.
 mod  Modularize radio map related operation, including Fingerprint(), Cluster() (BECAREFUL:global vars!).
 --------
