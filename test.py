@@ -8,6 +8,7 @@ import time
 import csv
 
 import numpy as np
+from pprint import pprint,PrettyPrinter
 import Gnuplot, Gnuplot.funcutils
 
 from offline import dumpCSV
@@ -46,7 +47,7 @@ def solveCDF(data=None, pickedX=None):
     """ 
     Parameters
     ----------
-    data: numpy array that contains what to be solved.
+    data: sequence that contains what to be solved.
     pickedX: selected X=[x1, x2, ...] that play as xtics in CDF graph.
 
     Returned
@@ -71,15 +72,16 @@ def solveCDF(data=None, pickedX=None):
 def getStats(data=None):
     """ 
     Get total count, mean/max val, standard deviation of values.
-    data: numpy array 
+    data: data sequence.
     Returns
     -------
     (cnt_tot, mean, max, stdev)
     """
-    cnt_tot = len(data)
-    mean = data.mean()
-    max = data.max()
-    stdev = data.std(ddof=1)
+    dat = np.array(data)
+    cnt_tot = len(dat)
+    mean = dat.mean()
+    max = dat.max()
+    stdev = dat.std(ddof=1)
     return (cnt_tot, mean ,max ,stdev)
 
 
@@ -122,11 +124,11 @@ def plotCDF(X=None, Y=None, props=None, pts=None, verb=0):
     g.plot(gCDF, gPt67, gPt95)
 
 
-def drawPointpairs(refpt=None, fixpts=None):
+def drawPointpairs(refpt=None, fix_err=None):
     """ 
         Plot point pairs  into GMap.
         refpt: [ reflat, reflon ]
-       fixpts: [ fixpoint1, refpoint2, ... ]
+       fix_err: [ [fixpoint1, err1], ... ]
     """
     icon_fix = Icon('fixloc'); icon_ref = Icon('refloc')
     cwd = os.getcwd()
@@ -135,10 +137,11 @@ def drawPointpairs(refpt=None, fixpts=None):
     icon_fix.shadow = icon_ref.shadow = cwd + icon_types['dotshadow'][1]
 
     ptlist = []
-    for idx,fixpt in enumerate(fixpts):
-        fixloc = [ fixpt[0], fixpt[1] ]
+    for idx,pt_err in enumerate(fix_err):
+        fixloc = [ pt_err[0], pt_err[1] ]
+        err = pt_err[2]
         ptFix = Point(loc=fixloc, 
-                      txt=str(idx)+': Alg: '+'<br>'+str(fixloc), 
+                      txt=str(idx)+': Alg: '+'<br>'+str(fixloc)+'<br>Err: '+str(err)+'m', 
                       iconid='fixloc')     
         ptlist.append(ptFix)
     ptRef = Point(loc=refpt, 
@@ -186,6 +189,19 @@ def testLoc(wlanfake=0, gpsfake=False, verbose=False):
     date = time.strftime('%Y-%m%d')
     locfilename = LOCPATH + date + LOCSUFFIX
     dumpCSV(locfilename, locline)
+
+
+def getHist(data=None):
+    """ 
+    Get statistical histogram for data sequence. 
+    Returns
+    -------
+    hist as dictionary.
+    """
+    hist = {}
+    for elem in set(data):
+        hist[elem] = list(data).count(elem)
+    return hist
 
 
 def main():
@@ -263,15 +279,20 @@ def main():
             pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
             fixcoords = pointpairs[:,:2]
             meanref = np.mean(pointpairs[:,2:], axis=0)
-            errors = np.array([ 
-                dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS 
-                for flat,flon in fixcoords ])
+            errors = [ [dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS]
+                       for flat,flon in fixcoords ]
+            # fixpt_err: [ [lat1, lon1, err1], ... ].
+            fixpt_err = np.append(fixcoords, errors, axis=1)
+            errors = fixpt_err[:,-1]
 
             print 'Statistics: %s' % locfile
             cntallerr, meanerr, maxerr, stdeverr = getStats(errors)
             print '%8s  %-10s%-10s%-10s\n%s\n%8d  %-10.2f%-10.2f%-10.2f' % \
                     ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
                     cntallerr, meanerr, maxerr, stdeverr)
+            if verbose: 
+                print 'Histogram(err: count):'
+                pp.pprint( getHist(errors) )
 
             if maxerr < 10: 
                 xtics = 1
@@ -297,7 +318,7 @@ def main():
             plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=0)
 
             # GMap html generation.
-            drawPointpairs(refpt=meanref, fixpts=fixcoords)
+            drawPointpairs(refpt=meanref, fix_err=fixpt_err)
 
 
     if makemap:

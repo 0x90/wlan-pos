@@ -127,6 +127,9 @@ WLAN_FAKE = {
         17:#hq-fail
             [ ['00:1E:E3:E0:69:40', '-66'], ['00:1D:7E:51:E0:8D', '-69'],
               ['00:16:16:1E:82:20', '-69'], ['00:17:7B:0F:16:D8', '-69'] ],
+        18:#hq-square-interpolated-between-1313-and-902
+            [ ['00:23:89:5F:D8:A1', '-71'], ['00:15:70:D0:52:60', '-71'],
+              ['00:15:70:D0:52:61', '-73'], ['00:23:89:5C:9E:D0', '-73'] ],
 }
 icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
               'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],

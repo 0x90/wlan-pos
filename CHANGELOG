@@ -145,3 +145,7 @@
     1) Add featured points in solveCDF(), like points with .67 and .95 probabilities.
 2010-04-07
     1) Fix xtics bug for CDF plot properties.
+2010-04-09
+    1) Add histogram stats for data sequence.
+    2) Add err info in gmap popup point tag.
+    3) Opt func args for test module.
