@@ -149,3 +149,7 @@
     1) Add histogram stats for data sequence.
     2) Add err info in gmap popup point tag.
     3) Opt func args for test module.
+    4) Fix logical flow for test module.
+    5) Fix KWIN searchsorted boundry in the case that min(dknn_sums)=0.
+2010-04-11
+    1) Add matplotlib support for better CDF/histogram plotting.

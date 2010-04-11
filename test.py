@@ -7,9 +7,11 @@ import string
 import time
 import csv
 
-import numpy as np
 from pprint import pprint,PrettyPrinter
-import Gnuplot, Gnuplot.funcutils
+import numpy as np
+#import matplotlib.pylab as mlab
+import matplotlib.pyplot as plt
+#import Gnuplot, Gnuplot.funcutils
 
 from offline import dumpCSV
 from online import fixPos, getWLAN
@@ -29,7 +31,7 @@ usage:
     offline <option> <infile>
 option:
     -e --eval=<loc file(s)> :  Evaluate fingerprinting quality for records in loc file,
-                               including positioning count, mean error, std error.
+                               including sample count, mean/max error, std, CDF/histogram viz.
     -f --fakewlan=<mode id> :  Fake AP scan results in case of bad WLAN coverage.
                                <mode id> same as in WLAN_FAKE of config module.
     -g --gpsfake            :  Fake coords results in case of bad GPS coverage.
@@ -39,7 +41,7 @@ option:
     -v --verbose            :  Verbose mode.
 example:
     #sudo python test.py -t 
-    #python test.py -e /path/to/locfile 
+    #python test.py -e /path/to/locfile -v
 """ % time.strftime('%Y')
 
 
@@ -75,14 +77,92 @@ def getStats(data=None):
     data: data sequence.
     Returns
     -------
-    (cnt_tot, mean, max, stdev)
+    (cnt_tot, mean, min, max, stdev)
     """
     dat = np.array(data)
     cnt_tot = len(dat)
     mean = dat.mean()
     max = dat.max()
+    min = dat.min()
     stdev = dat.std(ddof=1)
-    return (cnt_tot, mean ,max ,stdev)
+    return (cnt_tot, mean, min, max, stdev)
+
+
+def pyplotCDF(data=None, figmainname=None):
+    """
+    Plot CDF, histogram and featured points (with prob: 0.67,0.95), using Matplotlib.pyplot
+    Input
+    -----
+    data: data sequence tobe plotted.
+    figmainname: main part of savefig file name, the naming format for savefig:
+        cdf_<figmainname>_<featstyle>.png
+    """
+    # Solve eror values for feature points.
+    x, y, feat_pts = solveCDF(data=data, pickedX=data) 
+
+    cntallerr, meanerr, minerr, maxerr, stdeverr = getStats(data)
+    print '%8s  %-10s%-10s%-10s\n%s\n%8d  %-10.2f%-10.2f%-10.2f' % \
+            ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
+            cntallerr, meanerr, maxerr, stdeverr)
+
+    cdf_color = 'b'; hist_color = 'g'
+    bins = int(maxerr - minerr)
+    if bins < 1: bins = 1
+    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.5,
+        histtype='step', linewidth=1.5, edgecolor=cdf_color, label='CDF')
+    plt.hist(data, bins=bins, cumulative=False, normed=True,
+        histtype='bar', rwidth=1, alpha=0.6, facecolor=hist_color, label='Histogram')
+
+    #ax = plt.subplot(111)
+
+    plt.grid(False)
+    plt.axhline(1, color='k', linestyle='dotted')
+    plt.ylim([0, 1.05])
+
+    plt.yticks([0, .67, .95, 1, 1.05],['0', '0.67', '0.95', '1', ''])
+    leg_err = 'mean: %.2fm, max: %.2fm, stdev: %.2fm' % (meanerr, maxerr, stdeverr)
+    plt.xlabel('Error/m\n(%s)' % leg_err)
+    plt.ylabel('Probability')
+    plt.title('CDF & Histogram (samples: %d, %s)' % (cntallerr,figmainname))
+
+    # Plot CDF points with probability: 0.67 and 0.95.
+    feat_lc = 'r'
+    for pt in feat_pts:
+        x = pt[0]; y = pt[1]
+        plt.axhline(y, color=feat_lc, linestyle='dotted', linewidth=1.1)
+
+        # Dot the featured points out, NOT accurate for coords.
+        #plt.plot([x], [y], 'o', color='black', label=None, markersize=5)
+
+        # Annotate featured points with arrow and text, e.g. fig/cdf_2010-0409_anno.png.
+        # xy:position of arrow end, xytext:(xratio, yratio).
+        # featstyle: Style of illustration for featured points, 
+        #  including annotated(with arrow), or pure text attached.
+        #featstyle = 'anno' 
+        #plt.annotate('%d%%: %.2fm'%(int(y*100),x), 
+        #        xy=(x,y), xytext=(x/maxerr*1.15, y-.15), 
+        #        arrowprops=dict(facecolor='black', shrink=0.1), 
+        #        textcoords='axes fraction', xycoords='data', 
+        #        horizontalalignment='right', verticalalignment='top')
+
+        # Label the featured points with pure text, e.g. fig/cdf_2010-0409_puretxt.png.
+        featstyle = 'puretxt'
+        if x/maxerr > 0.7: ha = 'right'
+        else: ha = 'left'
+        plt.text(x, y,'\n %d%%: %.2fm'%(int(y*100), x),
+             rotation=0, fontsize=14, color=feat_lc,
+             horizontalalignment = ha,
+             verticalalignment   = 'top',
+             multialignment      = 'center')
+
+    # Legend.
+    plt.legend(shadow=True, loc=7)
+    ltext = plt.gca().get_legend().get_texts()
+    plt.setp(ltext[0], color=cdf_color)
+    plt.setp(ltext[1], color=hist_color)
+
+    figfilename = 'cdf_%s_%s.png' % (figmainname, featstyle)
+    plt.savefig(figfilename)
 
 
 def plotCDF(X=None, Y=None, props=None, pts=None, verb=0):
@@ -118,13 +198,13 @@ def plotCDF(X=None, Y=None, props=None, pts=None, verb=0):
     gCDF = Gnuplot.Data(X, Y, title=props['legend'], with_=utils)
 
     x67, y67 = pts[0]; x95, y95 = pts[1]
-    gPt67 = Gnuplot.Data(x67, y67, title='%10.2fm: 67%%' % x67, with_='p pt 4 ps 2')
-    gPt95 = Gnuplot.Data(x95, y95, title='%10.2fm: 95%%' % x95, with_='p pt 8 ps 2')
+    gPt67 = Gnuplot.Data(x67, y67, title='%.2fm: 67%%' % x67, with_='p pt 4 ps 2')
+    gPt95 = Gnuplot.Data(x95, y95, title='%.2fm: 95%%' % x95, with_='p pt 8 ps 2')
 
     g.plot(gCDF, gPt67, gPt95)
 
 
-def drawPointpairs(refpt=None, fix_err=None):
+def renderGMap(mapfile='html/map.htm', refpt=None, fix_err=None, mapcenter=None):
     """ 
         Plot point pairs  into GMap.
         refpt: [ reflat, reflon ]
@@ -150,6 +230,8 @@ def drawPointpairs(refpt=None, fix_err=None):
     ptlist.append(ptRef)
 
     gmap = GMap(maplist=[Map(pointlist=ptlist)], iconlist=[icon_fix, icon_ref])
+    if mapcenter: gmap.maps[0].center = mapcenter
+    else: gmap.maps[0].center = refpt
     gmap.maps[0].width = "1260px"; gmap.maps[0].height = "860px"
     gmap.maps[0].zoom  = 17
 
@@ -161,7 +243,7 @@ def drawPointpairs(refpt=None, fix_err=None):
         for point in map.points[:10]: 
             print point.getAttrs()
 
-    open('html/map.htm', 'wb').write(gmap.genHTML())
+    open(mapfile, 'wb').write(gmap.genHTML())
 
 
 def testLoc(wlanfake=0, gpsfake=False, verbose=False):
@@ -225,8 +307,8 @@ def main():
                 sys.exit(99)
             else: 
                 eval = True
-                #locfile = a
-                locfiles = sys.argv[2:]
+                makemap = True
+                locfiles = [ arg for arg in sys.argv[2:] if not arg.startswith('-') ]
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
                 wlanfake = string.atoi(a)
@@ -245,7 +327,7 @@ def main():
                 sys.exit(99)
             else: 
                 makemap = True
-                locfiles = sys.argv[2:]
+                locfiles = [ arg for arg in sys.argv[2:] if not arg.startswith('-') ]
         elif o in ("-t", "--test"):
             test = True
         elif o in ("-v", "--verbose"):
@@ -279,47 +361,54 @@ def main():
             pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
             fixcoords = pointpairs[:,:2]
             meanref = np.mean(pointpairs[:,2:], axis=0)
-            errors = [ [dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS]
+            # Referenced mean location for 2010-0409.
+            timestamp = locfile[ locfile.rfind('/')+1 : locfile.rfind('.') ]
+            if timestamp == '2010-0409': 
+                meanref = [39.89574823, 116.344701]
+            elif timestamp == '2010-0402_hq': 
+                meanref = [39.909994, 116.353309]
+            errors = [ dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS
                        for flat,flon in fixcoords ]
             # fixpt_err: [ [lat1, lon1, err1], ... ].
-            fixpt_err = np.append(fixcoords, errors, axis=1)
-            errors = fixpt_err[:,-1]
+            fixpt_err = np.append(fixcoords, [[err] for err in errors], axis=1)
 
-            print 'Statistics: %s' % locfile
-            cntallerr, meanerr, maxerr, stdeverr = getStats(errors)
-            print '%8s  %-10s%-10s%-10s\n%s\n%8d  %-10.2f%-10.2f%-10.2f' % \
-                    ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
-                    cntallerr, meanerr, maxerr, stdeverr)
             if verbose: 
                 print 'Histogram(err: count):'
                 pp.pprint( getHist(errors) )
 
-            if maxerr < 10: 
-                xtics = 1
-            elif 10 <= maxerr < 100: 
-                xtics = 20
-            elif 100 <= maxerr < 500: 
-                xtics = 50
-            elif 500 <= maxerr < 1000: 
-                xtics = 75
-            elif 1000 <= maxerr < 2000: 
-                xtics = 150
-            else:
-                print '\n!!!Max Err: %10.2f!!!\n' % maxerr
-                xtics = maxerr/10
-            xmax = (int(maxerr/xtics)+1)*xtics
-            x = range(0, xmax+5*xtics+1, xtics)
-            x, y, feat_pts = solveCDF(data=errors, pickedX=x) 
+            # Solve regular/cumulative histogram for 'errors'.
+            pyplotCDF(data=errors, figmainname=timestamp)
 
-            props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
-            props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
-            props_jpg['xrange'] = [0, xmax+5*xtics]
-            props_jpg['xtics'] = xtics
-            plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=0)
+            # Deprecated: Gnuplot style CDF plotting.
+            #if maxerr < 10: 
+            #    xtics = 1
+            #elif 10 <= maxerr < 100: 
+            #    xtics = 20
+            #elif 100 <= maxerr < 500: 
+            #    xtics = 50
+            #elif 500 <= maxerr < 1000: 
+            #    xtics = 75
+            #elif 1000 <= maxerr < 2000: 
+            #    xtics = 150
+            #else:
+            #    print '\n!!!Max Err: %10.2f!!!\n' % maxerr
+            #    xtics = maxerr/10
+            #xmax = (int(maxerr/xtics)+1)*xtics
+            #x = range(0, xmax+5*xtics+1, xtics)
+            #x, y, feat_pts = solveCDF(data=errors, pickedX=x) 
+
+            #props_jpg['legend'] = locfile[locfile.rfind('/')+1:locfile.rfind('.')]
+            #props_jpg['outfname'] = 'cdf_' + props_jpg['legend'] + '.jpg'
+            #props_jpg['xrange'] = [0, xmax+5*xtics]
+            #props_jpg['xtics'] = xtics
+            #plotCDF(X=x, Y=y, props=props_jpg, pts=feat_pts, verb=0)
 
             # GMap html generation.
-            drawPointpairs(refpt=meanref, fix_err=fixpt_err)
+            if makemap:
+                mapfname = 'html/map_' + timestamp + '.html'
+                renderGMap(mapfile=mapfname, refpt=meanref, fix_err=fixpt_err)
 
+            sys.exit(0)
 
     if makemap:
         for locfile in locfiles:
@@ -329,8 +418,22 @@ def main():
                 continue
 
             locin = csv.reader( open(locfile, 'r') )
-            pointpairs = np.array([ locline for locline in locin ])[:,2:-1].astype(float)
-            drawPointpairs(pointpairs)
+            pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            fixcoords = pointpairs[:,:2]
+            meanref = np.mean(pointpairs[:,2:], axis=0)
+            # Referenced mean location for 2010-0409.
+            timestamp = locfile[ locfile.rfind('/')+1 : locfile.rfind('.') ]
+            if timestamp == '2010-0409': 
+                meanref = [39.89574823, 116.344701]
+            elif timestamp == '2010-0402_hq': 
+                meanref = [39.909994, 116.353309]
+            errors = [ [dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS]
+                       for flat,flon in fixcoords ]
+            # fixpt_err: [ [lat1, lon1, err1], ... ].
+            fixpt_err = np.append(fixcoords, errors, axis=1)
+            timestamp = locfile[ locfile.rfind('/')+1 : locfile.rfind('.') ]
+            mapfname = 'html/map_' + timestamp + '.html'
+            renderGMap(mapfile=mapfname, refpt=meanref, fix_err=fixpt_err)
 
 
 if __name__ == "__main__":
@@ -339,7 +442,7 @@ if __name__ == "__main__":
         psyco.bind(solveCDF)
         psyco.bind(getStats)
         psyco.bind(plotCDF)
-        psyco.bind(drawPointpairs)
+        psyco.bind(renderGMap)
         psyco.bind(testLoc)
         #psyco.full()
         #psyco.log()

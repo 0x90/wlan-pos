@@ -10,6 +10,7 @@ syntax: glob
 dat/*
 fig/*.*
 fig/*
+html/*
 test/*
 tags
 log
