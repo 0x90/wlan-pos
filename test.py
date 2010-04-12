@@ -108,7 +108,7 @@ def pyplotCDF(data=None, figmainname=None):
     cdf_color = 'b'; hist_color = 'g'
     bins = int(maxerr - minerr)
     if bins < 1: bins = 1
-    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.5,
+    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.65,
         histtype='step', linewidth=1.5, edgecolor=cdf_color, label='CDF')
     plt.hist(data, bins=bins, cumulative=False, normed=True,
         histtype='bar', rwidth=1, alpha=0.6, facecolor=hist_color, label='Histogram')
@@ -441,7 +441,9 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(solveCDF)
         psyco.bind(getStats)
+        psyco.bind(pyplotCDF)
         psyco.bind(plotCDF)
+        psyco.bind(getHist)
         psyco.bind(renderGMap)
         psyco.bind(testLoc)
         #psyco.full()
