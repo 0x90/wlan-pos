@@ -153,3 +153,6 @@
     5) Fix KWIN searchsorted boundry in the case that min(dknn_sums)=0.
 2010-04-11
     1) Add matplotlib support for better CDF/histogram plotting.
+2010-04-12
+    1) Fix bug that arg 'pickedX' changed in solveCDF().
+    2) Add savefig format arg in pyplotCDF().

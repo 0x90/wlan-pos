@@ -61,14 +61,15 @@ def solveCDF(data=None, pickedX=None):
     sortData = np.array( sorted(data) )
     probs = [sortData.searchsorted(x,side='right')/cnt_tot for x in pickedX]
 
-    feat_ratio = [.67, .95]
-    feat_points = [ sortData[int(rat*cnt_tot)] for rat in feat_ratio ]
-    pickedX.extend(feat_points)
-    probs.extend(feat_ratio)
+    feat_probs = [.67, .95]
+    feat_points = [ sortData[int(rat*cnt_tot)] for rat in feat_probs ]
+    X = pickedX[:]
+    X.extend(feat_points)
+    probs.extend(feat_probs)
 
-    pickedX=sorted(pickedX); probs=sorted(probs)
+    X=sorted(X); probs=sorted(probs)
 
-    return (pickedX, probs, zip(feat_points,feat_ratio))
+    return (X, probs, zip(feat_points,feat_probs))
 
 
 def getStats(data=None):
@@ -88,7 +89,7 @@ def getStats(data=None):
     return (cnt_tot, mean, min, max, stdev)
 
 
-def pyplotCDF(data=None, figmainname=None):
+def pyplotCDF(data=None, figmainname=None, ofmt='png'):
     """
     Plot CDF, histogram and featured points (with prob: 0.67,0.95), using Matplotlib.pyplot
     Input
@@ -97,9 +98,6 @@ def pyplotCDF(data=None, figmainname=None):
     figmainname: main part of savefig file name, the naming format for savefig:
         cdf_<figmainname>_<featstyle>.png
     """
-    # Solve eror values for feature points.
-    x, y, feat_pts = solveCDF(data=data, pickedX=data) 
-
     cntallerr, meanerr, minerr, maxerr, stdeverr = getStats(data)
     print '%8s  %-10s%-10s%-10s\n%s\n%8d  %-10.2f%-10.2f%-10.2f' % \
             ('count', 'mean(m)', 'max(m)', 'stdev(m)', '-'*38, 
@@ -108,7 +106,7 @@ def pyplotCDF(data=None, figmainname=None):
     cdf_color = 'b'; hist_color = 'g'
     bins = int(maxerr - minerr)
     if bins < 1: bins = 1
-    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.65,
+    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.6,
         histtype='step', linewidth=1.5, edgecolor=cdf_color, label='CDF')
     plt.hist(data, bins=bins, cumulative=False, normed=True,
         histtype='bar', rwidth=1, alpha=0.6, facecolor=hist_color, label='Histogram')
@@ -124,6 +122,9 @@ def pyplotCDF(data=None, figmainname=None):
     plt.xlabel('Error/m\n(%s)' % leg_err)
     plt.ylabel('Probability')
     plt.title('CDF & Histogram (samples: %d, %s)' % (cntallerr,figmainname))
+
+    # Solve error values for feature points with probability 0.67/0.95.
+    x, y, feat_pts = solveCDF(data=data, pickedX=data) 
 
     # Plot CDF points with probability: 0.67 and 0.95.
     feat_lc = 'r'
@@ -161,7 +162,7 @@ def pyplotCDF(data=None, figmainname=None):
     plt.setp(ltext[0], color=cdf_color)
     plt.setp(ltext[1], color=hist_color)
 
-    figfilename = 'cdf_%s_%s.png' % (figmainname, featstyle)
+    figfilename = 'cdf_%s_%s.%s' % (figmainname, featstyle, ofmt)
     plt.savefig(figfilename)
 
 
