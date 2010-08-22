@@ -78,7 +78,7 @@ def getWLAN(fake=0):
     scannedwlan = scannedwlan[:,idxs_max]
     print scannedwlan
 
-    return (len_scanAP, scannedwlan)
+    return (INTERSET, scannedwlan)
 
 
 
@@ -146,9 +146,9 @@ def fixPos(len_wlan, wlan, verb=False):
     if maxNI == 0: # no intersection found
         print 'NO overlapping cluster found! Fingerprinting TERMINATED!'
         sys.exit(99)
-    elif 0 < maxNI < CLUSTERKEYSIZE:
+    elif maxNI < CLUSTERKEYSIZE:
         # size of intersection set < offline key AP set size:4, 
-        # only keymacs/keyrsss (not maxmacs/maxrsss) need to be cut down.
+        # offline keymacs/keyrsss (not online maxmacs/maxrsss) need to be cut down.
         interpart_offline = True
         if maxNI < len_wlan: #TODO: TBE.
             # size of intersection set < online AP set size:len_wlan < CLUSTERKEYSIZE, 
