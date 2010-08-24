@@ -165,7 +165,7 @@ def fixPos(len_wlan, wlan, verb=False):
 
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     #  min_sums: [ minsum1, minsum2, ... ]
-    min_spids = []; min_sums = []
+    min_spids = []; min_sums = []; allposs = []
     print '='*35
     for cid,keyaps in keys:
         try: # Returns values identified by field name(or field order if no arg).
@@ -183,6 +183,8 @@ def fixPos(len_wlan, wlan, verb=False):
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
 
+        keyposs = (np.array(keycfps)[:,2:4].astype(float)).tolist()
+        allposs.append(keyposs)
         # Fast fix when the ONLY 1 selected cid has ONLY 1 spid selected in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
             min_spids = [ list(keycfps[0]) ]; break
@@ -238,11 +240,23 @@ def fixPos(len_wlan, wlan, verb=False):
             posfix = np.average(coors, axis=0, weights=weights)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
             print 'avg_location: \n%s' % posfix
-        else: posfix = dknn_spids[0][2:]
+        else: posfix = np.array(dknn_spids[0][2:]).astype(float)
+        # ErrRange Estimation (more than 1 relevant clusters).
+        idxs_clusters = idxs_kmin[:idx_dkmin]
+        if len(idxs_clusters) == 1: allposs_dknn = allposs[idxs_clusters]
+        else: allposs_dknn = np.vstack(np.array(allposs)[idxs_clusters])
+        poserr = sum(np.sum( (posfix-allposs_dknn)**2, axis=1 )) / len(allposs_dknn)
     else: 
         min_spids = min_spids[0][:-1]
         print 'location:\n%s' % min_spids
         posfix = np.array(min_spids[2:])
+        # ErrRange Estimation (only 1 relevant clusters).
+        N_fp = len(keycfps)
+        if N_fp == 1: poserr = 200
+        else:
+            print 'posfix:%s, keyposs:%s' % (posfix, keyposs)
+            poserr = np.sum( (posfix-keyposs)**2, axis=1 ) / (N_fp-1)
+    print 'poserr: %s' % poserr
 
     cursor.close()
     conn.close()

@@ -1,6 +1,66 @@
 #!/usr/bin/env python
+# A set of functions for performing various geographic calculations.
 import math
+import numpy as np
+#import scipy as sp
 import config
+
+eq_rad     = 6378.137 #eq radius in km
+polar_rad  = 6356.752 #polar radius in km
+
+
+#def mercator_coords(geo_pt, center):
+#    '''
+#    Projects the given coordinates using Mercator projection
+#    with respect to `center`.
+#    '''
+#
+#    x = geo_pt[0: , :1] - center[0]
+#    y = sp.arctanh(np.sin(geo_pt[0 : , 1:]*(np.pi/360)))
+#    
+#    return sp.hstack((x,y))
+
+
+def distance_in_km(lon1, lat1, lon2, lat2):
+   '''
+   Given a set of geo coordinates (in degrees) it will return the distance in km
+   '''
+
+   #convert to radians
+   lon1 = lon1*2*np.pi/360
+   lat1 = lat1*2*np.pi/360
+   lon2 = lon2*2*np.pi/360
+   lat2 = lat2*2*np.pi/360
+
+   R = earth_radius((lat1+lat2)/2) #km
+
+   #haversine formula - angles in radians
+   deltaLon = np.abs(lon1-lon2)
+   deltaLat = np.abs(lat1-lat2)
+
+   dOverR = haver_sin(deltaLat) + np.cos(lat1)*np.cos(lat2)*haver_sin(deltaLon)
+
+   return R * arc_haver_sin(dOverR)
+
+
+def earth_radius(lat):
+   '''
+   Given a latitude in radias returns earth radius in km
+   '''
+
+   top = (eq_rad**2 * np.cos(lat))**2 + (polar_rad**2 * np.sin(lat))**2
+   bottom = (eq_rad * np.cos(lat))**2 + (polar_rad * np.sin(lat))**2
+   
+   return np.sqrt(top/bottom)
+
+
+def haver_sin(x):
+   return np.sin(x/2) ** 2
+
+
+def arc_haver_sin(x):
+   return 2*np.arcsin(np.sqrt(x))
+
 
 def dist_on_unitshpere(lat1, long1, lat2, long2):
 
@@ -37,5 +97,9 @@ def dist_on_unitshpere(lat1, long1, lat2, long2):
 if __name__ == '__main__':
     lat1, lon1, lat2, lon2 = 39.922848,116.472895, 39.922948,116.472895
     lat3, lon3, lat4, lon4 = 39.532838541666663,115.75, 39.532098524305553,115.7470920138889
-    print dist_on_unitshpere(lat1, lon1, lat2, lon2)*(config.RADIUS)
-    print dist_on_unitshpere(lat3, lon3, lat4, lon4)*(config.RADIUS)
+
+    print 'dist_on_unitshpere: ', dist_on_unitshpere(lat1, lon1, lat2, lon2)*(config.RADIUS)
+    print '    distance_in_km: ', distance_in_km(lon1, lat1, lon2, lat2)*1000
+
+    print 'dist_on_unitshpere: ', dist_on_unitshpere(lat3, lon3, lat4, lon4)*(config.RADIUS)
+    print '    distance_in_km: ', distance_in_km(lon3, lat3, lon4, lat4)*1000
