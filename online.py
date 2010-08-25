@@ -10,6 +10,7 @@ import numpy as np
 import MySQLdb
 
 from WLAN import scanWLAN_OS#, scanWLAN_RE
+from GEO import dist_km
 from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 
@@ -239,23 +240,32 @@ def fixPos(len_wlan, wlan, verb=False):
             weights = np.reciprocal(dknn_sums)
             posfix = np.average(coors, axis=0, weights=weights)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
-            print 'avg_location: \n%s' % posfix
         else: posfix = np.array(dknn_spids[0][2:]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
         idxs_clusters = idxs_kmin[:idx_dkmin]
-        if len(idxs_clusters) == 1: allposs_dknn = allposs[idxs_clusters]
-        else: allposs_dknn = np.vstack(np.array(allposs)[idxs_clusters])
-        poserr = sum(np.sum( (posfix-allposs_dknn)**2, axis=1 )) / len(allposs_dknn)
+        if len(idxs_clusters) == 1: 
+            if maxNI == 1: poserr = 100
+            else: poserr = 50
+        else: 
+            #print 'idxs_clusters: %s' % idxs_clusters
+            #print 'allposs:'; pp.pprint(allposs)
+            allposs_dknn = np.vstack(np.array(allposs, object)[idxs_clusters])
+            print 'allposs_dknn:'; pp.pprint(allposs_dknn)
+            poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in allposs_dknn ]) 
     else: 
         min_spids = min_spids[0][:-1]
         print 'location:\n%s' % min_spids
         posfix = np.array(min_spids[2:])
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
-        if N_fp == 1: poserr = 200
+        if N_fp == 1: 
+            if maxNI == 1: poserr = 100
+            else: poserr = 50
         else:
             print 'posfix:%s, keyposs:%s' % (posfix, keyposs)
-            poserr = np.sum( (posfix-keyposs)**2, axis=1 ) / (N_fp-1)
+            poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in keyposs ]) / (N_fp-1)
     print 'poserr: %s' % poserr
 
     cursor.close()

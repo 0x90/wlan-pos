@@ -156,3 +156,10 @@
 2010-04-12
     1) Fix bug that arg 'pickedX' changed in solveCDF().
     2) Add savefig format arg in pyplotCDF().
+2010-08-22
+    1) Fix the returned number of sorted and sliced visible wifis for getWLAN().
+2010-08-24
+    1) Add positioning error estimation algo, with only euclidean distance support.
+2010-08-25
+    1) Fix the numpy.array() error when allpos has different dimensional elements, numpy.array(sequence, object) works whether each cluster has same amount of fingerprints or not.
+    2) Add support for distance on earth surface for error range estimation.

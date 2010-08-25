@@ -17,7 +17,7 @@ from offline import dumpCSV
 from online import fixPos, getWLAN
 from GPS import getGPS
 from config import WLAN_FAKE, LOCPATH, LOCSUFFIX, RADIUS, icon_types, props_jpg
-from GEO import dist_on_unitshpere
+from GEO import dist_unit
 from Map import GMap, Icon, Map, Point
 
 
@@ -265,7 +265,7 @@ def testLoc(wlanfake=0, gpsfake=False, verbose=False):
     # Logging format: [ timestamp, MAC1|MAC2..., fLat, fLon, rLat, rLon ].
     timestamp = time.strftime('%Y-%m%d-%H%M')
     visMACs = '|'.join(wifis[0])
-    #error = dist_on_unitshpere(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
+    #error = dist_unit(fixloc[0], fixloc[1], refloc[0], refloc[1])*RADIUS
     locline = [ timestamp, visMACs, fixloc[0], fixloc[1], refloc[0], refloc[1] ]
     print 'locline:\n%s' % locline
 
@@ -368,7 +368,7 @@ def main():
                 meanref = [39.89574823, 116.344701]
             elif timestamp == '2010-0402_hq': 
                 meanref = [39.909994, 116.353309]
-            errors = [ dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS
+            errors = [ dist_unit(flat, flon, meanref[0], meanref[1])*RADIUS
                        for flat,flon in fixcoords ]
             # fixpt_err: [ [lat1, lon1, err1], ... ].
             fixpt_err = np.append(fixcoords, [[err] for err in errors], axis=1)
@@ -428,7 +428,7 @@ def main():
                 meanref = [39.89574823, 116.344701]
             elif timestamp == '2010-0402_hq': 
                 meanref = [39.909994, 116.353309]
-            errors = [ [dist_on_unitshpere(flat, flon, meanref[0], meanref[1])*RADIUS]
+            errors = [ [dist_unit(flat, flon, meanref[0], meanref[1])*RADIUS]
                        for flat,flon in fixcoords ]
             # fixpt_err: [ [lat1, lon1, err1], ... ].
             fixpt_err = np.append(fixcoords, errors, axis=1)
