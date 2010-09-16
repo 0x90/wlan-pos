@@ -250,7 +250,8 @@ def fixPos(len_wlan, wlan, verb=False):
             #print 'idxs_clusters: %s' % idxs_clusters
             #print 'allposs:'; pp.pprint(allposs)
             allposs_dknn = np.vstack(np.array(allposs, object)[idxs_clusters])
-            print 'allposs_dknn:'; pp.pprint(allposs_dknn)
+            if verb: 
+                print 'allposs_dknn:'; pp.pprint(allposs_dknn)
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
     else: 
