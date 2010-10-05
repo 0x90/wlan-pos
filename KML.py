@@ -82,21 +82,54 @@ def genKML(data, kmlfile, icons):
 
 if __name__ == "__main__":
     from config import icon_types
-    from pprint import pprint
+    from pprint import pprint,PrettyPrinter
+    import numpy as np
+    import time
+
+    pp = PrettyPrinter(indent=2)
     #homedir = os.path.expanduser('~')
     for type in icon_types:
         icon_types[type][1] = os.getcwd() + icon_types[type][1]
 
-    #try:
-    #   filename = sys.argv[1]
-    #   rawdat = csv.reader( open(filename,'r') )
-    #except:
-    #   print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
-    #   sys.exit(1)
+    try:
+       filename = sys.argv[1]
+       rawdat = csv.reader( open(filename,'r') )
+    except:
+       print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
+       sys.exit(1)
 
-    rawdat=[['00:24:01:FE:0F:20','-70','-127','on', 'CMCC','39.9229416667','116.472673167'], 
-            ['00:24:01:FE:0F:21','-79','-127','off','CMRI','39.9228416667','116.472573167']]
+    rawdat = np.array([ rec for rec in rawdat ])
+    #coords = np.array([ rec for rec in rawdat ])[:,11:13].astype(float)
+    pp.pprint(rawdat)
 
-    dat = [ [[line[5], line[6], line[4], line[4]], [line[0], line[1], line[2], line[3]]] for line in rawdat ]
-    kfile = 'kml/ap.kml'
-    genKML(data=dat, kmlfile=kfile, icons=icon_types)
+    cidrecs = {}
+
+    for rec in rawdat:
+        cid = rec[9]
+        if not cid in cidrecs:
+            cidrecs[cid] = [ rec ]
+        else:
+            cidrecs[cid].append(rec)
+    #pp.pprint(cidrecs)
+    print len(cidrecs)
+    #sys.exit(0)
+
+    timestamp = time.strftime('%Y%m%d-%H%M%S')
+    kmlpath = 'kml/cids-%s' % timestamp
+    if not os.path.isdir(kmlpath):
+        try:
+            os.umask(0) #linux system default umask: 022.
+            os.mkdir(kmlpath,0777)
+            #os.chmod(DATPATH,0777)
+        except OSError, errmsg:
+            print "Failed: %d" % str(errmsg)
+            sys.exit(99)
+    for cid in cidrecs:
+        cidat = cidrecs[cid]
+        indat =  [ [[rec[11], rec[12], '', 
+            'UA:%s, <br> time: %s, <br> cid|rss: %s|%s, <br> mac/ss: %s/%s' %\
+            (rec[5],rec[2],rec[9],rec[10],rec[14],rec[15])]] for rec in cidat ]
+        pp.pprint(indat)
+
+        kmlfile = '%s/cid-%s.kml' % (kmlpath, cid)
+        genKML(data=indat, kmlfile=kmlfile, icons=icon_types)
