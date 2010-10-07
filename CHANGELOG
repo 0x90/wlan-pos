@@ -163,3 +163,5 @@
 2010-08-25
     1) Fix the numpy.array() error when allpos has different dimensional elements, numpy.array(sequence, object) works whether each cluster has same amount of fingerprints or not.
     2) Add support for distance on earth surface for error range estimation.
+2010-10-05
+    1) Add genKML_FPP(): FPP-WPP compatible csv data interpretation and visualisation with KML.
