@@ -1,5 +1,12 @@
 #!/usr/bin/env python
-import sys,csv,os
+import sys
+import csv
+import os
+import time
+import random
+import pprint 
+import pylibkml
+#from config import icon_types
 
 
 def genKML(data, kmlfile, icons):
@@ -80,56 +87,122 @@ def genKML(data, kmlfile, icons):
     kmlout.close()
 
 
-if __name__ == "__main__":
-    from config import icon_types
-    from pprint import pprint,PrettyPrinter
-    import numpy as np
-    import time
+def genKML_FPP(csvfile, kmlfile):
+    """
+    csvfile: FPP-WPP compatible upload sampling csv data collected by MS,
+        format: spid,servid,time,imsi,imei,useragent,mcc,mnc,lac,cid,cellrss,lat,lon,h,wlanmacs,wlanrsss.
+        e.g. 12,34,20100921-133623,4600,86200,MT710,460,0,7,41,-87,39.92,116.34,52,00:24:01:c8:f4:b2,-79
+    kmlfile: name of output KML file.
+    """
+    if not os.path.isfile(csvfile):
+        print "%s is NOT a file!" % (csvfile)
+        sys.exit(99)
+        
+    if not os.path.isfile(kmlfile):
+        print "%s is NOT a file!" % (kmlfile)
+        sys.exit(99)
 
-    pp = PrettyPrinter(indent=2)
-    #homedir = os.path.expanduser('~')
-    for type in icon_types:
-        icon_types[type][1] = os.getcwd() + icon_types[type][1]
+    rawdat = csv.reader( open(csvfile,'r') )
 
-    try:
-       filename = sys.argv[1]
-       rawdat = csv.reader( open(filename,'r') )
-    except:
-       print sys.argv[0] + " <input csv file>([[mac,rss,noise,encrypt,desc,lat,lon]])"
-       sys.exit(1)
+    #icon_href = 'http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png'
+    #icon_href = 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png'
+    icon_href = 'http://maps.google.com/mapfiles/kml/paddle/wht-blank.png'
+    balloon_txt = '<![CDATA[<BODY bgcolor="ffffff">\n<h3>Wireless Sample Data'+\
+      '<TABLE BORDER=1>\n'+\
+      '<tr><td><b>Cell ID, RSSI</b></td><td>$[cellid],$[cellrss]</td></tr>\n'+\
+      '<tr><td><b>Date/Time</b></td><td>$[datetime]</td></tr>\n'+\
+      '<tr><td><b>Latitude,Longitude</b></td><td>$[lat],$[lon]</td></tr>\n'+\
+      '<tr><td><b>UserAgent</b></td><td>$[useragent]</td></tr>\n'+\
+      '<tr><td><b>WLAN APs</b></td><td>$[wlanmacs]</td></tr>\n'+\
+      '<tr><td><b>WLAN RSSIs</b></td><td>$[wlanrsss]</td></tr>\n'+\
+      '</TABLE></BODY>'
 
-    rawdat = np.array(rawdat)
-    #coords = np.array(rawdat)[:,11:13].astype(float)
-    pp.pprint(rawdat)
-
-    cidrecs = {}
-
+    cids_recs = {}
     for rec in rawdat:
         cid = rec[9]
-        if not cid in cidrecs:
-            cidrecs[cid] = [ rec ]
+        if not cid in cids_recs:
+            cids_recs[cid] = [ rec ]
         else:
-            cidrecs[cid].append(rec)
-    #pp.pprint(cidrecs)
-    print len(cidrecs)
-    #sys.exit(0)
+            cids_recs[cid].append(rec)
+    #pp.pprint(cids_recs)
+    print 'cid count:', len(cids_recs)
 
-    timestamp = time.strftime('%Y%m%d-%H%M%S')
-    kmlpath = 'kml/cids-%s' % timestamp
-    if not os.path.isdir(kmlpath):
-        try:
-            os.umask(0) #linux system default umask: 022.
-            os.mkdir(kmlpath,0777)
-            #os.chmod(DATPATH,0777)
-        except OSError, errmsg:
-            print "Failed: %d" % str(errmsg)
-            sys.exit(99)
-    for cid in cidrecs:
-        cidat = cidrecs[cid]
-        indat =  [ [[rec[11], rec[12], '', 
-            'UA:%s, <br> time: %s, <br> cid|rss: %s|%s, <br> mac/ss: %s/%s' %\
-            (rec[5],rec[2],rec[9],rec[10],rec[14],rec[15])]] for rec in cidat ]
-        pp.pprint(indat)
+    folders = []
+    styles = []
 
-        kmlfile = '%s/cid-%s.kml' % (kmlpath, cid)
-        genKML(data=indat, kmlfile=kmlfile, icons=icon_types)
+    for cid in cids_recs:
+        cid_recs = cids_recs[cid]
+
+        libKml = pylibkml.Kml()
+
+        randval = hex( random.randint(1, 16777215) )[2:] # int(0xffffff)=16777215
+        hexcode = 'ff' + (6 - len(randval)) * '0' + randval
+        #print 'hex: %s: %s' % (hexcode, len(hexcode))
+        iconstyleicon = libKml.create_iconstyleicon({'href': icon_href})
+        iconstyle = libKml.create_iconstyle({'color':hexcode, 
+                                             'scale':1.0, 
+                                         'colormode':'normal', 
+                                              'icon':iconstyleicon})
+        styleid = 'style-cid%s'%(cid)
+        balloonstyle = libKml.create_balloonstyle({'text':balloon_txt, 'bgcolor':'ffffffff'})
+        styles.append(libKml.create_style({'id':styleid, 
+                                 'balloonstyle':balloonstyle, 
+                                    'iconstyle':iconstyle}))
+        placemarks = []
+        for cid_rec in cid_recs:
+            uagent = cid_rec[5]; datetime = cid_rec[2]
+            #cellmml = "%s|%s|%s"%(cid_rec[6],cid_rec[7],cid_rec[8]) # mcc,mnc,lac
+            cellrss = cid_rec[10] #cid = cid_rec[9] 
+            lat = cid_rec[11]; lon = cid_rec[12]
+            wlanmacs = cid_rec[14]; wlanrsss = cid_rec[15]
+
+            coord = libKml.create_coordinates(float(lon),float(lat))
+            point = libKml.create_point({'coordinates':coord})
+
+            data = []
+            data.append(libKml.create_data({'name':'useragent','value':uagent}))
+            data.append(libKml.create_data({'name':'datetime','value':datetime}))
+            data.append(libKml.create_data({'name':'lat','value':lat}))
+            data.append(libKml.create_data({'name':'lon','value':lon}))
+            data.append(libKml.create_data({'name':'cellid','value':cid})) 
+            data.append(libKml.create_data({'name':'cellrss','value':cellrss})) 
+            data.append(libKml.create_data({'name':'wlanmacs','value':wlanmacs})) 
+            data.append(libKml.create_data({'name':'wlanrsss','value':wlanrsss})) 
+            extdata = libKml.create_extendeddata({'data':data})
+
+            placemarks.append(libKml.create_placemark({'name':cid, 
+                                                      'point':point, 
+                                               'extendeddata':extdata, 
+                                                   'styleurl':'#'+styleid}))
+        folders.append(libKml.create_folder({'name':cid,
+                                        'placemark':placemarks}))
+
+    document = libKml.create_document({'folder':folders, 'style':styles})
+    kml = libKml.create_kml({'document':document})
+
+    #label = time.strftime('%Y%m%d-%H%M%S')
+    label = 'neusoft'
+    if not kmlfile:
+        kmlfile = '%s/radiomap_%s.kml' % (kmlpath, label)
+    kfile = open(kmlfile, 'w')
+    kfile.write(pylibkml.Utilities().SerializePretty(kml))
+    kfile.close()
+
+
+if __name__ == "__main__":
+
+    #homedir = os.path.expanduser('~')
+    #for type in icon_types:
+    #    icon_types[type][1] = os.getcwd() + icon_types[type][1]
+
+    try:
+       csvfile = sys.argv[1]
+    except:
+       print sys.argv[0] + " <csv file>"
+       sys.exit(1)
+
+    pp = pprint.PrettyPrinter(indent=2)
+
+    kmlpath = 'kml'; label = 'neusoft'
+    kmlfile = '%s/radiomap_%s.kml' % (kmlpath, label)
+    genKML_FPP(csvfile, kmlfile)
