@@ -218,6 +218,12 @@ def Cluster(rmpfile):
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
     cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [3]]) ])
+    # For optimized table structure of cidaps.
+    cid_aps_tmp = []
+    for rec in cid_aps:
+        aps = rec[1].split('|')
+        for ap in aps:
+            cid_aps_tmp.append([ rec[0], ap ])
     
     # re-arrange RSSs of each fingerprint according to its key MACs.
     # macsref: key AP MACs in cidaps table.
