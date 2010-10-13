@@ -1,0 +1,27 @@
+syntax: glob
+*.swp
+*.swo
+*.backup
+*.bak
+*.orig
+*~
+*.pyc
+*.pyo
+*-psyco
+dat/*
+fig/*.*
+fig/*
+html/*
+test/*
+tags
+log
+out
+kml/ap.kml
+tbl/*-*.tbl
+tbl/cidaps.tbl
+tbl/cfprints.tbl
+cdf.mp
+cdf_*.jpg
+mp/cdf.eps
+mp/cdf.jpg
+mp/cdf.mp
