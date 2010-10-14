@@ -165,3 +165,5 @@
     2) Add support for distance on earth surface for error range estimation.
 2010-10-05
     1) Add genKML_FPP(): FPP-WPP compatible csv data interpretation and visualisation with KML.
+2010-10-14
+    1) Add xloopscan.py for Symbian based wireless x-scanning with FPP-WPP rawdata format compatibility.

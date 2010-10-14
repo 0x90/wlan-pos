@@ -4,6 +4,8 @@ syntax: glob
 *.backup
 *.bak
 *.orig
+*.csv
+*.tbz2
 *~
 *.pyc
 *.pyo
@@ -16,7 +18,7 @@ test/*
 tags
 log
 out
-kml/ap.kml
+kml/*.kml
 tbl/*-*.tbl
 tbl/cidaps.tbl
 tbl/cfprints.tbl
