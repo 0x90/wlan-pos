@@ -95,8 +95,7 @@ def genKML_FPP(csvfile, kmlfile):
     kmlfile: name of output KML file.
     """
     if not os.path.isfile(csvfile):
-        print "%s is NOT a file!" % (csvfile)
-        sys.exit(99)
+        sys.exit('\n%s is NOT a file!' % (csvfile))
         
     rawdat = csv.reader( open(csvfile,'r') )
 
@@ -114,12 +113,15 @@ def genKML_FPP(csvfile, kmlfile):
       '</TABLE></BODY>'
 
     cids_recs = {}
-    for rec in rawdat:
-        cid = rec[9]
-        if not cid in cids_recs:
-            cids_recs[cid] = [ rec ]
-        else:
-            cids_recs[cid].append(rec)
+    try:
+        for rec in rawdat:
+            cid = rec[9]
+            if not cid in cids_recs:
+                cids_recs[cid] = [ rec ]
+            else:
+                cids_recs[cid].append(rec)
+    except csv.Error, e:
+        sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, rawdat.line_num, e))
     #pp.pprint(cids_recs)
     print 'cid count:', len(cids_recs)
 
@@ -152,7 +154,10 @@ def genKML_FPP(csvfile, kmlfile):
             lat = cid_rec[11]; lon = cid_rec[12]
             wlanmacs = cid_rec[14]; wlanrsss = cid_rec[15]
 
-            coord = libKml.create_coordinates(float(lon),float(lat))
+            if lon and lat:
+                coord = libKml.create_coordinates(float(lon),float(lat))
+            else:
+                continue
             point = libKml.create_point({'coordinates':coord})
 
             data = []
@@ -193,8 +198,7 @@ if __name__ == "__main__":
 
     arglen = len(sys.argv)
     if (not arglen==2) and (not arglen==3):
-        print sys.argv[0] + " <csv file> [label]"
-        sys.exit(1)
+        sys.exit('\nPlease type: %s <csv file> [label]\n' % (sys.argv[0]))
     else:
         csvfile = sys.argv[1]
         if arglen == 3:
