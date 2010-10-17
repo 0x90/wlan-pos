@@ -59,13 +59,14 @@ def Fingerprint(rawfile):
 
     Returns
     -------
-    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
+    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp, time ]
     """
     rawin = csv.reader( open(rawfile,'r') )
     latlist=[]; lonlist=[]; mac_raw=[]; rss_raw=[]
     maclist=[]; mac_interset=[]
     for rawdata in rawin:
         spid = string.atoi(rawdata[0])
+        time = string.atoi(rawdata[1])
         latlist.append(string.atof(rawdata[2]))
         lonlist.append(string.atof(rawdata[3]))
         mac_raw.append(rawdata[4])
@@ -127,7 +128,7 @@ def Fingerprint(rawfile):
         print 'mac_interset_rmp: %s\nrss_interset_rmp: %s' % \
             ( mac_interset_rmp, rss_interset_rmp )
 
-    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp ]
+    fingerprint = [ spid, lat_mean, lon_mean, mac_interset_rmp, rss_interset_rmp, time ]
     return fingerprint
 
 
@@ -156,12 +157,12 @@ def Cluster(rmpfile):
 
     Data structs
     ------------
-    *cid_aps*: mapping between cluster id and corresponding keyaps, 
-        including cids(clusterids), keyaps(macs).
+    *cid_aps*: cluster id, keyap, and internal seqence NO of keyap in this cluster, 
+        including cids(clusterids), keyaps(macs), seq(start from 1).
     *cfprints*: all clusterid-specified fingerprints,
-        including cids(clusterids), spid, lat, lon, rsss.
+        including cids(clusterids), spid, lat, lon, rsss, time.
     *crmp*: transitional data struct for further processing like clustering or just logging,
-        including cids(clusterids), spid, lat, lon, macs, rsss.
+        including cids(clusterids), spid, lat, lon, macs, rsss, time.
 
     Heuristics
     ----------
@@ -218,12 +219,13 @@ def Cluster(rmpfile):
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
     cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [3]]) ])
-    # For optimized table structure of cidaps.
+    # For optimized table structure of cidaps: cid, keyap, seq(start from 1).
     cid_aps_tmp = []
     for rec in cid_aps:
         aps = rec[1].split('|')
-        for ap in aps:
-            cid_aps_tmp.append([ rec[0], ap ])
+        for seq,ap in enumerate(aps):
+            cid_aps_tmp.append([ rec[0], ap, seq+1 ])
+    cid_aps = np.array(cid_aps_tmp)
     
     # re-arrange RSSs of each fingerprint according to its key MACs.
     # macsref: key AP MACs in cidaps table.
@@ -248,8 +250,8 @@ def Cluster(rmpfile):
         else: crmp[start:end] = cr
         start = end
 
-    # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss].
-    cfprints = crmp[:,[0,1,2,3,5]]
+    # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss,time].
+    cfprints = crmp[:,[0,1,2,3,5,6]]
 
     if verbose:
         print 'topaps:'; pp.pprint(topaps)
