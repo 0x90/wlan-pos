@@ -115,7 +115,7 @@ def genKML_FPP(csvfile, kmlfile):
     cids_recs = {}
     try:
         for rec in rawdat:
-            cid = rec[9]
+            cid = rec[6]
             if not cid in cids_recs:
                 cids_recs[cid] = [ rec ]
             else:
