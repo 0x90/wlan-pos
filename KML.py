@@ -148,11 +148,20 @@ def genKML_FPP(csvfile, kmlfile):
                                     'iconstyle':iconstyle}))
         placemarks = []
         for cid_rec in cid_recs:
-            uagent = cid_rec[5]; datetime = cid_rec[2]
-            #cellmml = "%s|%s|%s"%(cid_rec[6],cid_rec[7],cid_rec[8]) # mcc,mnc,lac
-            cellrss = cid_rec[10] #cid = cid_rec[9] 
-            lat = cid_rec[11]; lon = cid_rec[12]
-            wlanmacs = cid_rec[14]; wlanrsss = cid_rec[15]
+            # cid_rec: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
+            # IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss,Time
+            uagent = cid_rec[2]; datetime = cid_rec[13]
+            #cellmml = "%s|%s|%s"%(cid_rec[3],cid_rec[4],cid_rec[5]) # mcc,mnc,lac
+            cellrss = cid_rec[7] #cid = cid_rec[6] 
+            lat = cid_rec[8]; lon = cid_rec[9]
+            wlanmacs = cid_rec[11]; wlanrsss = cid_rec[12]
+
+            # neusoft format, deprecated.
+            #uagent = cid_rec[5]; datetime = cid_rec[2]
+            ##cellmml = "%s|%s|%s"%(cid_rec[6],cid_rec[7],cid_rec[8]) # mcc,mnc,lac
+            #cellrss = cid_rec[10] #cid = cid_rec[9] 
+            #lat = cid_rec[11]; lon = cid_rec[12]
+            #wlanmacs = cid_rec[14]; wlanrsss = cid_rec[15]
 
             if lon and lat:
                 coord = libKml.create_coordinates(float(lon),float(lat))

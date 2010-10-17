@@ -359,7 +359,10 @@ def main():
                 continue
 
             locin = csv.reader( open(locfile, 'r') )
-            pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            try:
+                pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            except csv.Error, e:
+                sys.exit('\nERROR: %s, line %d: %s!\n' % (locfile, locin.line_num, e))
             fixcoords = pointpairs[:,:2]
             meanref = np.mean(pointpairs[:,2:], axis=0)
             # Referenced mean location for 2010-0409.
@@ -419,7 +422,10 @@ def main():
                 continue
 
             locin = csv.reader( open(locfile, 'r') )
-            pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            try:
+                pointpairs = np.array([ locline for locline in locin ])[:,2:].astype(float)
+            except csv.Error, e:
+                sys.exit('\nERROR: %s, line %d: %s!\n' % (locfile, locin.line_num, e))
             fixcoords = pointpairs[:,:2]
             meanref = np.mean(pointpairs[:,2:], axis=0)
             # Referenced mean location for 2010-0409.

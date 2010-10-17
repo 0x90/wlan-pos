@@ -64,13 +64,16 @@ def Fingerprint(rawfile):
     rawin = csv.reader( open(rawfile,'r') )
     latlist=[]; lonlist=[]; mac_raw=[]; rss_raw=[]
     maclist=[]; mac_interset=[]
-    for rawdata in rawin:
-        spid = string.atoi(rawdata[0])
-        time = string.atoi(rawdata[1])
-        latlist.append(string.atof(rawdata[2]))
-        lonlist.append(string.atof(rawdata[3]))
-        mac_raw.append(rawdata[4])
-        rss_raw.append(rawdata[5])
+    try:
+        for rawdata in rawin:
+            spid = string.atoi(rawdata[0])
+            time = string.atoi(rawdata[1])
+            latlist.append(string.atof(rawdata[2]))
+            lonlist.append(string.atof(rawdata[3]))
+            mac_raw.append(rawdata[4])
+            rss_raw.append(rawdata[5])
+    except csv.Error, e:
+        sys.exit('\nERROR: %s, line %d: %s!\n' % (rawfile, rawin.line_num, e))
 
     # mean lat/lon.
     lat_mean = sum(latlist) / len(latlist) 

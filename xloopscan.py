@@ -12,7 +12,7 @@ import sys
 NUMLOOP=5000
 
 imei = si.imei()
-manuf = si.sw_version().split()[-1]
+uagent = si.sw_version().split()[-1]
 
 date = ti.strftime('%Y%m%d')
 
@@ -30,7 +30,7 @@ except:
     print 'Oops! NOT available: %s!' % media
 
 print
-print 'IMEI:%s\nUserAgent:%s' % (imei, manuf)
+print 'IMEI:%s\nUserAgent:%s' % (imei, uagent)
 mod = pos.default_module() # A-GPS as first time fixer
 pos.select_module(mod) 
 modinfo = pos.module_info(mod)
@@ -97,7 +97,8 @@ for iscan in range(NUMLOOP):
 
     timestamp = ti.strftime('%Y%m%d-%H%M%S')
 
-    # logdata: compatible with fpp-wpp rawdata spec.
+    # logdata: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
+    # IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss,Time
     systat = cellok + wlanok + gpsok
     if systat == 2 or systat == 3: 
         if systat == 2:
@@ -111,7 +112,7 @@ for iscan in range(NUMLOOP):
         else: pass
     else:
         continue
-    logdata = ['','',timestamp,'',imei,manuf]+celloc+[cellrss]+gps+['|'.join(macs)]+['|'.join(rsss)]
+    logdata = [imei,'',uagent]+celloc+[cellrss]+gps+['|'.join(macs)]+['|'.join(rsss),timestamp]
     logstr = ','.join(logdata)
 
     try: # Succeed in collecting one record.
