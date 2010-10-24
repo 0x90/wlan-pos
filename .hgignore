@@ -1,4 +1,7 @@
 syntax: glob
+db_vance.txt
+tbl/tsttbl.tbl
+tool/orain.dat
 *.swp
 *.swo
 *.backup

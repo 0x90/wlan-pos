@@ -167,3 +167,6 @@
     1) Add genKML_FPP(): FPP-WPP compatible csv data interpretation and visualisation with KML.
 2010-10-14
     1) Add xloopscan.py for Symbian based wireless x-scanning with FPP-WPP rawdata format compatibility.
+2010-10-24
+    1) Add oracle & postgresql driver class WppDB, and cidaps/cfps table load functionalities.
+    2) Add some post-sampling scripts for fpp raw data processing.

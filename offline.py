@@ -163,9 +163,9 @@ def Cluster(rmpfile):
     *cid_aps*: cluster id, keyap, and internal seqence NO of keyap in this cluster, 
         including cids(clusterids), keyaps(macs), seq(start from 1).
     *cfprints*: all clusterid-specified fingerprints,
-        including cids(clusterids), spid, lat, lon, rsss, time.
+        including cids(clusterids), lat, lon, h, rsss, time.
     *crmp*: transitional data struct for further processing like clustering or just logging,
-        including cids(clusterids), spid, lat, lon, macs, rsss, time.
+        including cids(clusterids),spid,servid,time,imei,imsi,ua,mcc,mnc,lac,ci,rss,lat,lon,h,macs,rsss.
 
     Heuristics
     ----------
@@ -177,10 +177,16 @@ def Cluster(rmpfile):
         visible APs >=4: declustering with top4, top3(if top4 fails);
         visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
+    # rmpin: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
+    # IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss,Time,
+    # !!!NOW: spid,servid,time,IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss.
     rmpin = csv.reader( open(rmpfile,'r') )
-    rawrmp = np.array([ fp for fp in rmpin ])
+    try:
+        rawrmp = np.array([ fp for fp in rmpin ])
+    except csv.Error, e:
+        sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
     # topaps: array of splited aps strings for all fingerprints.
-    topaps = np.char.array(rawrmp[:,3]).split('|')
+    topaps = np.char.array(rawrmp[:,14]).split('|') # temp index of macs: 14
 
     # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
     # [set1(ap11,ap12,...),set2(ap21,ap22,...),...].
@@ -221,7 +227,7 @@ def Cluster(rmpfile):
 
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
-    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [3]]) ])
+    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [14]]) ])
     # For optimized table structure of cidaps: cid, keyap, seq(start from 1).
     cid_aps_tmp = []
     for rec in cid_aps:
@@ -241,20 +247,20 @@ def Cluster(rmpfile):
         if end > len(crmp)-1: cr = crmp[start:]
         else: cr = crmp[start:end]
         print 'macsref: %s\ncr:%s' % (macsref,cr)
-        # j,spiddata: jth spid data in ith cluster. 
-        for j,spiddata in enumerate(cr):
+        # j,fpdata: jth fp data in ith cluster. 
+        for j,fpdata in enumerate(cr):
             rssnew = []
-            macold = spiddata[4].split('|')
+            macold = fpdata[15].split('|')
             print 'macold: %s' % macold
-            rssold = spiddata[5].split('|')
+            rssold = fpdata[16].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
             cr[j][5] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
         else: crmp[start:end] = cr
         start = end
 
-    # cfprints: array for cfprints.tbl, [cid,spid,lat,lon,rsss,time].
-    cfprints = crmp[:,[0,1,2,3,5,6]]
+    # cfprints: array for cfprints.tbl, [cid,lat,lon,h,rsss,time].
+    cfprints = crmp[:,[0,12,13,14,16,3]]
 
     if verbose:
         print 'topaps:'; pp.pprint(topaps)
