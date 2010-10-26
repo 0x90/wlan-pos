@@ -9,9 +9,10 @@ from pprint import pprint,PrettyPrinter
 import numpy as np
 import MySQLdb
 
-from WLAN import scanWLAN_OS#, scanWLAN_RE
-from GEO import dist_km
-from config import db_config, tbl_names, SQL_SELECT, SQL_SELECT_WHERE, \
+from db import WppDB, tbl_field, tbl_forms
+from wlan import scanWLAN_OS#, scanWLAN_RE
+from geo import dist_km
+from config import db_config_my, tbl_names_my, sqls, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 
 
@@ -108,22 +109,21 @@ def fixPos(len_wlan, wlan, verb=False):
     if verb: pp = PrettyPrinter(indent=2)
 
 
-    try: conn = MySQLdb.connect(host = db_config['hostname'], 
-                                user = db_config['username'], 
-                              passwd = db_config['password'], 
-                                  db = db_config['dbname'], 
+    try: conn = MySQLdb.connect(host = db_config_my['hostname'], 
+                                user = db_config_my['username'], 
+                              passwd = db_config_my['password'], 
+                                  db = db_config_my['dbname'], 
                             compress = 1)
                          #cursorclass = MySQLdb.cursors.DictCursor)
     except MySQLdb.Error,e:
-        print "\nCan NOT connect %s@server: %s!" % (username, hostname)
         print "Error(%d): %s" % (e.args[0], e.args[1])
         sys.exit(99)
     
     try:
         cursor = conn.cursor()
-        table = tbl_names['cidaps']
+        table = tbl_names_my['cidaps']
         print 'select from table: %s' % table
-        cursor.execute(SQL_SELECT % ('*', table))
+        cursor.execute(sqls['SQL_SELECT'] % ('*', table))
         cidaps = cursor.fetchall()
     except MySQLdb.Error, e:
         print "Error(%d): %s" % (e.args[0], e.args[1])
@@ -145,8 +145,7 @@ def fixPos(len_wlan, wlan, verb=False):
     idxs_sortedNOInter = np.argsort( lst_NOInter )
     maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
     if maxNI == 0: # no intersection found
-        print 'NO overlapping cluster found! Fingerprinting TERMINATED!'
-        sys.exit(99)
+        sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
     elif maxNI < CLUSTERKEYSIZE:
         # size of intersection set < offline key AP set size:4, 
         # offline keymacs/keyrsss (not online maxmacs/maxrsss) need to be cut down.
@@ -163,6 +162,20 @@ def fixPos(len_wlan, wlan, verb=False):
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
     if verb: pp.pprint(keys)
 
+    dsn_local_ora = "yxt/yxt@localhost:1521/XE"; dbtype_ora = 'oracle'
+    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, sqls=sqls, 
+            tbl_field=tbl_field, tbl_forms=tbl_forms['oracle'])
+    # cidcnts: cid and corresponding intersect size. e.g. [(1,2),(7,1)]
+    cidcnts = wppdb.getCIDcount(wlan[0])
+    if not cidcnts:
+        sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
+    print cidcnts
+    cnts_db = [ cnt for cid,cnt in cidcnts ]
+    cids_db = [ cid for cid,cnt in cidcnts ]
+    cnt_max = cnts_db.count(cnts_db[0])
+    cids_max = cids_db[:cnt_max]
+    print cids_max
+    
 
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     #  min_sums: [ minsum1, minsum2, ... ]
@@ -170,10 +183,10 @@ def fixPos(len_wlan, wlan, verb=False):
     print '='*35
     for cid,keyaps in keys:
         try: # Returns values identified by field name(or field order if no arg).
-            table = tbl_names['cfps']
+            table = tbl_names_my['cfps']
             state_where = 'cid = %s' % cid
             print 'select %s from table %s' % (state_where, table)
-            cursor.execute(SQL_SELECT_WHERE % ('*' , table, state_where))
+            cursor.execute(sqls['SQL_SELECT'] % ('*' , "%s where %s"%(table,state_where)))
             keycfps = cursor.fetchall()
         except MySQLdb.Error,e:
             print "Error(%d): %s" % (e.args[0], e.args[1])

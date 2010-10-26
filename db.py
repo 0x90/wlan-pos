@@ -6,60 +6,12 @@ import pprint
 import cx_Oracle as ora
 import psycopg2 as pg
 
-
-tbl_field = { 'cidaps':'(cid, keyaps, seq)',
-                'cfps':'(cid, lat, lon, h, rsss, cfps_time)',
-              'tsttbl':'(cid, lat, lon)' }
-tbl_idx =   { 'cidaps':['cid'], #{table_name:{'field_name'}}
-                'cfps':['cid'],
-              'tsttbl':['cid']}
-tbl_files = { 'cidaps':'tbl/cidaps.tbl', 
-                'cfps':'tbl/cfprints.tbl',
-              'tsttbl':'tbl/tsttbl.tbl' }
-# wpp_clusteridaps, wpp_cfps
-tbl_forms = { 'oracle':{
-                'cidaps':""" (  
-                       cid INT, 
-                    keyaps VARCHAR2(360),
-                       seq INT)""", 
-                'cfps':""" (  
-                       cid INT,
-                       lat NUMBER(9,6),
-                       lon NUMBER(9,6),
-                         h NUMBER(5,1),
-                      rsss VARCHAR2(100),
-                 cfps_time VARCHAR2(20))""",
-                'tsttbl':"""(
-                       cid INT, 
-                       lat NUMBER(9,6), 
-                       lon NUMBER(9,6))""" },
-              'postgresql':{
-                'cidaps':"""(
-                       cid INT, 
-                    keyaps VARCHAR(360),
-                       seq INT)""", 
-                'cfps':""" (  
-                       cid INT,
-                       lat NUMERIC(9,6),
-                       lon NUMERIC(9,6),
-                         h NUMERIC(5,1),
-                      rsss VARCHAR(100),
-                 cfps_time VARCHAR(20))""",
-                'tsttbl':"""(
-                       cid INT, 
-                       lat NUMERIC(9,6), 
-                       lon NUMERIC(9,6))""" }}
-sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
-         'SQL_DROPTB' : "DROP TABLE %s PURGE",
-        'SQL_TRUNCTB' : "TRUNCATE TABLE %s",
-       'SQL_CREATETB' : "CREATE TABLE %s %s",
-      'SQL_CREATEIDX' : "CREATE INDEX %s ON %s(%s)",
-     'SQL_CREATEUIDX' : "CREATE UNIQUE INDEX %s ON %s(%s)",
-         'SQL_INSERT' : "INSERT INTO %s %s VALUES %s"}
+from config import tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls
 
 
 class WppDB(object):
-    def __init__(self,dsn=None,tbl_field=None,tbl_forms=None,sqls=None,
+    def __init__(self,dsn=None,tbl_names=tbl_names,tbl_field=None,tbl_forms=None,sqls=None,
             tbl_files=None,tbl_idx=None,dbtype=None):
         if not dsn: sys.exit('Need DSN info!')
         if not dbtype: sys.exit('Need DB type!') 
@@ -77,8 +29,9 @@ class WppDB(object):
                 sys.exit('\nERR: %d: %s\n' % (e.pgcode, e.pgerror))
         else: sys.exit('\nERR: Unsupported DB type: %s!' % self.dbtype)
 
-        if not tbl_field or not tbl_forms:
-            sys.exit('Need field, format definition for all tables!')
+        if not tbl_field or not tbl_forms or not tbl_names:
+            sys.exit('Need name, field, format definition for all tables!')
+        self.tbl_names = tbl_names
         self.tbl_field = tbl_field
         self.tbl_forms = tbl_forms
             
@@ -94,6 +47,14 @@ class WppDB(object):
         self.cur.close()
         self.con.close()
 
+    def getCIDcount(self, macs=None):
+        strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
+        sql = self.sqls['SQL_SELECT'] % ("clusterid, count(clusterid) cmask", 
+                "wpp_clusteridaps where (%s) group by clusterid order by cmask desc"%strWhere)
+        print sql
+        self.cur.execute(sql)
+        return self.cur.fetchall()
+
     def load_tables(self, tbl_files=None):
         if not self.tbl_files: 
             if not tbl_files:
@@ -101,7 +62,7 @@ class WppDB(object):
             else: self.tbl_files = tbl_files
         else: pass
 
-        for table in self.tbl_field:
+        for table in self.tbl_names:
             csvfile = self.tbl_files[table]
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
@@ -124,12 +85,12 @@ class WppDB(object):
                 print 'csv data %d records.' % len(indat)
 
                 # make position binding like (1,2,3).
-                #num_fields = len( self.tbl_field[table].split(',') )
-                #bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
-                #self.cur.prepare(self.sqls['SQL_INSERT'] % \
-                #        (table, self.tbl_field[table], bindpos))
-                #self.cur.executemany(None, indat)
-                #print 'Inserted %d rows.' % self.cur.rowcount
+                num_fields = len( self.tbl_field[table].split(',') )
+                bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
+                self.cur.prepare(self.sqls['SQL_INSERT'] % \
+                        (table, self.tbl_field[table], bindpos))
+                self.cur.executemany(None, indat)
+                print 'Inserted %d rows.' % self.cur.rowcount
             elif self.dbtype == 'postgresql':
                 self.cur.copy_from(file(csvfile), table, ',')
             else: sys.exit('\nERR: Unsupported DB type: %s!' % self.dbtype)
@@ -156,12 +117,7 @@ class WppDB(object):
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=2)
 
-    dsn_local_ora = "yxt/yxt@localhost:1521/XE"
-    dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
-    dsn_local_pg = "host=localhost dbname=wppdb user=yxt password=yxt port=5433"
-    dbtype_ora = 'oracle'; dbtype_pg = 'postgresql'
-
-    wppdb = WppDB(dsn=dsn_local_pg, dbtype=dbtype_pg, tbl_idx=tbl_idx, 
-            tbl_field=tbl_field, tbl_forms=tbl_forms['postgresql'], sqls=sqls)
+    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
+            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
     wppdb.load_tables(tbl_files)
     wppdb.close()

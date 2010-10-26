@@ -1,3 +1,21 @@
+Data Specification
+------------------
+#   # FIELD  14col,16col
+    # IMEI      0, 3
+    # IMSI      1, 4
+    # UA        2, 5
+    # MCC       3, 6
+    # MNC       4, 7
+    # LAC       5, 8
+    # CI        6, 9
+    # rss       7, 10
+    # lat       8, 11
+    # lon       9, 12
+    # h         10,13
+    # wlanmacs  11,14
+    # wlanrsss  12,15
+    # Time      13,2
+
 Quick Start
 ------------
 1.offline

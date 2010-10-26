@@ -10,10 +10,10 @@ from time import strftime
 import numpy as np
 from pprint import pprint,PrettyPrinter
 
-from WLAN import scanWLAN_RE
-from GPS import getGPS
+from wlan import scanWLAN_RE
+from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
-from KML import genKML
+from kml import genKML
 from config import icon_types
 
 
@@ -178,15 +178,36 @@ def Cluster(rmpfile):
         visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
     # rmpin: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
-    # IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss,Time,
-    # !!!NOW: spid,servid,time,IMEI,IMSI,UserAgent,MCC,MNC,LAC,CI,rss,lat,lon,h,wlanmacs,wlanrsss.
+    # fpp_specs(14col), fpp_rawdata_xls(16col)
+    # IMEI      0, 3
+    # IMSI      1, 4
+    # UA        2, 5
+    # MCC       3, 6
+    # MNC       4, 7
+    # LAC       5, 8
+    # CI        6, 9
+    # rss       7, 10
+    # lat       8, 11
+    # lon       9, 12
+    # h         10, 13
+    # wlanmacs  11, 14
+    # wlanrsss  12, 15
+    # Time      13, 2
+    # 
+    # spid        , 0
+    # servid      , 1
+
+    idx_macs = 11; idx_rsss = 12
+    idx_lat = 8; idx_lon = 9; idx_h = 10
+    idx_time = 13
+
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
     except csv.Error, e:
         sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
     # topaps: array of splited aps strings for all fingerprints.
-    topaps = np.char.array(rawrmp[:,14]).split('|') # temp index of macs: 14
+    topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
 
     # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
     # [set1(ap11,ap12,...),set2(ap21,ap22,...),...].
@@ -202,6 +223,8 @@ def Cluster(rmpfile):
     cnt = 0
     for idx_topaps in range(len(topaps)):
         taps = topaps[idx_topaps]
+        # ignore when csv record has no wlan info.
+        if (len(taps) == 1) and (not taps[0]): continue
         staps = set( taps )
         if (not len(sets_keyaps) == 0) and (staps in sets_keyaps):
             idx = sets_keyaps.index(staps)
@@ -227,7 +250,7 @@ def Cluster(rmpfile):
 
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
-    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [14]]) ])
+    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [idx_macs]]) ])
     # For optimized table structure of cidaps: cid, keyap, seq(start from 1).
     cid_aps_tmp = []
     for rec in cid_aps:
@@ -250,9 +273,9 @@ def Cluster(rmpfile):
         # j,fpdata: jth fp data in ith cluster. 
         for j,fpdata in enumerate(cr):
             rssnew = []
-            macold = fpdata[15].split('|')
+            macold = fpdata[idx_macs + 1].split('|')
             print 'macold: %s' % macold
-            rssold = fpdata[16].split('|')
+            rssold = fpdata[idx_rsss + 1].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
             cr[j][5] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
@@ -260,7 +283,7 @@ def Cluster(rmpfile):
         start = end
 
     # cfprints: array for cfprints.tbl, [cid,lat,lon,h,rsss,time].
-    cfprints = crmp[:,[0,12,13,14,16,3]]
+    cfprints = crmp[:,[0,idx_lat+1,idx_lon+1,idx_h+1,idx_rsss+1,idx_time+1]]
 
     if verbose:
         print 'topaps:'; pp.pprint(topaps)
@@ -278,12 +301,11 @@ def Cluster(rmpfile):
     crmpfilename = '.'.join(crmpfilename)
 
     #timestamp = strftime('-%m%d-%H%M')
-    cidaps_filename = 'tbl/cidaps' + '.tbl'
-    cfps_filename = 'tbl/cfprints' + '.tbl'
+    cidaps_filename = 'tbl/cidaps.tbl'
+    cfps_filename = 'tbl/cfprints.tbl'
 
-    # numpy.savetxt(fname, array, fmt='%.18e', delimiter=' ') 
-    np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
-    print '\nDumping clustered fingerprints to: %s ... Done' % crmpfilename
+    #np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
+    #print '\nDumping clustered fingerprints to: %s ... Done' % crmpfilename
 
     np.savetxt(cidaps_filename, cid_aps, fmt='%s',delimiter=',')
     print '\nDumping clusterid keyaps table to: %s ... Done' % cidaps_filename
@@ -390,9 +412,8 @@ def main():
                     usage(); sys.exit(99)
                 else:
                     updb = True
-                    from config import db_config, \
-                            tbl_names, tbl_forms, tbl_files, tbl_field, \
-                            SQL_DROP, SQL_CREATE, SQL_CSVIN
+                    from config import db_config_my, \
+                            tbl_names_my, tbl_forms_my, tbl_files, tbl_field_my, sqls
             else: 
                 print '\nError: "-d/--db" should be followed by an INTEGER!'
                 usage(); sys.exit(99)
@@ -432,10 +453,10 @@ def main():
     if updb:
         import MySQLdb
         try:
-            conn = MySQLdb.connect(host = db_config['hostname'], 
-                                   user = db_config['username'], 
-                                 passwd = db_config['password'], 
-                                     db = db_config['dbname'], 
+            conn = MySQLdb.connect(host = db_config_my['hostname'], 
+                                   user = db_config_my['username'], 
+                                 passwd = db_config_my['password'], 
+                                     db = db_config_my['dbname'], 
                                compress = 1)
                             #cursorclass = MySQLdb.cursors.DictCursor)
         except MySQLdb.Error,e:
@@ -445,11 +466,11 @@ def main():
         try:
             # Returns values identified by field name(or field order if no arg).
             cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-            for table in tbl_names:
+            for table in tbl_names_my:
                 print 'table: %s' % table
-                cursor.execute(SQL_DROP % table)
-                cursor.execute(SQL_CREATE % (table, tbl_forms[table]))
-                cursor.execute(SQL_CSVIN % (tbl_files[table], table, tbl_field[table]))
+                cursor.execute(sqls['SQL_DROP_MY'] % table)
+                cursor.execute(sqls['SQL_CREATETB_MY'] % (table, tbl_forms_my[table]))
+                cursor.execute(sqls['SQL_CSVIN_MY'] % (tbl_files[table], table, tbl_field_my[table]))
             cursor.close()
         except MySQLdb.Error,e:
             print "Error(%d): %s" % (e.args[0], e.args[1])

@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 
 from offline import dumpCSV
 from online import fixPos, getWLAN
-from GPS import getGPS
+from gps import getGPS
 from config import WLAN_FAKE, LOCPATH, LOCSUFFIX, RADIUS, icon_types, props_jpg
-from GEO import dist_unit
-from Map import GMap, Icon, Map, Point
+from geo import dist_unit
+from map import GMap, Icon, Map, Point
 
 
 def usage():

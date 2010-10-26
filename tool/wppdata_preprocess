@@ -1,0 +1,9 @@
+#!/bin/bash
+# 1)filtering out NaN cols.
+# 2)del cols /wo lat/lon, assign h to 0 when it's null when lat/lon are available.
+# 3)del cols /wo wlan macs or rsss.
+
+# 16col
+#awk -F, 'BEGIN{OFS=","}{if($15!="" && 16!="" && $12!="" && 13!="") {if($14==""){$14=0;print} else{print}} }' $1 |grep -v 'NaN'
+# 14col
+awk -F, 'BEGIN{OFS=","}{if($9!="" && 10!="" && $12!="" && 13!="") {if($11==""){$11=0;print} else{print}} }' $1 |grep -v 'NaN'

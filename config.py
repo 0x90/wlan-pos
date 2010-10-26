@@ -11,22 +11,28 @@ KWIN = 1.25
 RADIUS = 6372797 #meter
 
 # DB related configuration.
-db_config = {
-    'hostname' : 'localhost',
-    'username' : 'pos',
-    'password' : 'pos',
-      'dbname' : 'wlanpos' }
+dsn_local_ora = "yxt/yxt@localhost:1521/XE"
+dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
+dsn_local_pg  = "host=localhost dbname=wppdb user=yxt password=yxt port=5433"
+dbtype_ora = 'oracle' 
+dbtype_pg  = 'postgresql'
+dbtype_my  = 'mysql'
+db_config_my = {
+            'hostname' : 'localhost',
+            'username' : 'pos',
+            'password' : 'pos',
+              'dbname' : 'wlanpos' }
 # SQL table related data structs.
-tbl_names = { 'cidaps':'cidaps', 
-                'cfps':'cfps' }
-tbl_field = { 'cidaps':'(cid, keyaps)',
-                'cfps':'(cid, spid, lat, lon, rsss)' }
-tbl_forms = { 'cidaps':""" (
+tbl_names_my = { 'cidaps':'cidaps', 
+                   'cfps':'cfps' }
+tbl_field_my = { 'cidaps':'(cid, keyaps)',
+                   'cfps':'(cid, spid, lat, lon, rsss)' }
+tbl_forms_my = {'cidaps':""" (
                      cid SMALLINT NOT NULL, 
                   keyaps VARCHAR(71),
                    INDEX icid (cid)
                 )""", 
-              'cfps':""" (
+                'wpp_cfps':""" (
                      cid SMALLINT NOT NULL,
                     spid SMALLINT NOT NULL,
                      lat DOUBLE(9,6),
@@ -34,23 +40,86 @@ tbl_forms = { 'cidaps':""" (
                     rsss VARCHAR(59),
                    INDEX icid (cid)
                 )""" }
-tbl_files = { 'cidaps':'tbl/cidaps.tbl', 
-                'cfps':'tbl/cfprints.tbl' }
+tbl_names = ( 'wpp_clusteridaps','wpp_cfps' )
+tbl_field = { 'wpp_clusteridaps':'(clusterid, keyaps, seq)',
+                      'wpp_cfps':'(clusterid, lat, lon, height, rsss, cfps_time)',
+                        'tsttbl':'(clusterid, lat, lon)' }
+tbl_idx =   { 'wpp_clusteridaps':['clusterid'], #{table_name:{'field_name'}}
+                      'wpp_cfps':['clusterid'],
+                        'tsttbl':['clusterid']}
+tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
+                        'cidaps':'tbl/cidaps.tbl',
+                      'wpp_cfps':'tbl/cfprints.tbl',
+                        'tsttbl':'tbl/tsttbl.tbl' }
+tbl_forms = { 'oracle':{
+                'wpp_clusteridaps':""" (  
+                     clusterid INT NOT NULL, 
+                        keyaps VARCHAR2(71) NOT NULL,
+                           seq INT NOT NULL)""", 
+                'wpp_cfps':""" (  
+                     clusterid INT NOT NULL,
+                           lat NUMBER(9,6) NOT NULL,
+                           lon NUMBER(9,6) NOT NULL,
+                        height NUMBER(5,1) DEFAULT 0,
+                          rsss VARCHAR2(100) NOT NULL,
+                     cfps_time VARCHAR2(20))""",
+                'tsttbl':"""(
+                     clusterid INT, 
+                           lat NUMBER(9,6), 
+                           lon NUMBER(9,6))""" },
+              'postgresql':{
+                'wpp_clusteridaps':"""(
+                     clusterid INT NOT NULL, 
+                        keyaps VARCHAR(360) NOT NULL,
+                           seq INT NOT NULL)""", 
+                'wpp_cfps':""" (  
+                     clusterid INT NOT NULL,
+                           lat NUMERIC(9,6) NOT NULL,
+                           lon NUMERIC(9,6) NOT NULL,
+                        height NUMERIC(5,1) DEFAULT 0,
+                          rsss VARCHAR(100) NOT NULL,
+                     cfps_time VARCHAR(20))""",
+                'wpp_uprecsinfo':""" (  
+                          spid INT,
+                        servid INT,
+                          time VARCHAR(20),
+                          imsi VARCHAR(20),
+                          imei VARCHAR(20),
+                     useragent VARCHAR(300),
+                           mcc INT,
+                           mnc INT,
+                           lac INT,
+                        cellid INT,
+                       cellrss VARCHAR(5),
+                           lat NUMERIC(9,6),
+                           lon NUMERIC(9,6),
+                        height NUMERIC(5,1),
+                wlanidentifier VARCHAR(360),
+                   wlanmatcher VARCHAR(100))""",
+                'tsttbl':"""(
+                     clusterid INT, 
+                           lat NUMERIC(9,6), 
+                           lon NUMERIC(9,6))""" }}
 # SQL statements.
-SQL_DROP = 'DROP TABLE IF EXISTS %s'
-SQL_CREATE = 'CREATE TABLE IF NOT EXISTS %s %s'
-SQL_CSVIN = """
-        LOAD DATA LOCAL INFILE "%s" INTO TABLE %s 
-        FIELDS TERMINATED BY ',' 
-        LINES TERMINATED BY '\\n' 
-        %s"""
-SQL_SELECT = 'SELECT %s FROM %s'
-SQL_SELECT_WHERE = 'SELECT %s FROM %s WHERE %s'
+sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
+         'SQL_DROPTB' : "DROP TABLE %s PURGE",
+        'SQL_TRUNCTB' : "TRUNCATE TABLE %s",
+       'SQL_CREATETB' : "CREATE TABLE %s %s",
+      'SQL_CREATEIDX' : "CREATE INDEX %s ON %s(%s)",
+     'SQL_CREATEUIDX' : "CREATE UNIQUE INDEX %s ON %s(%s)",
+         'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
+        'SQL_DROP_MY' : "DROP TABLE IF EXISTS %s",
+    'SQL_CREATETB_MY' : "CREATE TABLE IF NOT EXISTS %s %s",
+       'SQL_CSVIN_MY' : """
+                        LOAD DATA LOCAL INFILE "%s" INTO TABLE %s 
+                        FIELDS TERMINATED BY ',' 
+                        LINES TERMINATED BY '\\n' 
+                        %s""" }
 
 # String length of 179 and 149 chars are used for each intersection set to have 
 # at most INTERSET APs, which should be enough for classification, very ugly though.
-dt_rmp_nocluster = {'names':('spid','lat','lon','macs','rsss'), 
-                  'formats':('i4','f4','f4','S179','S149')}
+#dt_rmp_nocluster = {'names':('spid','lat','lon','macs','rsss'), 
+#                  'formats':('i4','f4','f4','S179','S149')}
 WLAN_FAKE = {
         1: #home
             [ ['00:25:86:23:A4:48', '-86'], ['00:24:01:FE:0F:20', '-90'], 
