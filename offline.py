@@ -197,17 +197,29 @@ def Cluster(rmpfile):
     # spid        , 0
     # servid      , 1
 
-    idx_macs = 11; idx_rsss = 12
-    idx_lat = 8; idx_lon = 9; idx_h = 10
-    idx_time = 13
-
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
+        num_cols = np.shape(rawrmp)[1]
     except csv.Error, e:
         sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
+    # CSV format judgement.
+    if num_cols == 14:
+        idx_macs = 11; idx_rsss = 12
+        idx_lat = 8; idx_lon = 9; idx_h = 10
+        idx_time = 13
+    elif num_cols == 16:
+        idx_macs = 14; idx_rsss = 15
+        idx_lat = 11; idx_lon = 12; idx_h = 13
+        idx_time = 2
+    else:
+        sys.exit('\nERROR: Unsupported csv format!\n')
+    print 'CSV format: %d fields' % num_cols
+        
     # topaps: array of splited aps strings for all fingerprints.
+    sys.stdout.write('\nSelecting MACs for clustering ... ')
     topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
+    print 'Done'
 
     # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
     # [set1(ap11,ap12,...),set2(ap21,ap22,...),...].
@@ -221,6 +233,7 @@ def Cluster(rmpfile):
 
     # Clustering heuristics.
     cnt = 0
+    sys.stdout.write('Fingerprints clustering ... ')
     for idx_topaps in range(len(topaps)):
         taps = topaps[idx_topaps]
         # ignore when csv record has no wlan info.
@@ -235,20 +248,24 @@ def Cluster(rmpfile):
         lsts_keyaps.append(taps)
         idxs_keyaps[cnt].append(idx_topaps)
         cnt += 1
-    print 'lsts_keyaps: %s' % lsts_keyaps
+    #print 'lsts_keyaps: %s' % lsts_keyaps
+    print 'Done'
 
     # cids: list of clustering ids for all fingerprints, for indexing in sql db.
     # [ [1], [1], ..., [2],...,... ]
     # cidtmp1: [ [1,...], [2,...], ...].
     # cidtmp2: [ 1,..., 2,..., ...].
+    sys.stdout.write('Fingerprints matrix slicing ... ')
     cidtmp1 = [ [cid+1]*len(idxs_keyaps[cid]) for cid in range(len(idxs_keyaps)) ]
     cidtmp2 = []; [ cidtmp2.extend(x) for x in cidtmp1 ]
     cids = [ [x] for x in cidtmp2 ]
 
     ord = []; [ ord.extend(x) for x in idxs_keyaps ]
     crmp = np.append(cids, rawrmp[ord,:], axis=1)
+    print 'Done'
 
-    # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps].
+    sys.stdout.write('Constructing clusterid-keymacs mapping table ... ')
+    # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps,seq].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
     cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [idx_macs]]) ])
     # For optimized table structure of cidaps: cid, keyap, seq(start from 1).
@@ -258,32 +275,37 @@ def Cluster(rmpfile):
         for seq,ap in enumerate(aps):
             cid_aps_tmp.append([ rec[0], ap, seq+1 ])
     cid_aps = np.array(cid_aps_tmp)
+    print 'Done'
     
     # re-arrange RSSs of each fingerprint according to its key MACs.
     # macsref: key AP MACs in cidaps table.
     # cr: clustered fingerprints data(in crmp) for each cluster.
-    print 'crmp: \n%s' % crmp
+    #print 'crmp: \n%s' % crmp
+    sys.stdout.write('Re-arranging MAC-RSS for all fingerprints ... ')
     start = 0; end = 0
     for i,macsref in enumerate(lsts_keyaps):
         end = start + len(idxs_keyaps[i])
         #print 'start: %d, end: %d' % (start, end)
         if end > len(crmp)-1: cr = crmp[start:]
         else: cr = crmp[start:end]
-        print 'macsref: %s\ncr:%s' % (macsref,cr)
+        #print 'macsref: %s\ncr:%s' % (macsref,cr)
         # j,fpdata: jth fp data in ith cluster. 
         for j,fpdata in enumerate(cr):
             rssnew = []
             macold = fpdata[idx_macs + 1].split('|')
-            print 'macold: %s' % macold
+            #print 'macold: %s' % macold
             rssold = fpdata[idx_rsss + 1].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
             cr[j][5] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
         else: crmp[start:end] = cr
         start = end
+    print 'Done'
 
     # cfprints: array for cfprints.tbl, [cid,lat,lon,h,rsss,time].
+    sys.stdout.write('Constructing clustered fingerprint table ... ')
     cfprints = crmp[:,[0,idx_lat+1,idx_lon+1,idx_h+1,idx_rsss+1,idx_time+1]]
+    print 'Done'
 
     if verbose:
         print 'topaps:'; pp.pprint(topaps)
@@ -293,9 +315,10 @@ def Cluster(rmpfile):
         print 'crmp:'; pp.pprint(crmp)
         print 'cid_aps:'; pp.pprint(cid_aps)
         print 'cfprints:'; pp.pprint(cfprints)
-    else:
-        print 'crmp: \n%s' % crmp
+    #else:
+    #    print 'crmp: \n%s' % crmp
 
+    print 'Dumping DB tables:'
     crmpfilename = rmpfile.split('.')
     crmpfilename[1] = 'crmp'
     crmpfilename = '.'.join(crmpfilename)
@@ -308,10 +331,10 @@ def Cluster(rmpfile):
     #print '\nDumping clustered fingerprints to: %s ... Done' % crmpfilename
 
     np.savetxt(cidaps_filename, cid_aps, fmt='%s',delimiter=',')
-    print '\nDumping clusterid keyaps table to: %s ... Done' % cidaps_filename
+    print 'Clusterid-keymacs mapping table to: %s ... Done' % cidaps_filename
 
     np.savetxt(cfps_filename, cfprints, fmt='%s',delimiter=',')
-    print '\nDumping clustered fingerprints table to: %s ... Done\n' % cfps_filename
+    print 'Clustered fingerprints table to: %s ... Done\n' % cfps_filename
 
 
 def dumpCSV(csvfile, content):

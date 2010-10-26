@@ -20,14 +20,14 @@ class WppDB(object):
             try:
                 self.con = ora.connect(dsn) #'yxt/yxt@localhost:1521/XE'
             except ora.DatabaseError, e:
-                sys.exit('\nERR: %s' % e)
+                sys.exit('\nERROR: %s' % e)
         elif self.dbtype == 'postgresql':
             try:
                 self.con = pg.connect(dsn) #"host=localhost dbname=wppdb user=yxt password=yxt port=5433"
                 self.con.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             except Exception, e:
-                sys.exit('\nERR: %d: %s\n' % (e.pgcode, e.pgerror))
-        else: sys.exit('\nERR: Unsupported DB type: %s!' % self.dbtype)
+                sys.exit('\nERROR: %d: %s\n' % (e.pgcode, e.pgerror))
+        else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
         if not tbl_field or not tbl_forms or not tbl_names:
             sys.exit('Need name, field, format definition for all tables!')
@@ -48,6 +48,7 @@ class WppDB(object):
         self.con.close()
 
     def getCIDcount(self, macs=None):
+        if not macs: sys.exit('Need macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         sql = self.sqls['SQL_SELECT'] % ("clusterid, count(clusterid) cmask", 
                 "wpp_clusteridaps where (%s) group by clusterid order by cmask desc"%strWhere)
@@ -58,7 +59,7 @@ class WppDB(object):
     def load_tables(self, tbl_files=None):
         if not self.tbl_files: 
             if not tbl_files:
-                sys.exit('\nERR: %s: Need a csv file!\n' % csvfile)
+                sys.exit('\nERROR: %s: Need a csv file!\n' % csvfile)
             else: self.tbl_files = tbl_files
         else: pass
 
@@ -81,7 +82,7 @@ class WppDB(object):
                 try:
                     indat = [ line for line in csvdat ]
                 except csv.Error, e:
-                    sys.exit('\nERR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
+                    sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
                 print 'csv data %d records.' % len(indat)
 
                 # make position binding like (1,2,3).
@@ -93,7 +94,7 @@ class WppDB(object):
                 print 'Inserted %d rows.' % self.cur.rowcount
             elif self.dbtype == 'postgresql':
                 self.cur.copy_from(file(csvfile), table, ',')
-            else: sys.exit('\nERR: Unsupported DB type: %s!' % self.dbtype)
+            else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
             self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table))
             print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table)
@@ -107,17 +108,40 @@ class WppDB(object):
             print '-'*40
 
         self.con.commit()
-
-
     # Unfortunately, load is NOT a known cmd for oracle.
     #print SQL_CSVIN % ('orain.dat', 'tsttbl', tbl_forms['tsttbl'])
     #cur.execute(SQL_CSVIN % ('orain', 'tsttbl', tbl_field['tsttbl']))
+
+    def getCIDcntMaxSeq(self, macs=None):
+        if not macs: sys.exit('Need macs!')
+        strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
+        sql1 = self.sqls['SQL_SELECT'] % ("clusterid cid, count(clusterid) cidcnt", 
+            "%s where (%s) group by clusterid order by cidcnt desc) a, \
+            %s t where a.cid=t.clusterid  group by a.cid,a.cidcnt order by cidcnt desc"%('tsttbl',strWhere,'tsttbl'))
+        sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
+        self.cur.execute(sql)
+        return self.cur.fetchall()
 
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=2)
 
-    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
+    #tbl_names = ('tsttbl',)
+    tbl_names = ('wpp_clusteridaps','wpp_cfps')
+    wppdb = WppDB(dsn=dsn_vance_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
             tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    wppdb.load_tables(tbl_files)
+
+    #wppdb.load_tables(tbl_files)
+
+    import numpy as np
+    wlanmacs = ['0e:41:8d:7d:d4:e0','00:17:7b:0f:5d:00','00:17:7b:0f:5c:01']
+    cidcntseq = np.array(wppdb.getCIDcntMaxSeq(wlanmacs))
+    print cidcntseq
+    sys.exit(0)
+    idxs_sort = np.argsort(cidcntseq[:,1]).tolist
+    idxs_sort.reverse()
+    cnt_max = cnts_db.count(cnts_db[0])
+    cids_max = cids_db[:cnt_max]
+    print cids_max
+
     wppdb.close()

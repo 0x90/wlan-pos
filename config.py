@@ -43,7 +43,7 @@ tbl_forms_my = {'cidaps':""" (
 tbl_names = ( 'wpp_clusteridaps','wpp_cfps' )
 tbl_field = { 'wpp_clusteridaps':'(clusterid, keyaps, seq)',
                       'wpp_cfps':'(clusterid, lat, lon, height, rsss, cfps_time)',
-                        'tsttbl':'(clusterid, lat, lon)' }
+                        'tsttbl':'(clusterid, keyaps, seq)' }
 tbl_idx =   { 'wpp_clusteridaps':['clusterid'], #{table_name:{'field_name'}}
                       'wpp_cfps':['clusterid'],
                         'tsttbl':['clusterid']}
@@ -65,8 +65,8 @@ tbl_forms = { 'oracle':{
                      cfps_time VARCHAR2(20))""",
                 'tsttbl':"""(
                      clusterid INT, 
-                           lat NUMBER(9,6), 
-                           lon NUMBER(9,6))""" },
+                        keyaps VARCHAR2(71) NOT NULL,
+                           seq INT NOT NULL)""" },
               'postgresql':{
                 'wpp_clusteridaps':"""(
                      clusterid INT NOT NULL, 
@@ -94,12 +94,12 @@ tbl_forms = { 'oracle':{
                            lat NUMERIC(9,6),
                            lon NUMERIC(9,6),
                         height NUMERIC(5,1),
-                wlanidentifier VARCHAR(360),
-                   wlanmatcher VARCHAR(100))""",
+                wlanidentifier VARCHAR(1024),
+                   wlanmatcher VARCHAR(255))""",
                 'tsttbl':"""(
                      clusterid INT, 
-                           lat NUMERIC(9,6), 
-                           lon NUMERIC(9,6))""" }}
+                        keyaps VARCHAR2(71) NOT NULL,
+                           seq INT NOT NULL)""" }}
 # SQL statements.
 sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
          'SQL_DROPTB' : "DROP TABLE %s PURGE",

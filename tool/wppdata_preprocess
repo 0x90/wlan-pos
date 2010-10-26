@@ -3,7 +3,25 @@
 # 2)del cols /wo lat/lon, assign h to 0 when it's null when lat/lon are available.
 # 3)del cols /wo wlan macs or rsss.
 
-# 16col
-#awk -F, 'BEGIN{OFS=","}{if($15!="" && 16!="" && $12!="" && 13!="") {if($14==""){$14=0;print} else{print}} }' $1 |grep -v 'NaN'
-# 14col
-awk -F, 'BEGIN{OFS=","}{if($9!="" && 10!="" && $12!="" && 13!="") {if($11==""){$11=0;print} else{print}} }' $1 |grep -v 'NaN'
+awk -F, '
+BEGIN {
+    OFS=","
+} 
+{
+    if (NF == 14){
+        ilat=9; ilon=10; ih=11; imac=12; irss=13
+    }else if (NF == 16){
+        ilat=12; ilon=13; ih=14; imac=15; irss=16
+    }else{
+        print "Unsupported format!"
+        exit 
+    }
+    if($imac!="" && $irss!="" && $ilat!="" && $ilon!=""){ 
+        if($ih==""){
+            $ih=0
+            print
+        }else{ 
+            print 
+        }
+    } 
+} ' $1 |grep -v 'NaN'

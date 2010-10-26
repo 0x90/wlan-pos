@@ -170,3 +170,7 @@
 2010-10-24
     1) Add oracle & postgresql driver class WppDB, and cidaps/cfps table load functionalities.
     2) Add some post-sampling scripts for fpp raw data processing.
+2010-10-26
+    1) Add sql-level query support for offline clustering.
+    2) Add data picking script for req & db from the same data source.
+    3) Integrate the program for 14/16 col processing in wppdata_preprocess & cluster() in offline module.
