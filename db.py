@@ -3,6 +3,7 @@ import sys
 import os
 import csv
 import pprint
+import numpy as np
 import cx_Oracle as ora
 import psycopg2 as pg
 
@@ -123,25 +124,41 @@ class WppDB(object):
         return self.cur.fetchall()
 
 
+def Cluster_DB():
+    #tbl_names = ('tsttbl',)
+    tbl_names = ('wpp_clusteridaps','wpp_cfps')
+    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
+            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
+    wlanmacs = ['0e:41:8d:7d:d4:e0','00:17:7b:0f:5d:00','00:17:7b:0f:5c:01']
+    #     cidcntseq: all query results from db: cid,count(cid),max(seq).
+    # cidcntseq_max: query results with max count(cid).
+    cidcntseq = np.array(wppdb.getCIDcntMaxSeq(wlanmacs))
+    if not cidcntseq:
+        # belong to a new cluster.
+    else:
+        cidcnt = cidcntseq[:,1]
+        #print cidcntseq
+        idxs_sortdesc = np.argsort(cidcnt).tolist()
+        idxs_sortdesc.reverse()
+        #print idxs_sortdesc
+        cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+        cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+        #print cidcntseq_max
+        idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+        #print idx_belong
+        cids_belong = cidcntseq_max[idx_belong,0]
+        print cids_belong
+
+    wppdb.close()
+
+
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=2)
 
+    Cluster_DB()
     #tbl_names = ('tsttbl',)
-    tbl_names = ('wpp_clusteridaps','wpp_cfps')
-    wppdb = WppDB(dsn=dsn_vance_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
-            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-
+    #tbl_names = ('wpp_clusteridaps','wpp_cfps')
+    #wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
+    #        tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
     #wppdb.load_tables(tbl_files)
-
-    import numpy as np
-    wlanmacs = ['0e:41:8d:7d:d4:e0','00:17:7b:0f:5d:00','00:17:7b:0f:5c:01']
-    cidcntseq = np.array(wppdb.getCIDcntMaxSeq(wlanmacs))
-    print cidcntseq
-    sys.exit(0)
-    idxs_sort = np.argsort(cidcntseq[:,1]).tolist
-    idxs_sort.reverse()
-    cnt_max = cnts_db.count(cnts_db[0])
-    cids_max = cids_db[:cnt_max]
-    print cids_max
-
-    wppdb.close()
+    #wppdb.close()

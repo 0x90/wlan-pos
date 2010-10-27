@@ -43,8 +43,10 @@ tbl_forms_my = {'cidaps':""" (
 tbl_names = ( 'wpp_clusteridaps','wpp_cfps' )
 tbl_field = { 'wpp_clusteridaps':'(clusterid, keyaps, seq)',
                       'wpp_cfps':'(clusterid, lat, lon, height, rsss, cfps_time)',
+                'wpp_uprecsinfo':'(spid,servid,time,imsi,imei,useragent,mcc,mnc,lac,cellid,cellrss,\
+                                    lat,lon,height,wlanidentifier,wlanmatcher)',
                         'tsttbl':'(clusterid, keyaps, seq)' }
-tbl_idx =   { 'wpp_clusteridaps':['clusterid'], #{table_name:{'field_name'}}
+tbl_idx =   { 'wpp_clusteridaps':['clusterid','keyaps'], #{table_name:{'field_name'}}
                       'wpp_cfps':['clusterid'],
                         'tsttbl':['clusterid']}
 tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
@@ -63,6 +65,24 @@ tbl_forms = { 'oracle':{
                         height NUMBER(5,1) DEFAULT 0,
                           rsss VARCHAR2(100) NOT NULL,
                      cfps_time VARCHAR2(20))""",
+                'wpp_uprecsinfo':""" (  
+                            id INT PRIMARY KEY,	
+                          spid INT,
+                        servid INT,
+                          time VARCHAR(20),
+                          imsi VARCHAR(20),
+                          imei VARCHAR(20),
+                     useragent VARCHAR(300),
+                           mcc INT,
+                           mnc INT,
+                           lac INT,
+                        cellid INT,
+                       cellrss VARCHAR(5),
+                           lat NUMERIC(9,6),
+                           lon NUMERIC(9,6),
+                        height NUMERIC(5,1),
+                wlanidentifier VARCHAR(1024),
+                   wlanmatcher VARCHAR(255))""",
                 'tsttbl':"""(
                      clusterid INT, 
                         keyaps VARCHAR2(71) NOT NULL,
@@ -80,6 +100,7 @@ tbl_forms = { 'oracle':{
                           rsss VARCHAR(100) NOT NULL,
                      cfps_time VARCHAR(20))""",
                 'wpp_uprecsinfo':""" (  
+                            id INT PRIMARY KEY,	
                           spid INT,
                         servid INT,
                           time VARCHAR(20),
