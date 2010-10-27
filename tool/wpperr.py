@@ -56,8 +56,8 @@ idx_sort = np.argsort(errs)
 errs_sort = errs[idx_sort]
 max  = errs_sort[-1]
 
-err_65 = errs_sort[int(num_test*.65)]
-err_97 = errs_sort[int(num_test*.97)]
+err_67 = errs_sort[int(num_test*.67)]
+err_95 = errs_sort[int(num_test*.95)]
 perc_errless50  = (np.searchsorted(errs_sort,  50, side='right')+1)*100 / num_test 
 perc_errless100 = (np.searchsorted(errs_sort, 100, side='right')+1)*100 / num_test 
 
@@ -66,11 +66,11 @@ print """
 %s
 Mean: %.2f(m), Max: %.2f(m), Std: %.2f(m)
 %s
-65%%/97%%: %.2f(m)/%.2f(m), <50(m)/100(m): %.2f%%/%.2f%%""" %\
-(num_test, '-'*45, mean, max, std, '-'*55, err_65, err_97, perc_errless50, perc_errless100)
+67%%/95%%: %.2f(m)/%.2f(m), <50(m)/100(m): %.2f%%/%.2f%%""" %\
+(num_test, '-'*45, mean, max, std, '-'*55, err_67, err_95, perc_errless50, perc_errless100)
 
 np.savetxt(outfile, reqreterr, fmt='%s',delimiter=',')
 print '\nDumping req/ret/err to: %s ... Done' % outfile
 
-#errs_sort = [ [x] for x in errs_sort ]
-#np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')
+errs_sort = [ [x] for x in errs_sort ]
+np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')
