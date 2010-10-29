@@ -218,7 +218,23 @@ def Cluster(rmpfile):
         
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('\nSelecting MACs for clustering ... ')
+    #print
     topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
+    toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
+    joinaps = []
+    for i in xrange(len(topaps)):
+        macs = np.array(topaps[i])
+        rsss = np.array(toprss[i])
+        idxs_max = np.argsort(rsss)[:CLUSTERKEYSIZE]
+        topaps[i] = macs[idxs_max]
+        joinaps.append('|'.join(topaps[i]))
+        toprss[i] = '|'.join(rsss[idxs_max])
+        #print toprss[i]
+    #print
+    rawrmp[:,idx_macs] = np.array(joinaps)
+    rawrmp[:,idx_rsss] = np.array(toprss)
+    #pp.pprint(rawrmp[:,idx_macs])
+    #pp.pprint(rawrmp[:,idx_rsss])
     print 'Done'
 
     # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
@@ -292,11 +308,11 @@ def Cluster(rmpfile):
         # j,fpdata: jth fp data in ith cluster. 
         for j,fpdata in enumerate(cr):
             rssnew = []
-            macold = fpdata[idx_macs + 1].split('|')
+            macold = fpdata[idx_macs+1].split('|')
             #print 'macold: %s' % macold
-            rssold = fpdata[idx_rsss + 1].split('|')
+            rssold = fpdata[idx_rsss+1].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
-            cr[j][5] = '|'.join(rssnew) 
+            cr[j][idx_rsss+1] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
         else: crmp[start:end] = cr
         start = end

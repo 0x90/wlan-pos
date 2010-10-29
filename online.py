@@ -9,7 +9,7 @@ from pprint import pprint,PrettyPrinter
 import numpy as np
 import MySQLdb
 
-from db import WppDB, tbl_field, tbl_forms
+#from db import WppDB, tbl_field, tbl_forms
 from wlan import scanWLAN_OS#, scanWLAN_RE
 from geo import dist_km
 from config import db_config_my, tbl_names_my, sqls, \
@@ -162,19 +162,19 @@ def fixPos(len_wlan, wlan, verb=False):
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
     if verb: pp.pprint(keys)
 
-    dsn_local_ora = "yxt/yxt@localhost:1521/XE"; dbtype_ora = 'oracle'
-    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, sqls=sqls, 
-            tbl_field=tbl_field, tbl_forms=tbl_forms['oracle'])
-    # cidcnts: cid and corresponding intersect size. e.g. [(1,2),(7,1)]
-    cidcnts = wppdb.getCIDcount(wlan[0])
-    if not cidcnts:
-        sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
-    print cidcnts
-    cnts_db = [ cnt for cid,cnt in cidcnts ]
-    cids_db = [ cid for cid,cnt in cidcnts ]
-    cnt_max = cnts_db.count(cnts_db[0])
-    cids_max = cids_db[:cnt_max]
-    print cids_max
+    #dsn_local_ora = "yxt/yxt@localhost:1521/XE"; dbtype_ora = 'oracle'
+    #wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, sqls=sqls, 
+    #        tbl_field=tbl_field, tbl_forms=tbl_forms['oracle'])
+    ## cidcnts: cid and corresponding intersect size. e.g. [(1,2),(7,1)]
+    #cidcnts = wppdb.getCIDcount(wlan[0])
+    #if not cidcnts:
+    #    sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
+    #print cidcnts
+    #cnts_db = [ cnt for cid,cnt in cidcnts ]
+    #cids_db = [ cid for cid,cnt in cidcnts ]
+    #cnt_max = cnts_db.count(cnts_db[0])
+    #cids_max = cids_db[:cnt_max]
+    #print cids_max
     
 
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
@@ -280,12 +280,14 @@ def fixPos(len_wlan, wlan, verb=False):
             print 'posfix:%s, keyposs:%s' % (posfix, keyposs)
             poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in keyposs ]) / (N_fp-1)
-    print 'poserr: %s' % poserr
+    ret = posfix.tolist()
+    ret.append(poserr)
+    print 'posresult: %s' % ret
 
     cursor.close()
     conn.close()
 
-    return posfix.astype(float)
+    return ret
 
 
 
@@ -336,8 +338,8 @@ def main():
     len_visAPs, wifis = getWLAN(wlanfake)
 
     # Fix current position.
-    latlon = fixPos(len_visAPs, wifis, verbose)
-    print 'final posfix: \n%s' % latlon
+    posresult = fixPos(len_visAPs, wifis, verbose)
+    #print 'final posfix/poserr: \n%s' % posresult
 
     sys.exit(0)
 

@@ -29,7 +29,7 @@ tbl_field_my = { 'cidaps':'(cid, keyaps)',
                    'cfps':'(cid, spid, lat, lon, rsss)' }
 tbl_forms_my = {'cidaps':""" (
                      cid SMALLINT NOT NULL, 
-                  keyaps VARCHAR(71),
+                  keyaps VARCHAR(1024),
                    INDEX icid (cid)
                 )""", 
                 'wpp_cfps':""" (
@@ -37,7 +37,7 @@ tbl_forms_my = {'cidaps':""" (
                     spid SMALLINT NOT NULL,
                      lat DOUBLE(9,6),
                      lon DOUBLE(9,6),
-                    rsss VARCHAR(59),
+                    rsss VARCHAR(255),
                    INDEX icid (cid)
                 )""" }
 tbl_names = ( 'wpp_clusteridaps','wpp_cfps' )
