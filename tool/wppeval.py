@@ -3,8 +3,10 @@
 from __future__ import division
 import sys
 import csv
+import shelve as shlv
 import pprint as pp
 import numpy as np
+
 sys.path.append('/home/alexy/dev/src/wlan-pos/')
 import geo
 import online as pos
@@ -29,6 +31,7 @@ ilat_cpp = 2; ilon_cpp = 3; ierr_cpp = 4
 # e_cpp_py           12,
 # ee                 13
 outfile = '%s/reqreterr.csv' % fpath
+diffile = '%s/diffs.csv' % fpath
 
 reqin = csv.reader( open(reqfile,'r') )
 retin = csv.reader( open(retfile,'r') )
@@ -54,7 +57,7 @@ if len(req) == len(ret):
     # reqret format: ref(lat, lon), cpp(lat,lon,err)
     reqret = np.append(req[:,reqcols], ret[:,retcols], axis=1).astype(float)
     # addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py
-    addcols = []
+    addcols = []; idiffs = []
     for i in xrange(len(reqret)):
         macs = np.array(macrss[i,0])
         rsss = np.array(macrss[i,1])
@@ -72,7 +75,7 @@ if len(req) == len(ret):
         num_visAPs = len(macs)
         INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
         idxs_max = np.argsort(rsss)[:INTERSET]
-        mr = np.vstack((macs,rsss))
+        mr = np.vstack((macs, rsss))
         mr = mr[:,idxs_max]
         pyloc = pos.fixPos(num_visAPs, mr, verb=False)
         addcol.extend(pyloc)
@@ -89,6 +92,7 @@ if len(req) == len(ret):
         ee = abs(err_cpp - err_py)
         addcol.append(ee)
         print '%d: %s' % (i+1, addcol)
+        if err_cpp_py or ee: idiffs.append(i)
         addcols.append(addcol)
 else:
     sys.exit('\nERROR: Not matched req/ret files: %s/%s!\n' % (reqfile, retfile))
@@ -96,36 +100,90 @@ print 'Done'
 
 addcols = np.array(addcols)
 
-means = np.mean(addcols[:,[0,1,5,6,7,8]], axis=0)
-stds  =  np.std(addcols[:,[0,1,5,6,7,8]], axis=0)
-maxs  =  np.max(addcols[:,[0,1,5,6,7,8]], axis=0)
-print means
-print stds
-print maxs
+# addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py
+idxs_addcols = { # idxs of all evaluated cols in addcols.
+             'err_cpp':0,
+              'ee_cpp':1,
+              'lat_py':2,
+              'lon_py':3,
+               'pyerr':4,
+              'err_py':5,
+               'ee_py':6,
+          'err_cpp_py':7,
+           'ee_cpp_py':8 }
+
+istats = [ # indexs of cols which are to be analyzed.
+            idxs_addcols['err_cpp'], 
+            idxs_addcols['ee_cpp'], 
+            idxs_addcols['err_py'],
+            idxs_addcols['ee_py'], 
+            idxs_addcols['err_cpp_py'], 
+            idxs_addcols['ee_cpp_py']]
+
+means = np.mean(addcols[:,istats], axis=0).round(2)
+stds  =  np.std(addcols[:,istats], axis=0).round(2)
+maxs  =  np.max(addcols[:,istats], axis=0).round(2)
+print 'means:'
+pp.pprint(means)
+print 'stds:'
+pp.pprint(stds)
+print 'maxs:'
+pp.pprint(maxs)
 
 reqreterr = np.append(reqret, addcols, axis=1)
 
-sys.exit(0)
 num_test = len(reqreterr)
 
-idx_sort = np.argsort(ecpp)
-errs_sort = ecpp[idx_sort]
+stats = {}
+stats['cpp'] = {}
+stats['cpp']['mean'] = '%.2f'%means[0]
+stats['cpp']['std']  = '%.2f'%stds[0]
+stats['cpp']['max']  = '%.2f'%maxs[0]
+stats['py'] = {}
+stats['py']['mean']  = '%.2f'%means[2]
+stats['py']['std']   = '%.2f'%stds[2]
+stats['py']['max']   = '%.2f'%maxs[2]
 
-err_67 = errs_sort[int(num_test*.67)]
-err_95 = errs_sort[int(num_test*.95)]
-perc_errless50  = (np.searchsorted(errs_sort,  50, side='right')+1)*100 / num_test 
-perc_errless100 = (np.searchsorted(errs_sort, 100, side='right')+1)*100 / num_test 
+for item in ('err_cpp','err_py'):
+    name = item.split('_')[1]
+    data = addcols[:,idxs_addcols[item]]
+    idx_sort = np.argsort(data)
+    data_sort = data[idx_sort]
 
-print """
-\nTotal: %d
-%s
-Mean: %.2f(m), Max: %.2f(m), Std: %.2f(m)
-%s
-67%%/95%%: %.2f(m)/%.2f(m), <50(m)/100(m): %.2f%%/%.2f%%""" %\
-(num_test, '-'*45, mean, max, std, '-'*55, err_67, err_95, perc_errless50, perc_errless100)
+    stats[name]['val_67perc'] = '%.2f'%(data_sort[int(num_test*.67)])
+    stats[name]['val_95perc'] = '%.2f'%(data_sort[int(num_test*.95)])
+    stats[name]['perc_errless50']  = '%.2f%%'%((np.searchsorted(data_sort,  50, side='right')+1)*100 / num_test)
+    stats[name]['perc_errless100'] = '%.2f%%'%((np.searchsorted(data_sort, 100, side='right')+1)*100 / num_test)
 
-np.savetxt(outfile, reqreterr, fmt='%s',delimiter=',')
-print '\nDumping req/ret/err to: %s ... Done' % outfile
+pp.pprint(stats)
+statsfile = 'stats.log'
+stats_dict = shlv.open(statsfile)
+stats_dict['cpp'] = stats['cpp']
+stats_dict['py'] = stats['py']
+stats_dict.close()
+print 'stats results shelved into %s' % statsfile
 
-errs_sort = [ [x] for x in errs_sort ]
-np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')
+# shelve db reading for stats info.
+#stats_dict = dict(shlv.open(statsfile))
+#pp.pprint(stats_dict)
+
+#print """
+#\nTotal: %d
+#%s
+#Mean: %.2f(m), Max: %.2f(m), Std: %.2f(m)
+#%s
+#67%%/95%%: %.2f(m)/%.2f(m), <50(m)/100(m): %.2f%%/%.2f%%""" %\
+#(num_test, '-'*45, mean, max, std, '-'*55, err_67, err_95, perc_errless50, perc_errless100)
+
+reqreterr = np.append(req[ :, [idx_macs,idx_rsss] ], reqreterr, axis=1)
+diffs = reqreterr[idiffs,:]
+print 'diff num: %d' % len(idiffs)
+
+#np.savetxt(outfile, reqreterr, fmt='%s',delimiter=',')
+#print '\nDumping all req/ret/err to: %s ... Done' % outfile
+
+#np.savetxt(diffile, diffs, fmt='%s',delimiter=',')
+#print '\nDumping diff req/ret/err to: %s ... Done' % diffile
+
+#errs_sort = [ [x] for x in errs_sort ]
+#np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')

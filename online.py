@@ -122,7 +122,7 @@ def fixPos(len_wlan, wlan, verb=False):
     try:
         cursor = conn.cursor()
         table = tbl_names_my['cidaps']
-        print 'select from table: %s' % table
+        #print 'select from table: %s' % table
         cursor.execute(sqls['SQL_SELECT'] % ('*', table))
         cidaps = cursor.fetchall()
     except MySQLdb.Error, e:
@@ -155,12 +155,12 @@ def fixPos(len_wlan, wlan, verb=False):
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
             import copy as cp
-        print 'Partly matched cluster(s) found(max intersect size: %d):' % maxNI
-    else: print 'Full matched cluster(s) found:' 
+        #print 'Partly matched cluster(s) found(max intersect size: %d):' % maxNI
+    else: pass #print 'Full matched cluster(s) found:' 
     idx_start = lst_NOInter[idxs_sortedNOInter].searchsorted(maxNI)
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
-    if verb: pp.pprint(keys)
+    #if verb: pp.pprint(keys)
 
     #dsn_local_ora = "yxt/yxt@localhost:1521/XE"; dbtype_ora = 'oracle'
     #wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, sqls=sqls, 
@@ -180,22 +180,22 @@ def fixPos(len_wlan, wlan, verb=False):
     # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     #  min_sums: [ minsum1, minsum2, ... ]
     min_spids = []; min_sums = []; allposs = []
-    print '='*35
+    #print '='*35
     for cid,keyaps in keys:
         try: # Returns values identified by field name(or field order if no arg).
             table = tbl_names_my['cfps']
             state_where = 'cid = %s' % cid
-            print 'select %s from table %s' % (state_where, table)
+            #print 'select %s from table %s' % (state_where, table)
             cursor.execute(sqls['SQL_SELECT'] % ('*' , "%s where %s"%(table,state_where)))
             keycfps = cursor.fetchall()
         except MySQLdb.Error,e:
             print "Error(%d): %s" % (e.args[0], e.args[1])
             cursor.close(); conn.close()
             sys.exit(99)
-        if verb:
-            print ' keyaps: %s' % keyaps
-            if len(keycfps) == 1: print 'keycfps: %s' % keycfps
-            else: print 'keycfps: '; pp.pprint(keycfps)
+        #if verb:
+        #    #print ' keyaps: %s' % keyaps
+        #    if len(keycfps) == 1: print 'keycfps: %s' % keycfps
+        #    else: print 'keycfps: '; pp.pprint(keycfps)
 
         keyposs = (np.array(keycfps)[:,2:4].astype(float)).tolist()
         allposs.append(keyposs)
@@ -221,11 +221,11 @@ def fixPos(len_wlan, wlan, verb=False):
         # min_spids: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
         #  min_sums: [ min_sum1, min_sum2, ... ]
         sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
-        print 'sum_rss: %s' % sum_rss
+        #print 'sum_rss: %s' % sum_rss
         idx_min = sum_rss.argmin()
         min_spids.append( list(keycfps[idx_min]) )
         min_sums.append( sum_rss[idx_min] )
-        print '-'*35
+        #print '-'*35
 
 
     # Location estimation.
@@ -234,8 +234,8 @@ def fixPos(len_wlan, wlan, verb=False):
         idxs_kmin = np.argsort(min_sums)[:KNN]
         sorted_sums = np.array(min_sums)[idxs_kmin]
         sorted_spids = np.array(min_spids)[idxs_kmin,:-1]
-        if verb:
-            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
+        #if verb:
+        #    print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
         # DKNN
         if sorted_sums[0]: 
             boundry = sorted_sums[0]*KWIN
@@ -246,13 +246,13 @@ def fixPos(len_wlan, wlan, verb=False):
         idx_dkmin = np.searchsorted(sorted_sums, boundry, side='right')
         dknn_sums = sorted_sums[:idx_dkmin]
         dknn_spids = sorted_spids[:idx_dkmin]
-        print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_spids)
+        #print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_spids)
         # Weighted_AVG_DKNN.
         if len(dknn_spids) > 1:
             coors = dknn_spids[:,2:].astype(float)
             weights = np.reciprocal(dknn_sums)
             posfix = np.average(coors, axis=0, weights=weights)
-            if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
+            #if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
         else: posfix = np.array(dknn_spids[0][2:]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
         idxs_clusters = idxs_kmin[:idx_dkmin]
@@ -263,13 +263,13 @@ def fixPos(len_wlan, wlan, verb=False):
             #print 'idxs_clusters: %s' % idxs_clusters
             #print 'allposs:'; pp.pprint(allposs)
             allposs_dknn = np.vstack(np.array(allposs, object)[idxs_clusters])
-            if verb: 
-                print 'allposs_dknn:'; pp.pprint(allposs_dknn)
+            #if verb: 
+            #    print 'allposs_dknn:'; pp.pprint(allposs_dknn)
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
     else: 
         min_spids = min_spids[0][:-1]
-        print 'location:\n%s' % min_spids
+        #print 'location:\n%s' % min_spids
         posfix = np.array(min_spids[2:])
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
@@ -277,12 +277,12 @@ def fixPos(len_wlan, wlan, verb=False):
             if maxNI == 1: poserr = 100
             else: poserr = 50
         else:
-            print 'posfix:%s, keyposs:%s' % (posfix, keyposs)
+            #print 'posfix:%s, keyposs:%s' % (posfix, keyposs)
             poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in keyposs ]) / (N_fp-1)
     ret = posfix.tolist()
     ret.append(poserr)
-    print 'posresult: %s' % ret
+    #print 'posresult: %s' % ret
 
     cursor.close()
     conn.close()
