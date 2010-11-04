@@ -174,3 +174,5 @@
     1) Add sql-level query support for offline clustering.
     2) Add data picking script for req & db from the same data source.
     3) Integrate the program for 14/16 col processing in wppdata_preprocess & cluster() in offline module.
+2010-11-04
+    1) Mod wppeval to implement location quality evaluation comparatively among cpp, py and google geolocation.
