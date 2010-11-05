@@ -3,6 +3,7 @@ db_vance.txt
 tbl/tsttbl.tbl
 tool/orain.dat
 *.dat
+*.png
 *.log
 *.swp
 *.swo

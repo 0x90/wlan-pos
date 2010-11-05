@@ -42,9 +42,16 @@ def getGL(req_content=None):
             resp = ul.urlopen(req_url, req_content)
             ret_content = dict( eval(resp.read()) )
             break
+        #except ul.URLError, e:
+        #    sys.stdout.write('Error: %s!' % e)
+        #    print ' ...Retrying...'
         except ul.URLError, e:
-            sys.stdout.write('Error: %s!' % e)
-            print ' ...Retrying...'
+            if hasattr(e, 'reason'):
+                print('Failed to reach: %s\nReason: %s!' % (req_url, e.reason))
+            elif hasattr(e, 'code'):
+                print('Failed to handle the request!\nError code: %s' % str(e.code))
+            else: pass
+        print '... Retrying ...'
     return ret_content
 
 

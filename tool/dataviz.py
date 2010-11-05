@@ -9,6 +9,7 @@ import csv
 
 from pprint import pprint,PrettyPrinter
 import numpy as np
+import matplotlib as mpl
 #import matplotlib.pylab as mlab
 import matplotlib.pyplot as plt
 #import Gnuplot, Gnuplot.funcutils
@@ -63,7 +64,7 @@ def solveCDF(data=None, pickedX=None):
 
     feat_probs = [.67, .95]
     feat_points = [ sortData[int(rat*cnt_tot)] for rat in feat_probs ]
-    X = pickedX[:]
+    X = list(pickedX[:])
     X.extend(feat_points)
     probs.extend(feat_probs)
 
@@ -105,10 +106,18 @@ def pyplotCDF(data=None, figmainname=None, ofmt='png'):
 
     cdf_color = 'b'; hist_color = 'g'
     bins = int(maxerr - minerr)
-    if bins < 1: bins = 1
-    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.6,
+    log = False
+    if bins < 1: 
+        bins = 1
+    elif bins > 10000 and maxerr > 10000: 
+        #log=True
+        bins = 10000
+        plt.xscale('log')
+        mpl.rcParams['font.size'] = 10
+        data = np.sort(data)[:-6]
+    plt.hist(data, bins=bins, cumulative=True, normed=True, alpha=.6, log=log,
         histtype='step', linewidth=1.5, edgecolor=cdf_color, label='CDF')
-    plt.hist(data, bins=bins, cumulative=False, normed=True,
+    plt.hist(data, bins=bins, cumulative=False, normed=True, log=log,
         histtype='bar', rwidth=1, alpha=0.6, facecolor=hist_color, label='Histogram')
 
     #ax = plt.subplot(111)
@@ -164,6 +173,7 @@ def pyplotCDF(data=None, figmainname=None, ofmt='png'):
 
     figfilename = 'cdf_%s_%s.%s' % (figmainname, featstyle, ofmt)
     plt.savefig(figfilename)
+    plt.close()
 
 
 def plotCDF(X=None, Y=None, props=None, pts=None, verb=0):

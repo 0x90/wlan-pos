@@ -176,3 +176,8 @@
     3) Integrate the program for 14/16 col processing in wppdata_preprocess & cluster() in offline module.
 2010-11-04
     1) Mod wppeval to implement location quality evaluation comparatively among cpp, py and google geolocation.
+2010-11-05
+    1) Mod evaloc to support offline data analysis, including reqreterr loading & stats for 200m below.
+	2) Fix calculation for error estimation deviation in evaloc.
+    3) Fix 1)too large bins; 2)pyplot.close() in dataviz.pyplotCDF().
+    4) Add HTTP & URL multi-level Exception handling in geolocation_api.getGL()
