@@ -103,17 +103,16 @@ if __name__ == "__main__":
     laccids = np.array([ line for line in csvin ])[:,2:].astype(int)
     print laccids
 
-    setConn()
+    #setConn()
 
-    atoken = None
-    celldb = []
-    for laccid in laccids:
+    atoken = None; celldb = []
+    for i,laccid in enumerate(laccids):
         cell = {}
         cell['location_area_code'] = laccid[0]
         cell['cell_id'] = laccid[1]
         cells = [ cell ]
         req_content = makeReq(cells=cells, atoken=atoken)
-        pp.pprint(req_content)
+        pp.pprint(req_content['cell_towers'])
         ret_content = getGL(req_content)
         if not len(ret_content): 
             print 'Google location failed!'
@@ -128,7 +127,7 @@ if __name__ == "__main__":
         if (not atoken) and ('access_token' in ret_content):
             atoken = ret_content['access_token']
         celldb.append(cdb)
-        pp.pprint(celldb)
+        print '%d: %s' % (i+1, cdb)
         print
 
     datafile = 'celldb.csv'

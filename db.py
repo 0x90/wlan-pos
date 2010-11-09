@@ -110,6 +110,28 @@ class WppDB(object):
 
         self.con.commit()
 
+    def _getNewCid(self):
+        sql = sqls['SQL_SELECT'] % ('max(clusterid)', 'wpp_clusteridaps')
+        self.cur.execute(sql)
+        cid = self.cur.fetchone()[0] + 1
+        return cid
+
+    def addCluster(self, macs=None):
+        table = 'wpp_clusteridaps'
+        table_field = self.tbl_field[table]
+        cid = self._getNewCid()
+        cidmacseq = []
+        for seq,mac in enumerate(macs):
+            cidmacseq.append([ cid, mac, seq+1 ])
+        #print cidmacseq
+        num_fields = len( table_field.split(',') )
+        bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
+        #print bindpos
+        self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
+        self.cur.executemany(None, cidmacseq)
+        print 'Add cluster: %d to %s.' % (cid, table)
+        return cid
+
     def addFps(self, cid=None, fps=None):
         table = 'wpp_cfps'
         table_field = self.tbl_field[table]
@@ -123,13 +145,15 @@ class WppDB(object):
         #print bindpos
         self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
         self.cur.executemany(None, indat)
-        print 'Inserted %d rows.' % self.cur.rowcount
+        print 'Cluster(%d): Add %d FPs.' % (cid, self.cur.rowcount)
 
         self.con.commit()
 
 
 
     def getCIDcntMaxSeq(self, macs=None):
+        table = 'wpp_clusteridaps'
+        table_field = self.tbl_field[table]
         if not type(macs) is list: 
             macs = list(macs)
         if not len(macs):
@@ -137,7 +161,7 @@ class WppDB(object):
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         sql1 = self.sqls['SQL_SELECT'] % ("clusterid cid, count(clusterid) cidcnt", 
             "%s where (%s) group by clusterid order by cidcnt desc) a, \
-            %s t where a.cid=t.clusterid  group by a.cid,a.cidcnt order by cidcnt desc"%('tsttbl',strWhere,'tsttbl'))
+            %s t where a.cid=t.clusterid  group by a.cid,a.cidcnt order by cidcnt desc"%(table,strWhere,table))
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
         self.cur.execute(sql)
         return self.cur.fetchall()

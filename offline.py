@@ -63,17 +63,14 @@ def ClusterDB(rmpfile):
     tbl_names = ('wpp_clusteridaps', 'wpp_cfps')
     wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
             tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    for idx_topaps in range(len(topaps)):
-        wlanmacs = topaps[idx_topaps]
+    for idx, wlanmacs in enumerate(topaps):
+        print '%s %s %s' % ('-'*15, idx+1, '-'*15)
+        fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
         #     cidcntseq: all query results from db: cid,count(cid),max(seq).
         # cidcntseq_max: query results with max count(cid).
         cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
-        if not cidcntseq:
-            print 'NO related cluster found!'
-            # insert into cidaps/cfps with a new clusterid.
-            #clusterid = wppdb.addCluster(wlanmacs)
-            #wppdb.addFps(clusterid, [fps])
-        else:
+        found_cluster = False
+        if cidcntseq:
             # find out the most queried cluster /w the same AP count:
             # cid count = max seq
             cidcntseq = np.array(cidcntseq)
@@ -87,12 +84,23 @@ def ClusterDB(rmpfile):
             #print cidcntseq_max
             idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
             #print idx_belong
-            cids_belong = cidcntseq_max[idx_belong,[0,2]]
-            #print cids_belong
+            if sum(idx_belong):
+                cids_belong = cidcntseq_max[idx_belong,[0,2]]
+                #print cids_belong
+                cid = cids_belong[0]
+                if cids_belong[1] == len(wlanmacs):
+                    found_cluster = True
 
+        sys.stdout.write('Cluster searching ... ')
+        if not found_cluster:
+            print 'Failed!'
+            # insert into cidaps/cfps with a new clusterid.
+            cid = wppdb.addCluster(wlanmacs)
+            wppdb.addFps(cid=cid, fps=[fps])
+        else:
+            print 'Found: (%d)' % cid
             # insert fingerprints into the same cluserid in table cfps.
-            fps = rawrmp[:,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
-            wppdb.addFps(cid=cids_belong[0], fps=fps)
+            wppdb.addFps(cid=cid, fps=[fps])
 
     print '...Done'
     wppdb.close()
