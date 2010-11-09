@@ -12,9 +12,90 @@ from pprint import pprint,PrettyPrinter
 
 from wlan import scanWLAN_RE
 from gps import getGPS
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
+from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
+        db_config_my, tbl_names_my, tbl_forms_my, tbl_field_my, \
+        tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls
 from kml import genKML
-from config import icon_types
+from db import WppDB
+
+
+def ClusterDB(rmpfile):
+    rmpin = csv.reader( open(rmpfile,'r') )
+    try:
+        rawrmp = np.array([ fp for fp in rmpin ])
+        num_cols = np.shape(rawrmp)[1]
+    except csv.Error, e:
+        sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
+    # CSV format judgement.
+    if num_cols == 14:
+        idx_macs = 11; idx_rsss = 12
+        idx_lat = 8; idx_lon = 9; idx_h = 10
+        idx_time = 13
+    elif num_cols == 16:
+        idx_macs = 14; idx_rsss = 15
+        idx_lat = 11; idx_lon = 12; idx_h = 13
+        idx_time = 2
+    else:
+        sys.exit('\nERROR: Unsupported csv format!\n')
+    print 'CSV format: %d fields' % num_cols
+        
+    # topaps: array of splited aps strings for all fingerprints.
+    sys.stdout.write('\nSelecting MACs for clustering ... ')
+    #print
+    topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
+    toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
+    joinaps = []
+    for i in xrange(len(topaps)):
+        macs = np.array(topaps[i])
+        rsss = np.array(toprss[i])
+        idxs_max = np.argsort(rsss)[:CLUSTERKEYSIZE]
+        topaps[i] = macs[idxs_max]
+        joinaps.append('|'.join(topaps[i]))
+        toprss[i] = '|'.join(rsss[idxs_max])
+    rawrmp[:,idx_macs] = np.array(joinaps)
+    rawrmp[:,idx_rsss] = np.array(toprss)
+    print 'Done'
+
+    # Clustering heuristics.
+    sys.stdout.write('Fingerprints clustering:')
+    print 
+    tbl_names = ('wpp_clusteridaps', 'wpp_cfps')
+    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
+            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
+    for idx_topaps in range(len(topaps)):
+        wlanmacs = topaps[idx_topaps]
+        #     cidcntseq: all query results from db: cid,count(cid),max(seq).
+        # cidcntseq_max: query results with max count(cid).
+        cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
+        if not cidcntseq:
+            print 'NO related cluster found!'
+            # insert into cidaps/cfps with a new clusterid.
+            #clusterid = wppdb.addCluster(wlanmacs)
+            #wppdb.addFps(clusterid, [fps])
+        else:
+            # find out the most queried cluster /w the same AP count:
+            # cid count = max seq
+            cidcntseq = np.array(cidcntseq)
+            cidcnt = cidcntseq[:,1]
+            #print cidcntseq
+            idxs_sortdesc = np.argsort(cidcnt).tolist()
+            idxs_sortdesc.reverse()
+            #print idxs_sortdesc
+            cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+            cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+            #print cidcntseq_max
+            idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+            #print idx_belong
+            cids_belong = cidcntseq_max[idx_belong,[0,2]]
+            #print cids_belong
+
+            # insert fingerprints into the same cluserid in table cfps.
+            fps = rawrmp[:,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
+            wppdb.addFps(cid=cids_belong[0], fps=fps)
+
+    print '...Done'
+    wppdb.close()
 
 
 def getRaw():
@@ -153,7 +234,7 @@ def genKMLfile(cfpsfile):
     genKML(cfps, kmlfile=kfile, icons=icon_types)
 
 
-def Cluster(rmpfile):
+def ClusterOffline(rmpfile):
     """
     Clustering the raw radio map fingerprints for fast indexing(mainly in db),
     generating following data structs: cid_aps, cfprints and crmp.
@@ -451,8 +532,6 @@ def main():
                     usage(); sys.exit(99)
                 else:
                     updb = True
-                    from config import db_config_my, \
-                            tbl_names_my, tbl_forms_my, tbl_files, tbl_field_my, sqls
             else: 
                 print '\nError: "-d/--db" should be followed by an INTEGER!'
                 usage(); sys.exit(99)
@@ -524,7 +603,8 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        Cluster(rmpfile)
+        #ClusterOffline(rmpfile)
+        ClusterDB(rmpfile)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:

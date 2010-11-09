@@ -68,10 +68,10 @@ class WppDB(object):
             csvfile = self.tbl_files[table]
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
-
+            #
             print 'TRUNCATE TABLE: %s' % table
             self.cur.execute(self.sqls['SQL_TRUNCTB'] % table)
-
+            #
             #print 'DROP TABLE: %s' % table
             #self.cur.execute(self.sqls['SQL_DROPTB'] % table)
             #print 'CREATE TABLE: %s' % table
@@ -86,7 +86,7 @@ class WppDB(object):
                     sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
                 print 'csv data %d records.' % len(indat)
 
-                # make position binding like (1,2,3).
+                # make position binding like (:1,:2,:3).
                 num_fields = len( self.tbl_field[table].split(',') )
                 bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
                 self.cur.prepare(self.sqls['SQL_INSERT'] % \
@@ -109,12 +109,31 @@ class WppDB(object):
             print '-'*40
 
         self.con.commit()
-    # Unfortunately, load is NOT a known cmd for oracle.
-    #print SQL_CSVIN % ('orain.dat', 'tsttbl', tbl_forms['tsttbl'])
-    #cur.execute(SQL_CSVIN % ('orain', 'tsttbl', tbl_field['tsttbl']))
+
+    def addFps(self, cid=None, fps=None):
+        table = 'wpp_cfps'
+        table_field = self.tbl_field[table]
+        cids = np.array([ [cid] for i in xrange(len(fps)) ])
+        indat = np.array(fps)
+        indat = np.append(cids, indat, axis=1).tolist()
+        #print cids,indat
+        # make position binding like (:1,:2,:3).
+        num_fields = len( table_field.split(',') )
+        bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
+        #print bindpos
+        self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
+        self.cur.executemany(None, indat)
+        print 'Inserted %d rows.' % self.cur.rowcount
+
+        self.con.commit()
+
+
 
     def getCIDcntMaxSeq(self, macs=None):
-        if not macs: sys.exit('Need macs!')
+        if not type(macs) is list: 
+            macs = list(macs)
+        if not len(macs):
+            sys.exit('Invalid macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         sql1 = self.sqls['SQL_SELECT'] % ("clusterid cid, count(clusterid) cidcnt", 
             "%s where (%s) group by clusterid order by cidcnt desc) a, \
@@ -124,41 +143,12 @@ class WppDB(object):
         return self.cur.fetchall()
 
 
-def Cluster_DB():
+if __name__ == "__main__":
+    pp = pprint.PrettyPrinter(indent=2)
+
     #tbl_names = ('tsttbl',)
     tbl_names = ('wpp_clusteridaps','wpp_cfps')
     wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
             tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    wlanmacs = ['0e:41:8d:7d:d4:e0','00:17:7b:0f:5d:00','00:17:7b:0f:5c:01']
-    #     cidcntseq: all query results from db: cid,count(cid),max(seq).
-    # cidcntseq_max: query results with max count(cid).
-    cidcntseq = np.array(wppdb.getCIDcntMaxSeq(wlanmacs))
-    if not cidcntseq:
-        # belong to a new cluster.
-    else:
-        cidcnt = cidcntseq[:,1]
-        #print cidcntseq
-        idxs_sortdesc = np.argsort(cidcnt).tolist()
-        idxs_sortdesc.reverse()
-        #print idxs_sortdesc
-        cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
-        cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
-        #print cidcntseq_max
-        idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
-        #print idx_belong
-        cids_belong = cidcntseq_max[idx_belong,0]
-        print cids_belong
-
+    wppdb.load_tables(tbl_files)
     wppdb.close()
-
-
-if __name__ == "__main__":
-    pp = pprint.PrettyPrinter(indent=2)
-
-    Cluster_DB()
-    #tbl_names = ('tsttbl',)
-    #tbl_names = ('wpp_clusteridaps','wpp_cfps')
-    #wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
-    #        tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    #wppdb.load_tables(tbl_files)
-    #wppdb.close()

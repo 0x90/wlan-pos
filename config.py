@@ -124,12 +124,12 @@ tbl_forms = { 'oracle':{
 # SQL statements.
 sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
          'SQL_DROPTB' : "DROP TABLE %s PURGE",
+         'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
         'SQL_TRUNCTB' : "TRUNCATE TABLE %s",
+        'SQL_DROP_MY' : "DROP TABLE IF EXISTS %s",
        'SQL_CREATETB' : "CREATE TABLE %s %s",
       'SQL_CREATEIDX' : "CREATE INDEX %s ON %s(%s)",
      'SQL_CREATEUIDX' : "CREATE UNIQUE INDEX %s ON %s(%s)",
-         'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
-        'SQL_DROP_MY' : "DROP TABLE IF EXISTS %s",
     'SQL_CREATETB_MY' : "CREATE TABLE IF NOT EXISTS %s %s",
        'SQL_CSVIN_MY' : """
                         LOAD DATA LOCAL INFILE "%s" INTO TABLE %s 

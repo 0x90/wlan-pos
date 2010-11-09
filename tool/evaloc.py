@@ -63,7 +63,7 @@ ierr_in_istats = {'cpp':[0,1], 'py':[2,3], 'google':[6,7]}
 def collectData(reqret=None):
     # addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py, google(lat,lon,err,ep,ee)
     addcols = []; idiffs = []; atoken = None
-    isErrinRange={'cpp':[], 'py':[], 'google':[]}
+    isErrinRange={'cpp':0, 'py':0, 'google':0}
     for i in xrange(len(reqret)):
         macs = np.array(macrss[i,0]); rsss = np.array(macrss[i,1])
         latref = reqret[i,0]; lonref = reqret[i,1]; latcpp = reqret[i,2]; loncpp = reqret[i,3] 
@@ -74,8 +74,7 @@ def collectData(reqret=None):
         addcol.append(err_cpp)
         # cpp error estimation error.
         ee = cpperr - err_cpp 
-        if ee >= 0: isErrinRange['cpp'].append(1)
-        else: isErrinRange['cpp'].append(0)
+        if ee >= 0: isErrinRange['cpp'] += 1
         ee_cpp = abs(ee)/cpperr
         addcol.append(ee_cpp)
 
@@ -91,8 +90,7 @@ def collectData(reqret=None):
         addcol.append(err_py)
         # py error estimation error.
         ee = pyloc[2] - err_py 
-        if ee >= 0: isErrinRange['py'].append(1)
-        else: isErrinRange['py'].append(0)
+        if ee >= 0: isErrinRange['py'] += 1
         ee_py = abs(ee)/pyloc[2]
         addcol.append(ee_py)
 
@@ -106,7 +104,15 @@ def collectData(reqret=None):
 
         # google location api results.
         mr = mr.tolist()
-        gloc_req = gl.makeReq(wlan=mr, atoken=atoken)
+        # Old interface of makeReq.
+        #gloc_req = gl.makeReq(wlans=mr, atoken=atoken)
+        wlans = []
+        for i,mac in enumerate(mr[0]):
+            wlan = {}
+            wlan['mac_address'] = mac
+            wlan['signal_strength'] = mr[1][i]
+            wlans.append(wlan)
+        gloc_req = gl.makeReq(wlans=wlans, atoken=atoken)
         gloc_ret = gl.getGL(gloc_req)
         gloc_pos = gloc_ret['location']
         if (not atoken) and ('access_token' in gloc_ret):
@@ -117,8 +123,7 @@ def collectData(reqret=None):
         addcol.append(err_google)
         # google loc error estimation error.
         ee = gloc_pos['accuracy'] - err_google 
-        if ee >= 0: isErrinRange['google'].append(1)
-        else: isErrinRange['google'].append(0)
+        if ee >= 0: isErrinRange['google'] += 1
         ee_google = abs(ee)/gloc_pos['accuracy']
         addcol.append(ee_google)
 
@@ -196,7 +201,7 @@ if __name__ == '__main__':
         stats[algo] = {}
         idx_ep = ierr_in_istats[algo][0]; idx_ee = ierr_in_istats[algo][1]
 
-        #stats[algo]['errinrange'] = '%.2f%%'%(isErrinRange[algo].count(1)*100/num_test)
+        stats[algo]['errinrange'] = '%.2f%%'%(isErrinRange[algo]*100/num_test)
 
         stats[algo]['ep_mean'] = '%.2f'%means[idx_ep]
         stats[algo]['ep_std']  = '%.2f'%stds[idx_ep]

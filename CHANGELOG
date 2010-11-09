@@ -181,3 +181,6 @@
 	2) Fix calculation for error estimation deviation in evaloc.
     3) Fix 1)too large bins; 2)pyplot.close() in dataviz.pyplotCDF().
     4) Add HTTP & URL multi-level Exception handling in geolocation_api.getGL()
+2010-11-09
+    1) Add incremental clustering support using db in offilne module.
+    2) Add Google geolocation cell data fetcher.
