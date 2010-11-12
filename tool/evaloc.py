@@ -13,6 +13,7 @@ sys.path.append('/home/alexy/dev/src/wlan-pos/')
 import geo
 import online as wlanpos
 import config as cfg
+from config import TXTCOLORS as colors
 sys.path.append('/home/alexy/dev/src/wlan-pos/tool/')
 import geolocation_api as gl
 import dataviz as viz

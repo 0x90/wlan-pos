@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import sys
 import csv
+import time
 import urllib2 as ul
 import socket as sckt
 import numpy as np
 import pprint as pp
 import simplejson as json
+sys.path.append('/home/alexy/dev/src/wlan-pos/')
+from config import TXTCOLORS as colors
  
 
 def makeReq(wlans=None, cells=None, atoken=None):
@@ -68,11 +71,11 @@ def getGL(req_content=None):
             break
         except ul.URLError, e:
             if hasattr(e, 'code'):
-                print('HTTP Error: (%s): %s' % (e.code, e.msg))
+                print(colors['red'] % ('HTTP Error: (%s): %s' % (e.code, e.msg)))
             elif hasattr(e, 'reason'):
-                print('URL Error: %s!' % e.reason)
+                print(colors['red'] % ('URL Error: %s!' % e.reason))
             else: print e
-        print '... Retrying ...'
+        print colors['blue'] % '... Retrying ...'
     return ret_content
 
 
@@ -103,22 +106,23 @@ if __name__ == "__main__":
     laccids = np.array([ line for line in csvin ])[:,2:].astype(int)
     print laccids
 
-    #setConn()
+    setConn()
 
     atoken = None; celldb = []
     for i,laccid in enumerate(laccids):
+        print '-'*50
         cell = {}
         cell['location_area_code'] = laccid[0]
         cell['cell_id'] = laccid[1]
         cells = [ cell ]
         req_content = makeReq(cells=cells, atoken=atoken)
-        pp.pprint(req_content['cell_towers'])
+        print '%d: %s' % (i+1, json.loads(req_content)['cell_towers'])
         ret_content = getGL(req_content)
         if not len(ret_content): 
-            print 'Google location failed!'
+            print colors['red'] % 'Google location failed!'
             continue
         if ret_content['location']['accuracy'] >= 1000: 
-            print 'Accuracy too bad!'
+            print colors['red'] % 'Accuracy too bad!'
             continue
         cdb = [ str(laccid[0]), str(laccid[1]),
                 str(ret_content['location']['latitude']), 
@@ -127,10 +131,10 @@ if __name__ == "__main__":
         if (not atoken) and ('access_token' in ret_content):
             atoken = ret_content['access_token']
         celldb.append(cdb)
-        print '%d: %s' % (i+1, cdb)
-        print
+        print '%d: %s' % (len(celldb), cdb)
 
-    datafile = 'celldb.csv'
+    timestamp = time.strftime('%Y%m%d-%H%M%S')
+    datafile = 'celldb_%s.csv' % timestamp
     celldb = np.array(celldb)
     np.savetxt(datafile, celldb, fmt='%s',delimiter=',')
-    print '\nDumping all req/ret/err to: %s ... Done' % datafile
+    print '\nDumping all celldb to: %s ... Done' % datafile

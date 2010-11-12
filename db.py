@@ -86,13 +86,7 @@ class WppDB(object):
                     sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
                 print 'csv data %d records.' % len(indat)
 
-                # make position binding like (:1,:2,:3).
-                num_fields = len( self.tbl_field[table].split(',') )
-                bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
-                self.cur.prepare(self.sqls['SQL_INSERT'] % \
-                        (table, self.tbl_field[table], bindpos))
-                self.cur.executemany(None, indat)
-                print 'Inserted %d rows.' % self.cur.rowcount
+                self._insertMany(table=table, indat=indat)
             elif self.dbtype == 'postgresql':
                 self.cur.copy_from(file(csvfile), table, ',')
             else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
@@ -116,40 +110,33 @@ class WppDB(object):
         cid = self.cur.fetchone()[0] + 1
         return cid
 
-    def addCluster(self, macs=None):
-        table = 'wpp_clusteridaps'
+    def _insertMany(self, table=None, indat=None):
         table_field = self.tbl_field[table]
-        cid = self._getNewCid()
-        cidmacseq = []
-        for seq,mac in enumerate(macs):
-            cidmacseq.append([ cid, mac, seq+1 ])
-        #print cidmacseq
-        num_fields = len( table_field.split(',') )
-        bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
-        #print bindpos
-        self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
-        self.cur.executemany(None, cidmacseq)
-        print 'Add cluster: %d to %s.' % (cid, table)
-        return cid
-
-    def addFps(self, cid=None, fps=None):
-        table = 'wpp_cfps'
-        table_field = self.tbl_field[table]
-        cids = np.array([ [cid] for i in xrange(len(fps)) ])
-        indat = np.array(fps)
-        indat = np.append(cids, indat, axis=1).tolist()
-        #print cids,indat
-        # make position binding like (:1,:2,:3).
         num_fields = len( table_field.split(',') )
         bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
         #print bindpos
         self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
         self.cur.executemany(None, indat)
-        print 'Cluster(%d): Add %d FPs.' % (cid, self.cur.rowcount)
-
+        print 'Add %d rows to |%s|' % (self.cur.rowcount, table)
         self.con.commit()
 
+    def addCluster(self, macs=None):
+        table = 'wpp_clusteridaps'
+        cid = self._getNewCid()
+        cidmacseq = []
+        for seq,mac in enumerate(macs):
+            cidmacseq.append([ cid, mac, seq+1 ])
+        #print cidmacseq
+        self._insertMany(table=table, indat=cidmacseq)
+        return cid
 
+    def addFps(self, cid=None, fps=None):
+        table = 'wpp_cfps'
+        cids = np.array([ [cid] for i in xrange(len(fps)) ])
+        fps = np.array(fps)
+        cidfps = np.append(cids, fps, axis=1).tolist()
+        #print cidfps
+        self._insertMany(table=table, indat=cidfps)
 
     def getCIDcntMaxSeq(self, macs=None):
         table = 'wpp_clusteridaps'

@@ -137,6 +137,14 @@ sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
                         LINES TERMINATED BY '\\n' 
                         %s""" }
 
+# Text colors
+TXTCOLORS = {
+        'red':'\033[91m%s\033[0m',
+      'green':'\033[92m%s\033[0m',
+     'yellow':'\033[93m%s\033[0m',
+       'blue':'\033[94m%s\033[0m',
+     'purple':'\033[95m%s\033[0m'
+}
 # String length of 179 and 149 chars are used for each intersection set to have 
 # at most INTERSET APs, which should be enough for classification, very ugly though.
 #dt_rmp_nocluster = {'names':('spid','lat','lon','macs','rsss'), 

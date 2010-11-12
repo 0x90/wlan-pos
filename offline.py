@@ -90,7 +90,6 @@ def ClusterDB(rmpfile):
                 cid = cids_belong[0]
                 if cids_belong[1] == len(wlanmacs):
                     found_cluster = True
-
         sys.stdout.write('Cluster searching ... ')
         if not found_cluster:
             print 'Failed!'
@@ -101,6 +100,7 @@ def ClusterDB(rmpfile):
             print 'Found: (%d)' % cid
             # insert fingerprints into the same cluserid in table cfps.
             wppdb.addFps(cid=cid, fps=[fps])
+        print
 
     print '...Done'
     wppdb.close()

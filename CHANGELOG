@@ -184,3 +184,6 @@
 2010-11-09
     1) Add incremental clustering support using db in offilne module.
     2) Add Google geolocation cell data fetcher.
+2010-11-12
+    1) Refactor WppDB class for code reuse.
+    2) Refine output format for geolocation_api module.
