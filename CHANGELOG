@@ -187,3 +187,10 @@
 2010-11-12
     1) Refactor WppDB class for code reuse.
     2) Refine output format for geolocation_api module.
+2010-11-14
+    1) Fix verbose mode in online module.
+2010-11-17
+    1) Fix issue 24: mismatch between queried macs/rsss.
+    2) Refactor main function and relative data structure in evaloc module.
+    3) Add getIPaddr() for automating network setting in evaloc module.
+    4) Add pickdiffs tool for picking up different-ep/ee cases from reqreterr datafile.

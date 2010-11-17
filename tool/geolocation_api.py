@@ -8,7 +8,7 @@ import numpy as np
 import pprint as pp
 import simplejson as json
 sys.path.append('/home/alexy/dev/src/wlan-pos/')
-from config import TXTCOLORS as colors
+from config import termtxtcolors as colors
  
 
 def makeReq(wlans=None, cells=None, atoken=None):
@@ -89,6 +89,14 @@ def setConn():
 
 
 if __name__ == "__main__":
+    try:
+        import psyco
+        psyco.bind(makeReq)
+        psyco.bind(getGL)
+        psyco.bind(setConn)
+    except ImportError:
+        pass
+
     #wlans = ['00:21:91:1D:C0:D4|00:27:19:88:97:10|00:19:E0:CC:9C:F8|00:23:CD:54:DC:E0','-83|-86|-85|-88']
     #macs = wlans[0].split('|')
     #rsss = wlans[1].split('|')

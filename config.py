@@ -138,7 +138,7 @@ sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
                         %s""" }
 
 # Text colors
-TXTCOLORS = {
+termtxtcolors = {
         'red':'\033[91m%s\033[0m',
       'green':'\033[92m%s\033[0m',
      'yellow':'\033[93m%s\033[0m',
@@ -234,6 +234,18 @@ WLAN_FAKE = {
         20:#hq-square
             [ ['00:17:7B:FC:34:70', '-61'], ['00:15:70:D0:52:62', '-68'],
               ['00:15:70:D0:52:61', '-68'], ['00:23:89:3C:BD:13', '-69'] ],
+        21:#bigerr-wpp: 249.957793114
+            [ ['00:19:E0:E3:85:D0','-92'] ],
+        22:#bigerr-wpp: 123.010379711
+            [ ['00:17:7B:0F:85:F0','-68'] ],
+        23:#bigerr-wpp
+            [ ['00:19:E0:E3:85:D0','-92'] ],
+        24:#issue 24: mismatch between queried macs/rsss.
+            [ ['00:17:7B:0F:0F:08', '-73'], ['00:1F:A4:05:AF:3E', '-78'],
+              ['00:24:01:25:0B:CC', '-79'], ['74:EA:3A:4C:B8:58', '-81'] ],
+        25:#issue 25: K nearest FPs, which should be K nearest distances.
+            [ ['52:C3:17:AE:71:51', '-91'] ],
+
 }
 icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
               'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],

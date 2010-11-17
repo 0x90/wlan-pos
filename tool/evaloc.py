@@ -13,10 +13,10 @@ sys.path.append('/home/alexy/dev/src/wlan-pos/')
 import geo
 import online as wlanpos
 import config as cfg
-from config import TXTCOLORS as colors
+from config import termtxtcolors as colors
 sys.path.append('/home/alexy/dev/src/wlan-pos/tool/')
-import geolocation_api as gl
 import dataviz as viz
+import geolocation_api as gl
 
 
 fpath = 'dat/fpp_rawdata/cmri'
@@ -25,10 +25,14 @@ boundry = 200
 
 # reqfile format: 14 or 16 cols.
 reqfile = '%s/req.csv' % fpath
-# retfile format: macs,rsss,lat,lon,err, lat/lon idx:
+# retfile format: macs,rsss,lat,lon,err
 retfile = '%s/ret.csv' % fpath
-ilat_cpp = 2; ilon_cpp = 3; ierr_cpp = 4
-# datafile format:    whole             in addcols
+retfmt = { 'ilat_cpp' : 2, 
+           'ilon_cpp' : 3, 
+           'ierr_cpp' : 4 
+}
+# columns definition for reqreterr data file and addcols structure.
+# datafile format:    whole             addcols
 # macs                  0,                    
 # rsss                  1,      
 # ref(lat,lon)          2,3,    
@@ -45,104 +49,247 @@ ilat_cpp = 2; ilon_cpp = 3; ierr_cpp = 4
 # ee_google             20,             13,
                                        
 algos = ('cpp','py','google')
-# addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py
+# addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py.
+idxscnt_addcols = { # [ start idx, number of columns ].
+                'cpp': [0,2], 
+                 'py': [2,5],
+             'cpp_py': [7,2],
+             'google': [9,5]
+}
 idxs_addcols = { # idxs of all evaluated cols in addcols.
          'err_cpp':0,     'ee_cpp':1,
           'lat_py':2,     'lon_py':3,      'pyerr':4,      'err_py':5,      'ee_py':6, 
       'err_cpp_py':7,  'ee_cpp_py':8,
       'lat_google':9, 'lon_google':10, 'googleerr':11, 'err_google':12, 'ee_google':13
 }
-istats = [ # indexs of cols which are to be analyzed.
+offsets_stats = { # offsets of cols which are to be analyzed.
+                'cpp': [0,1],
+                 'py': [3,4],
+             'google': [3,4],
+}
+istats_all = [ # indexs of cols which are to be analyzed.
       idxs_addcols['err_cpp'], idxs_addcols['ee_cpp'], 
       idxs_addcols['err_py'],  idxs_addcols['ee_py'], 
       idxs_addcols['err_cpp_py'], idxs_addcols['ee_cpp_py'],
       idxs_addcols['err_google'], idxs_addcols['ee_google']
 ]
-ierr_in_istats = {'cpp':[0,1], 'py':[2,3], 'google':[6,7]}
+ierr_in_istats = {'cpp':[0,1], 'py':[2,3], 'google':[4,5]}
 
 
-def collectData(reqret=None):
-    # addcols format: err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py, google(lat,lon,err,ep,ee)
-    addcols = []; idiffs = []; atoken = None
-    isErrinRange={'cpp':0, 'py':0, 'google':0}
-    for i in xrange(len(reqret)):
-        macs = np.array(macrss[i,0]); rsss = np.array(macrss[i,1])
-        latref = reqret[i,0]; lonref = reqret[i,1]; latcpp = reqret[i,2]; loncpp = reqret[i,3] 
-        cpperr = reqret[i,4]; addcol = []
+def ratioLess(data, val):
+    num = len(data)
+    ratio = (np.searchsorted(data, val, side='right'))*100 / num
+    return ratio
 
-        # cpploc error to refloc.
-        err_cpp = geo.dist_km(loncpp, latcpp, lonref, latref)*1000
-        addcol.append(err_cpp)
-        # cpp error estimation error.
-        ee = cpperr - err_cpp 
-        if ee >= 0: isErrinRange['cpp'] += 1
-        ee_cpp = abs(ee)/cpperr
-        addcol.append(ee_cpp)
 
-        # pyloc result.
-        num_visAPs = len(macs)
-        INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
-        idxs_max = np.argsort(rsss)[:INTERSET]
-        mr = np.vstack((macs, rsss))[:,idxs_max]
-        pyloc = wlanpos.fixPos(num_visAPs, mr, verb=False)
-        addcol.extend(pyloc)
-        # pyloc error to refloc.
-        err_py = geo.dist_km(pyloc[1], pyloc[0], lonref, latref)*1000
-        addcol.append(err_py)
-        # py error estimation error.
-        ee = pyloc[2] - err_py 
-        if ee >= 0: isErrinRange['py'] += 1
-        ee_py = abs(ee)/pyloc[2]
-        addcol.append(ee_py)
+def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
+    """
+    req: 16/14 col raw data.
+    ret: macs, rsss, cpp(lat,lon,err).
+    algos: tuple of used algos, e.g. ('cpp', 'py', 'google').
+    """
+    sys.stdout.write('Slicing & Merging test data ... ')
+    macrss = np.char.array(req[ :, [reqfmt['idx_macs'],reqfmt['idx_rsss']] ]).split('|')
+    reqcols = [ reqfmt['idx_lat'], reqfmt['idx_lon'] ]
+    retcols = [ retfmt['ilat_cpp'], retfmt['ilon_cpp'], retfmt['ierr_cpp'] ]
+    # reqret format: ref(lat,lon), cpp(lat,lon,err)
+    reqret = np.append(req[:,reqcols], ret[:,retcols], axis=1).astype(float)
+    print 'Done'
 
-        # pyloc error to cpploc.
-        err_cpp_py = geo.dist_km(pyloc[1], pyloc[0], loncpp, latcpp)*1000
-        addcol.append(err_cpp_py)
-        # error between cpploc error & pyloc error.
-        ee_cpp_py = abs(err_cpp - err_py)
-        addcol.append(ee_cpp_py)
-        if err_cpp_py or ee_cpp_py: idiffs.append(i)
+    # complete *addcols* column definition: 
+    # err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py, google(lat,lon,err,ep,ee).
+    addcols = []; idiffs = []; atoken = None; istats = []
+    isErrinRange={'cpp': {'all':0, 'errless200':0}, 
+                   'py': {'all':0, 'errless200':0}, 
+               'google': {'all':0, 'errless200':0} }
 
-        # google location api results.
-        mr = mr.tolist()
-        # Old interface of makeReq.
-        #gloc_req = gl.makeReq(wlans=mr, atoken=atoken)
-        wlans = []
-        for i,mac in enumerate(mr[0]):
-            wlan = {}
-            wlan['mac_address'] = mac
-            wlan['signal_strength'] = mr[1][i]
-            wlans.append(wlan)
-        gloc_req = gl.makeReq(wlans=wlans, atoken=atoken)
-        gloc_ret = gl.getGL(gloc_req)
-        gloc_pos = gloc_ret['location']
-        if (not atoken) and ('access_token' in gloc_ret):
-            atoken = gloc_ret['access_token']
-        addcol.extend( gloc_pos.values() )
-        # google loc error to refloc.
-        err_google = geo.dist_km(gloc_pos['longitude'], gloc_pos['latitude'], lonref, latref)*1000
-        addcol.append(err_google)
-        # google loc error estimation error.
-        ee = gloc_pos['accuracy'] - err_google 
-        if ee >= 0: isErrinRange['google'] += 1
-        ee_google = abs(ee)/gloc_pos['accuracy']
-        addcol.append(ee_google)
+    usecpp = False; usepy = False; usegoogle = False
+    idx_cur = 0
+    if 'cpp' in algos: 
+        usecpp = True
+        istats_cpp = offsets_stats['cpp']
+        istats.extend(istats_cpp) # offset of istats item in cpp section of addcols.
+        idx_cur += idxscnt_addcols['cpp'][1]
+    if 'py' in algos: 
+        usepy = True
+        istats_py = (idx_cur + np.array(offsets_stats['py'])).tolist()
+        istats.extend(istats_py) # offset of istats item in cpp section of addcols.
+        if usecpp:
+            idx_cur = idx_cur + idxscnt_addcols['py'][1] + idxscnt_addcols['cpp_py'][1]
+        else:
+            idx_cur += idxscnt_addcols['py'][1]
+    if 'google' in algos: 
+        usegoogle = True
+        istats_google = (idx_cur + np.array(offsets_stats['google'])).tolist()
+        istats.extend(istats_google) # offset of istats item in cpp section of addcols.
+    print 'istats: %s' % istats
 
-        print '%d: %s' % (i+1, addcol)
+    for icase in xrange(len(reqret)):
+        macs = np.array(macrss[icase,0]) 
+        rsss = np.array(macrss[icase,1])
+        latref = reqret[icase,0]; lonref = reqret[icase,1] 
+        addcol = []
+        if usecpp:
+            latcpp = reqret[icase,2]; loncpp = reqret[icase,3]; cpperr = reqret[icase,4] 
+
+            # cpploc error to refloc.
+            err_cpp = geo.dist_km(loncpp, latcpp, lonref, latref)*1000
+            addcol.append(err_cpp)
+            # cpp error estimation error.
+            ee = cpperr - err_cpp 
+            if ee >= 0: 
+                isErrinRange['cpp']['all'] += 1
+                if err_cpp <= 200:
+                    isErrinRange['cpp']['errless200'] += 1
+            ee_cpp = abs(ee)/cpperr
+            addcol.append(ee_cpp)
+
+        if usepy:
+            # pyloc result.
+            num_visAPs = len(macs)
+            INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
+            idxs_max = np.argsort(rsss)[:INTERSET]
+            mr = np.vstack((macs, rsss))[:,idxs_max]
+            pyloc = wlanpos.fixPos(num_visAPs, mr, verb=False)
+            addcol.extend(pyloc)
+            # pyloc error to refloc.
+            err_py = geo.dist_km(pyloc[1], pyloc[0], lonref, latref)*1000
+            addcol.append(err_py)
+            # py error estimation error.
+            ee = pyloc[2] - err_py 
+            if ee >= 0: 
+                isErrinRange['py']['all'] += 1
+                if err_py <= 200:
+                    isErrinRange['py']['errless200'] += 1
+            ee_py = abs(ee)/pyloc[2]
+            addcol.append(ee_py)
+
+            if usecpp:
+                # pyloc error to cpploc.
+                err_cpp_py = geo.dist_km(pyloc[1], pyloc[0], loncpp, latcpp)*1000
+                addcol.append(err_cpp_py)
+                # error between cpploc error & pyloc error.
+                ee_cpp_py = abs(err_cpp - err_py)
+                addcol.append(ee_cpp_py)
+                if err_cpp_py or ee_cpp_py: idiffs.append(icase)
+
+        if usegoogle:
+            # google location api results.
+            mr = mr.tolist()
+            # Old interface of makeReq.
+            #gloc_req = gl.makeReq(wlans=mr, atoken=atoken)
+            wlans = []
+            for iwlan,mac in enumerate(mr[0]):
+                wlan = {}
+                wlan['mac_address'] = mac
+                wlan['signal_strength'] = mr[1][iwlan]
+                wlans.append(wlan)
+            gloc_req = gl.makeReq(wlans=wlans, atoken=atoken)
+            gloc_ret = gl.getGL(gloc_req)
+            gloc_pos = gloc_ret['location']
+            if (not atoken) and ('access_token' in gloc_ret):
+                atoken = gloc_ret['access_token']
+            addcol.extend( gloc_pos.values() )
+            # google loc error to refloc.
+            err_google = geo.dist_km(gloc_pos['longitude'], gloc_pos['latitude'], lonref, latref)*1000
+            addcol.append(err_google)
+            # google loc error estimation error.
+            ee = gloc_pos['accuracy'] - err_google 
+            if ee >= 0: 
+                isErrinRange['google']['all'] += 1
+                if err_google <= 200:
+                    isErrinRange['google']['errless200'] += 1
+            ee_google = abs(ee)/gloc_pos['accuracy']
+            addcol.append(ee_google)
+
+        print '%d: %s' % (icase+1, addcol)
         addcols.append(addcol)
         print 
 
-    return (addcols, isErrinRange)
+    return (addcols, isErrinRange, reqret, istats)
 
 
-if __name__ == '__main__':
+def chkFmt(data=None):
+    """
+    data: np styled array.
+    """
+    num_cols = np.shape(data)[1]
+    colfmt = {}
+    if num_cols == 14:
+        colfmt['idx_macs'] = 11 
+        colfmt['idx_rsss'] = 12
+        colfmt['idx_lat'] = 8 
+        colfmt['idx_lon'] = 9
+    elif num_cols == 16:
+        colfmt['idx_macs'] = 14 
+        colfmt['idx_rsss'] = 15
+        colfmt['idx_lat'] = 11
+        colfmt['idx_lon'] = 12
+    elif num_cols == 21:
+        colfmt['idx_macs'] = 0 
+        colfmt['idx_rsss'] = 1
+        colfmt['idx_lat'] = 2
+        colfmt['idx_lon'] = 3
+        colfmt['ilat_cpp'] = 4
+        colfmt['ilon_cpp'] = 5
+        colfmt['ierr_cpp'] = 6
+    elif num_cols == 5:
+        colfmt['idx_macs'] = 0 
+        colfmt['idx_rsss'] = 1
+        colfmt['ilat_cpp'] = 2
+        colfmt['ilon_cpp'] = 3
+        colfmt['ierr_cpp'] = 4
+    else: sys.exit('\nERROR: Unsupported csv format!\n')
+    print '%d fields' % num_cols
+    return colfmt
+
+
+def getIPaddr(ifname='eth0'):
+    """
+    return: ips: {'ifname':'ipaddr'}
+    """
+    use_netifs = False
+    try:
+        import netifaces as nifs
+        use_netifs = True
+    except ImportError:
+        #pass
+        import socket as sckt
+        import fcntl
+        import struct
+
+    if not use_netifs:
+        s = sckt.socket(sckt.AF_INET, sckt.SOCK_DGRAM)
+        addr = sckt.inet_ntoa(fcntl.ioctl(
+                                s.fileno(),
+                                0x8915,  # SIOCGIFADDR
+                                struct.pack('256s', ifname[:15]) )[20:24])
+        ips = {ifname: addr}
+    else:
+        ips = {}
+        inet_id = nifs.AF_INET
+        ifaces = nifs.interfaces()
+        ifaces.remove('lo')
+        for iface in ifaces:
+            if (inet_id in nifs.ifaddresses(iface)): 
+                inets = nifs.ifaddresses(iface)[inet_id]
+                if len(inets) == 1:
+                    ips[iface] = inets[0]['addr']
+                else:
+                    for idx,inet in enumerate(inets):
+                      ips[iface] = {}
+                      ips[iface][idx] = inet['addr']
+    return ips
+
+
+def main():
     arglen = len(sys.argv)
     if (not arglen==1) and (not arglen==2):
         sys.exit('\nPlease type: %s [label]\n' % (sys.argv[0]))
     else:
-        if arglen == 2:
+        if arglen == 2: 
             label = sys.argv[1]
-        else:
+        else: 
             label = 'urban'
 
     reqin = csv.reader( open(reqfile,'r') )
@@ -150,101 +297,94 @@ if __name__ == '__main__':
     req = np.array([ line for line in reqin ])
     ret = np.array([ line for line in retin ])
 
-    if len(req) == len(ret):
-        num_cols = np.shape(req)[1]
-        if num_cols == 14:
-            idx_macs = 11; idx_rsss = 12
-            idx_lat = 8; idx_lon = 9
-        elif num_cols == 16:
-            idx_macs = 14; idx_rsss = 15
-            idx_lat = 11; idx_lon = 12
-        else:
-            sys.exit('\nERROR: Unsupported csv format!\n')
-        print 'CSV format: %d fields\n' % num_cols
-    else:
+    print 'Checking CSV format: '
+    if len(req) == len(ret): 
+        sys.stdout.write('req: ')
+        colfmt_req = chkFmt(req) 
+        sys.stdout.write('ret: ')
+        colfmt_ret = chkFmt(ret) 
+    else: 
         sys.exit('\nERROR: Not matched req/ret files: \n%s\n%s!\n' % (reqfile, retfile))
-    print 'Done'
+    print
 
-    sys.stdout.write('Slicing & Merging test data ... ')
-    macrss = np.char.array(req[ :, [idx_macs,idx_rsss] ]).split('|')
-    reqcols = [ idx_lat, idx_lon ]
-    retcols = [ ilat_cpp, ilon_cpp, ierr_cpp ]
-    # reqret format: ref(lat,lon), cpp(lat,lon,err)
-    reqret = np.append(req[:,reqcols], ret[:,retcols], axis=1).astype(float)
-    print 'Done'
+    #algos = ('cpp', 'py', 'google')
+    #algos = ('py', 'google')
+    algos = ('cpp', 'py')
+    #algos = ('py',)
 
-    #gl.setConn()
+    if ('google' in algos) and (getIPaddr()['eth0'].split('.')[0] == '10'):
+        gl.setConn()
 
-    #print 'Reconstructing data matrix: Add python/google test results ... '
+    print 'Reconstructing data matrix: macrss/refloc/%s ... ' % '/'.join(algos)
     # build data matrix with online google geolocation api request.
-    #addcols, isErrinRange = collectData(reqret)
-    #addcols = np.array( addcols )
+    addcols, isErrinRange, reqret, istats = collectData(req=req, reqfmt=colfmt_req, 
+                                                        ret=ret, retfmt=colfmt_ret, algos=algos)
+    addcols = np.array( addcols )
 
     # build data matrix with offline csv data file.
-    print 'Loading data matrix...'
-    reqreterr_csv = csv.reader( open('test.csv','r') )
-    # 7: start idx of addcols in reqreterr.
-    addcols = np.array([ line for line in reqreterr_csv ])[:,7:].astype(float) 
+    #print 'Loading data matrix...'
+    #reqreterr_csv = csv.reader( open('test.csv','r') )
+    ## 7: start idx of addcols in reqreterr.
+    #addcols = np.array([ line for line in reqreterr_csv ])[:,7:].astype(float) 
 
 
-    num_test = len(addcols)
-    print 'Test count: %d' % num_test
+    num_all = len(addcols) 
+    print 'Test count: %d' % num_all
 
-    means = np.mean(addcols[:,istats], axis=0).round(2)
-    stds  =  np.std(addcols[:,istats], axis=0).round(2)
-    maxs  =  np.max(addcols[:,istats], axis=0).round(2)
-    print 'means:'; pp.pprint(means)
-    print 'stds:'; pp.pprint(stds)
-    print 'maxs:'; pp.pprint(maxs)
-
-    stats = {}
+    stats = {}; idx_cur = 0; is_list = range(len(istats))
     for algo in algos:
         stats[algo] = {}
-        idx_ep = ierr_in_istats[algo][0]; idx_ee = ierr_in_istats[algo][1]
 
-        stats[algo]['errinrange'] = '%.2f%%'%(isErrinRange[algo]*100/num_test)
+        idx_end = idx_cur + len(offsets_stats[algo])
+        idx_ep, idx_ee = is_list[idx_cur:idx_end]
+        idxs_epee = {'ep':idx_ep, 'ee':idx_ee}
+        idx_cur = idx_end
 
-        stats[algo]['ep_mean'] = '%.2f'%means[idx_ep]
-        stats[algo]['ep_std']  = '%.2f'%stds[idx_ep]
-        stats[algo]['ep_max']  = '%.2f'%maxs[idx_ep]
-        stats[algo]['ee_mean'] = '%.2f'%means[idx_ee]
-        stats[algo]['ee_std']  = '%.2f'%stds[idx_ee]
-        stats[algo]['ee_max']  = '%.2f'%maxs[idx_ee]
+        epdata = addcols[:,istats[idx_ep]]
+        eedata = addcols[:,istats[idx_ee]]
 
-    for item in ('err_cpp','err_py','err_google'):
-        name = item.split('_')[1]
-        data = addcols[:,idxs_addcols[item]]
-        idx_sort = np.argsort(data)
-        data_sort = data[idx_sort]
+        idx_sort_ep = np.argsort(epdata)
+        epdata_sort = epdata[idx_sort_ep]
 
-        stats[name]['ep_67perc'] = '%.2f'%(data_sort[int(num_test*.67)])
-        stats[name]['ep_95perc'] = '%.2f'%(data_sort[int(num_test*.95)])
-        stats[name]['perc_epless50']  = '%.2f%%'%((np.searchsorted(data_sort,  50, side='right'))*100 / num_test)
-        stats[name]['perc_epless100'] = '%.2f%%'%((np.searchsorted(data_sort, 100, side='right'))*100 / num_test)
+        idx_sort_ee = np.argsort(eedata)
+        eedata_sort = eedata[idx_sort_ee]
 
-    # idxs of position err col in addcols.
-    idxs_eps_in_addcols = [idxs_addcols['err_cpp'], idxs_addcols['err_py'], idxs_addcols['err_google']] 
-    idxs_sort = np.argsort(addcols[:,idxs_eps_in_addcols], axis=0).T
-    idxs_sort200 = []
-    # stats for tests that have location err less than 200.
-    for idx,algo in enumerate(algos): # FIXME: algos name mapping to idx.
-        idx_errless200 = np.searchsorted(addcols[idxs_sort[idx],idxs_eps_in_addcols[idx]], boundry)
-        idx_sort200 = idxs_sort[idx][:idx_errless200]
-        addcols_200 = addcols[idx_sort200,idxs_eps_in_addcols[idx]]
-        num_test = len(addcols_200)
-        stats[algo]['ep_mean_200'] = '%.2f'%(np.mean(addcols_200))
-        stats[algo]['ep_std_200'] = '%.2f'%(np.std(addcols_200))
-        stats[algo]['ep_max_200'] = '%.2f'%(np.max(addcols_200))
-        stats[algo]['ep_67perc_200'] = '%.2f'%(addcols_200[int(num_test*.67)])
-        stats[algo]['ep_95perc_200'] = '%.2f'%(addcols_200[int(num_test*.95)])
-        stats[algo]['perc_epless50_200']  = '%.2f%%'%((np.searchsorted(addcols_200,  50, side='right'))*100 / num_test)
-        stats[algo]['perc_epless100_200'] = '%.2f%%'%((np.searchsorted(addcols_200, 100, side='right'))*100 / num_test)
+        idx_errless200_ep = np.searchsorted(epdata_sort, boundry)
+        idx_sort200_ep = idx_sort_ep[:idx_errless200_ep]
 
-        viz.pyplotCDF(addcols_200, '%s_%s%s'%(algo,label,'200'))
-        viz.pyplotCDF(addcols[:,idxs_eps_in_addcols[idx]], '%s_%s'%(algo,label))
+        epdata_200 = epdata[idx_sort200_ep]
+        idx_sort_ep200 = np.argsort(epdata_200)
+        epdata_200_sort = epdata_200[idx_sort_ep200]
 
-    #pp.pprint(stats)
-    sys.exit(0)
+        eedata_200 = eedata[idx_sort200_ep]
+        idx_sort_ee200 = np.argsort(eedata_200)
+        eedata_200_sort = eedata_200[idx_sort_ee200]
+
+        datasets = { 'all':{'ep':epdata_sort,     'ee':eedata_sort}, 
+              'errless200':{'ep':epdata_200_sort, 'ee':eedata_200_sort} }
+        for datatype in datasets:
+            dataset = datasets[datatype]
+            stats[algo][datatype] = {}
+            for type in dataset:
+                idx_e = idxs_epee[type]
+                data_sort = dataset[type]
+                num_test = len(data_sort)
+                stats[algo][datatype][type] = {}
+                stats[algo][datatype][type]['mean'] = '%.2f'%(np.mean(data_sort))
+                stats[algo][datatype][type]['std']  = '%.2f'%(np.std(data_sort))
+                stats[algo][datatype][type]['max']  = '%.2f'%(data_sort[-1])
+                stats[algo][datatype][type]['ratio67'] = '%.2f'%(data_sort[int(num_test*.67)])
+                stats[algo][datatype][type]['ratio95'] = '%.2f'%(data_sort[int(num_test*.95)])
+                if type == 'ep':
+                    stats[algo][datatype][type]['ratioless50']  = '%.2f%%'%(ratioLess(data_sort, 50))
+                    stats[algo][datatype][type]['ratioless100'] = '%.2f%%'%(ratioLess(data_sort, 100))
+                    #print 'plot: %s_%s_%s_%s' % (label, algo, datatype, type)
+                    #viz.pyplotCDF(data_sort, '%s_%s_%s_%s'%(label, algo, datatype, type))
+            stats[algo][datatype]['ee']['inrange'] = '%.2f%%'%(isErrinRange[algo][datatype]*100/num_test)
+
+    pp.pprint(stats)
+    #sys.exit(0)
+
 
     # data/log file config.
     timestamp = time.strftime('%Y%m%d-%H%M%S')
@@ -264,7 +404,7 @@ if __name__ == '__main__':
     #pp.pprint(stats_dict)
 
     reqreterr = np.append(reqret, addcols, axis=1)
-    reqreterr = np.append(req[ :, [idx_macs,idx_rsss] ], reqreterr, axis=1)
+    reqreterr = np.append(req[ :, [colfmt_req['idx_macs'],colfmt_req['idx_rsss']] ], reqreterr, axis=1)
     #diffs = reqreterr[idiffs,:]
     #print 'diff num: %d' % len(idiffs)
 
@@ -276,3 +416,22 @@ if __name__ == '__main__':
 
     #errs_sort = [ [x] for x in errs_sort ]
     #np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')
+
+
+if __name__ == '__main__':
+    try:
+        import psyco
+        psyco.bind(collectData)
+        psyco.bind(chkFmt)
+        psyco.bind(ratioLess)
+        psyco.bind(getIPaddr)
+        psyco.bind(wlanpos.fixPos)
+        psyco.bind(geo.dist_km)
+        psyco.bind(viz.pyplotCDF)
+        psyco.bind(gl.makeReq)
+        psyco.bind(gl.getGL)
+        psyco.bind(gl.setConn)
+    except ImportError:
+        pass
+
+    main()
