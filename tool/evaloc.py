@@ -206,7 +206,7 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
         addcols.append(addcol)
         print 
 
-    return (addcols, isErrinRange, reqret, istats)
+    return (addcols, isErrinRange, reqret, istats, idiffs)
 
 
 def chkFmt(data=None):
@@ -317,8 +317,8 @@ def main():
 
     print 'Reconstructing data matrix: macrss/refloc/%s ... ' % '/'.join(algos)
     # build data matrix with online google geolocation api request.
-    addcols, isErrinRange, reqret, istats = collectData(req=req, reqfmt=colfmt_req, 
-                                                        ret=ret, retfmt=colfmt_ret, algos=algos)
+    addcols, isErrinRange, reqret, istats, idiffs_cpp_py = collectData(req=req, reqfmt=colfmt_req, 
+                                                            ret=ret, retfmt=colfmt_ret, algos=algos)
     addcols = np.array( addcols )
 
     # build data matrix with offline csv data file.
@@ -405,14 +405,14 @@ def main():
 
     reqreterr = np.append(reqret, addcols, axis=1)
     reqreterr = np.append(req[ :, [colfmt_req['idx_macs'],colfmt_req['idx_rsss']] ], reqreterr, axis=1)
-    #diffs = reqreterr[idiffs,:]
-    #print 'diff num: %d' % len(idiffs)
+    diffs = reqreterr[idiffs_cpp_py,:]
+    print 'diff data: %d' % len(idiffs_cpp_py)
 
     np.savetxt(datafile, reqreterr, fmt='%s',delimiter=',')
     print '\nDumping all req/ret/err to: %s ... Done' % datafile
 
-    #np.savetxt(diffile, diffs, fmt='%s',delimiter=',')
-    #print '\nDumping diff req/ret/err to: %s ... Done' % diffile
+    np.savetxt(diffile, diffs, fmt='%s',delimiter=',')
+    print '\nDumping diff req/ret/err to: %s ... Done' % diffile
 
     #errs_sort = [ [x] for x in errs_sort ]
     #np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')
