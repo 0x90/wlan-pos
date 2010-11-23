@@ -194,3 +194,5 @@
     2) Refactor main function and relative data structure in evaloc module.
     3) Add getIPaddr() for automating network setting in evaloc module.
     4) Add pickdiffs tool for picking up different-ep/ee cases from reqreterr datafile.
+2010-11-23
+    1) Fix issue 25: process all fps of K-nearest distances & canceling min of dist in each cluster.

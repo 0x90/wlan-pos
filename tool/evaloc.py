@@ -209,37 +209,40 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
     return (addcols, isErrinRange, reqret, istats, idiffs)
 
 
-def chkFmt(data=None):
+def chkFmt(data=None, datatype=None):
     """
     data: np styled array.
     """
     num_cols = np.shape(data)[1]
     colfmt = {}
-    if num_cols == 14:
-        colfmt['idx_macs'] = 11 
-        colfmt['idx_rsss'] = 12
-        colfmt['idx_lat'] = 8 
-        colfmt['idx_lon'] = 9
-    elif num_cols == 16:
-        colfmt['idx_macs'] = 14 
-        colfmt['idx_rsss'] = 15
-        colfmt['idx_lat'] = 11
-        colfmt['idx_lon'] = 12
-    elif num_cols == 21:
-        colfmt['idx_macs'] = 0 
-        colfmt['idx_rsss'] = 1
-        colfmt['idx_lat'] = 2
-        colfmt['idx_lon'] = 3
-        colfmt['ilat_cpp'] = 4
-        colfmt['ilon_cpp'] = 5
-        colfmt['ierr_cpp'] = 6
-    elif num_cols == 5:
-        colfmt['idx_macs'] = 0 
-        colfmt['idx_rsss'] = 1
-        colfmt['ilat_cpp'] = 2
-        colfmt['ilon_cpp'] = 3
-        colfmt['ierr_cpp'] = 4
-    else: sys.exit('\nERROR: Unsupported csv format!\n')
+    if datatype == 'raw':
+        if num_cols == 14:
+            colfmt['idx_macs'] = 11 
+            colfmt['idx_rsss'] = 12
+            colfmt['idx_lat'] = 8 
+            colfmt['idx_lon'] = 9
+        elif num_cols == 16:
+            colfmt['idx_macs'] = 14 
+            colfmt['idx_rsss'] = 15
+            colfmt['idx_lat'] = 11
+            colfmt['idx_lon'] = 12
+        else: sys.exit('\nERROR: Unsupported csv format!\n')
+    else:
+        if num_cols == 21 or num_cols == 16:
+            colfmt['idx_macs'] = 0 
+            colfmt['idx_rsss'] = 1
+            colfmt['idx_lat'] = 2
+            colfmt['idx_lon'] = 3
+            colfmt['ilat_cpp'] = 4
+            colfmt['ilon_cpp'] = 5
+            colfmt['ierr_cpp'] = 6
+        elif num_cols == 5:
+            colfmt['idx_macs'] = 0 
+            colfmt['idx_rsss'] = 1
+            colfmt['ilat_cpp'] = 2
+            colfmt['ilon_cpp'] = 3
+            colfmt['ierr_cpp'] = 4
+        else: sys.exit('\nERROR: Unsupported csv format!\n')
     print '%d fields' % num_cols
     return colfmt
 
@@ -300,7 +303,7 @@ def main():
     print 'Checking CSV format: '
     if len(req) == len(ret): 
         sys.stdout.write('req: ')
-        colfmt_req = chkFmt(req) 
+        colfmt_req = chkFmt(req, datatype='raw')  # datatype=raw when req is rawdata compatible.
         sys.stdout.write('ret: ')
         colfmt_ret = chkFmt(ret) 
     else: 

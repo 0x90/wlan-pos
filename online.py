@@ -2,7 +2,7 @@
 from __future__ import division
 import sys
 import getopt
-import string
+#import string
 import errno
 from pprint import pprint,PrettyPrinter
 
@@ -179,9 +179,10 @@ def fixPos(len_wlan, wlan, verb=False):
     #print cids_max
     
 
-    # min_spids: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
+    # min_fps: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     #  min_sums: [ minsum1, minsum2, ... ]
-    min_spids = []; min_sums = []; allposs = []
+    min_fps = []; min_sums = []; all_pos_lenrss = []
+    fps_cand = []; sums_cand = []
     if verb: print '='*35
     for cid,keyaps in keys:
         try: # Returns values identified by field name(or field order if no arg).
@@ -198,13 +199,16 @@ def fixPos(len_wlan, wlan, verb=False):
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
-        keyposs = (np.array(keycfps)[:,2:4].astype(float)).tolist()
-        allposs.append(keyposs)
-        # Fast fix when the ONLY 1 selected cid has ONLY 1 spid selected in 'cfps'.
+        pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
+        # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
-            min_spids = [ list(keycfps[0]) ]; break
+            min_fps = [ list(keycfps[0]) ] 
+            break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
-        keyrsss = np.array([ [string.atof(rss) for rss in spid] for spid in keyrsss ])
+        keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
+        for idx,pos in enumerate(pos_lenrss):
+            pos_lenrss[idx].append(len(keyrsss[idx]))
+        all_pos_lenrss.extend(pos_lenrss)
 
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
         if interpart_offline:
@@ -219,59 +223,90 @@ def fixPos(len_wlan, wlan, verb=False):
         mrsss = wl[1].astype(int)
 
         # Euclidean dist solving and sorting.
-        # min_spids: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
-        #  min_sums: [ min_sum1, min_sum2, ... ]
+        #  min_fps: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
+        # min_sums: [ min_sum1, min_sum2, ... ]
         sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
+        fps_cand.extend( keycfps )
+        sums_cand.extend( sum_rss )
         idx_min = sum_rss.argmin()
-        min_spids.append( list(keycfps[idx_min]) )
-        min_sums.append( sum_rss[idx_min] )
+        min_fps.append( list(keycfps[idx_min]) )
+        #min_sums.append( sum_rss[idx_min] )
         if verb:
             print 'sum_rss: %s' % sum_rss
             print '-'*35
 
     # Location estimation.
-    if len(min_spids) > 1:
+    if len(keys) > 1:
         # KNN
-        idxs_kmin = np.argsort(min_sums)[:KNN]
-        sorted_sums = np.array(min_sums)[idxs_kmin]
-        sorted_spids = np.array(min_spids)[idxs_kmin,:-1]
+        # lst_set_sums_cand: list format for set of sums_cand.
+        # bound_dist: distance boundary for K-min distances.
+        lst_set_sums_cand =  np.array(list(set(sums_cand)))
+        idx_bound_dist = np.argsort(lst_set_sums_cand)[:KNN][-1]
+        bound_dist = lst_set_sums_cand[idx_bound_dist]
+        idx_sums_sort = np.argsort(sums_cand)
+
+        sums_cand = np.array(sums_cand)
+        fps_cand = np.array(fps_cand)
+
+        sums_cand_sort = sums_cand[idx_sums_sort]
+        idx_bound_fp = np.searchsorted(sums_cand_sort, bound_dist, 'right')
+        idx_sums_sort_bound = idx_sums_sort[:idx_bound_fp]
+        #idxs_kmin = np.argsort(min_sums)[:KNN]
+        sorted_sums = sums_cand[idx_sums_sort_bound]
+        sorted_fps = fps_cand[idx_sums_sort_bound]
         if verb:
-            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_spids)
+            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_fps)
         # DKNN
         if sorted_sums[0]: 
             boundry = sorted_sums[0]*KWIN
         else: 
-            boundry = 1
-            idx_zero_bound = np.searchsorted(sorted_sums, 0, side='right')
-            sorted_sums[:idx_zero_bound] = boundry / (idx_zero_bound + .5)
+            if sorted_sums[1]:
+                boundry = KWIN
+                # What the hell are the following two lines doing here!
+                #idx_zero_bound = np.searchsorted(sorted_sums, 0, side='right')
+                #sorted_sums[:idx_zero_bound] = boundry / (idx_zero_bound + .5)
+            else: boundry = 0
         idx_dkmin = np.searchsorted(sorted_sums, boundry, side='right')
-        dknn_sums = sorted_sums[:idx_dkmin]
-        dknn_spids = sorted_spids[:idx_dkmin]
-        if verb: print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_spids)
+        dknn_sums = sorted_sums[:idx_dkmin].tolist()
+        dknn_fps = sorted_fps[:idx_dkmin]
+        if verb: print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_fps)
         # Weighted_AVG_DKNN.
-        if len(dknn_spids) > 1:
-            coors = dknn_spids[:,2:].astype(float)
+        num_dknn_fps = len(dknn_fps)
+        if  num_dknn_fps > 1:
+            coors = dknn_fps[:,2:4].astype(float)
+            if not np.any(dknn_sums):
+                #num_keyaps = [ len(rsss) for rsss in np.char.array(dknn_fps[:,-1]).split('|') ]
+                num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-1] ])
+                dknn_sums = np.sort(num_keyaps - len_wlan).tolist()
+            if not np.all(dknn_sums):
+                if np.any(dknn_sums):
+                    w_zero = dknn_sums[dknn_sums.count(0)] / len(dknn_sums)
+                else:
+                    w_zero = 1
+                for idx,sum in enumerate(dknn_sums):
+                    if not sum: dknn_sums[idx] = w_zero
             weights = np.reciprocal(dknn_sums)
-            posfix = np.average(coors, axis=0, weights=weights)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
-        else: posfix = np.array(dknn_spids[0][2:]).astype(float)
+            posfix = np.average(coors, axis=0, weights=weights)
+        else: posfix = np.array(dknn_fps[0][2:4]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
-        idxs_clusters = idxs_kmin[:idx_dkmin]
+        idxs_clusters = idx_sums_sort_bound[:idx_dkmin]
         if len(idxs_clusters) == 1: 
             if maxNI == 1: poserr = 100
             else: poserr = 50
         else: 
             if verb:
                 print 'idxs_clusters: %s' % idxs_clusters
-                print 'allposs:'; pp.pprint(allposs)
-            allposs_dknn = np.vstack(np.array(allposs, object)[idxs_clusters])
+                print 'all_pos_lenrss:'; pp.pprint(all_pos_lenrss)
+            #allposs_dknn = np.vstack(np.array(all_pos_lenrss, object)[idxs_clusters])
+            allposs_dknn = np.array(all_pos_lenrss, object)[idxs_clusters]
             if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
     else: 
-        min_spids = min_spids[0][:-1]
-        if verb: print 'location:\n%s' % min_spids
-        posfix = np.array(min_spids[2:])
+        min_fps = min_fps[0][:-1]
+        if verb: print 'location:\n%s' % min_fps
+        posfix = np.array(min_fps[2:4])
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
         if N_fp == 1: 
@@ -280,9 +315,9 @@ def fixPos(len_wlan, wlan, verb=False):
         else:
             if verb: 
                 print 'posfix: %s' % posfix
-                print 'keyposs: '; pp.pprint(keyposs)
+                print 'pos_lenrss: '; pp.pprint(pos_lenrss)
             poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in keyposs ]) / (N_fp-1)
+                for p in pos_lenrss ]) / (N_fp-1)
     ret = posfix.tolist()
     ret.append(poserr)
     if verb: print 'posresult: %s' % ret
@@ -314,7 +349,7 @@ def main():
     for o,a in opts:
         if o in ("-a", "--address"):
             if a.isdigit(): 
-                addrid = string.atoi(a)
+                addrid = int(a)
                 if 1 <= addrid <= 2: continue
                 else: pass
             else: pass
@@ -322,7 +357,7 @@ def main():
             usage(); sys.exit(99)
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
-                wlanfake = string.atoi(a)
+                wlanfake = int(a)
                 if wlanfake >= 0: continue
                 else: pass
             else: pass
