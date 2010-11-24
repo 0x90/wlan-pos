@@ -150,7 +150,7 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
             INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
             idxs_max = np.argsort(rsss)[:INTERSET]
             mr = np.vstack((macs, rsss))[:,idxs_max]
-            pyloc = wlanpos.fixPos(num_visAPs, mr, verb=False)
+            pyloc = wlanpos.fixPos(INTERSET, mr, verb=False)
             addcol.extend(pyloc)
             # pyloc error to refloc.
             err_py = geo.dist_km(pyloc[1], pyloc[0], lonref, latref)*1000
@@ -209,25 +209,17 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
     return (addcols, isErrinRange, reqret, istats, idiffs)
 
 
-def chkFmt(data=None, datatype=None):
+def chkFmt(data=None):
     """
     data: np styled array.
     """
     num_cols = np.shape(data)[1]
+    col1, col2 = data[0,:2]
     colfmt = {}
-    if datatype == 'raw':
-        if num_cols == 14:
-            colfmt['idx_macs'] = 11 
-            colfmt['idx_rsss'] = 12
-            colfmt['idx_lat'] = 8 
-            colfmt['idx_lon'] = 9
-        elif num_cols == 16:
-            colfmt['idx_macs'] = 14 
-            colfmt['idx_rsss'] = 15
-            colfmt['idx_lat'] = 11
-            colfmt['idx_lon'] = 12
-        else: sys.exit('\nERROR: Unsupported csv format!\n')
-    else:
+    # reqreterr format starts with macs and rsss.
+    num_macs = col1.count('|') + 1
+    num_colons = col1.count(':') 
+    if num_colons == (num_macs)*5:
         if num_cols == 21 or num_cols == 16:
             colfmt['idx_macs'] = 0 
             colfmt['idx_rsss'] = 1
@@ -242,7 +234,19 @@ def chkFmt(data=None, datatype=None):
             colfmt['ilat_cpp'] = 2
             colfmt['ilon_cpp'] = 3
             colfmt['ierr_cpp'] = 4
-        else: sys.exit('\nERROR: Unsupported csv format!\n')
+        else: sys.exit('\nERROR: Unsupported req/ret/err csv format!\n')
+    else:
+        if num_cols == 14:
+            colfmt['idx_macs'] = 11 
+            colfmt['idx_rsss'] = 12
+            colfmt['idx_lat'] = 8 
+            colfmt['idx_lon'] = 9
+        elif num_cols == 16:
+            colfmt['idx_macs'] = 14 
+            colfmt['idx_rsss'] = 15
+            colfmt['idx_lat'] = 11
+            colfmt['idx_lon'] = 12
+        else: sys.exit('\nERROR: Unsupported fpp/wpp rawdata csv format!\n')
     print '%d fields' % num_cols
     return colfmt
 
@@ -303,7 +307,7 @@ def main():
     print 'Checking CSV format: '
     if len(req) == len(ret): 
         sys.stdout.write('req: ')
-        colfmt_req = chkFmt(req, datatype='raw')  # datatype=raw when req is rawdata compatible.
+        colfmt_req = chkFmt(req)  
         sys.stdout.write('ret: ')
         colfmt_ret = chkFmt(ret) 
     else: 
@@ -320,7 +324,7 @@ def main():
 
     print 'Reconstructing data matrix: macrss/refloc/%s ... ' % '/'.join(algos)
     # build data matrix with online google geolocation api request.
-    addcols, isErrinRange, reqret, istats, idiffs_cpp_py = collectData(req=req, reqfmt=colfmt_req, 
+    addcols, errin, reqret, istats, idiffs_cpp_py = collectData(req=req, reqfmt=colfmt_req, 
                                                             ret=ret, retfmt=colfmt_ret, algos=algos)
     addcols = np.array( addcols )
 
@@ -365,28 +369,30 @@ def main():
 
         datasets = { 'all':{'ep':epdata_sort,     'ee':eedata_sort}, 
               'errless200':{'ep':epdata_200_sort, 'ee':eedata_200_sort} }
-        for datatype in datasets:
-            dataset = datasets[datatype]
-            stats[algo][datatype] = {}
-            for type in dataset:
-                idx_e = idxs_epee[type]
-                data_sort = dataset[type]
+        for type in datasets:
+            dataset = datasets[type]
+            stats[algo][type] = {}
+            for item in dataset:
+                idx_e = idxs_epee[item]
+                data_sort = dataset[item]
+                if not np.any(data_sort): continue
                 num_test = len(data_sort)
-                stats[algo][datatype][type] = {}
-                stats[algo][datatype][type]['mean'] = '%.2f'%(np.mean(data_sort))
-                stats[algo][datatype][type]['std']  = '%.2f'%(np.std(data_sort))
-                stats[algo][datatype][type]['max']  = '%.2f'%(data_sort[-1])
-                stats[algo][datatype][type]['ratio67'] = '%.2f'%(data_sort[int(num_test*.67)])
-                stats[algo][datatype][type]['ratio95'] = '%.2f'%(data_sort[int(num_test*.95)])
-                if type == 'ep':
-                    stats[algo][datatype][type]['ratioless50']  = '%.2f%%'%(ratioLess(data_sort, 50))
-                    stats[algo][datatype][type]['ratioless100'] = '%.2f%%'%(ratioLess(data_sort, 100))
-                    #print 'plot: %s_%s_%s_%s' % (label, algo, datatype, type)
-                    #viz.pyplotCDF(data_sort, '%s_%s_%s_%s'%(label, algo, datatype, type))
-            stats[algo][datatype]['ee']['inrange'] = '%.2f%%'%(isErrinRange[algo][datatype]*100/num_test)
+                stats[algo][type][item] = {}
+                stats[algo][type][item]['mean'] = '%.2f'%(np.mean(data_sort))
+                stats[algo][type][item]['std']  = '%.2f'%(np.std(data_sort))
+                stats[algo][type][item]['max']  = '%.2f'%(data_sort[-1])
+                stats[algo][type][item]['ratio67'] = '%.2f'%(data_sort[int(num_test*.67)])
+                stats[algo][type][item]['ratio95'] = '%.2f'%(data_sort[int(num_test*.95)])
+                if item == 'ep':
+                    stats[algo][type][item]['ratioless50']  = '%.2f%%'%(ratioLess(data_sort, 50))
+                    stats[algo][type][item]['ratioless100'] = '%.2f%%'%(ratioLess(data_sort, 100))
+                    #print 'plot: %s_%s_%s_%s' % (label, algo, type, item)
+                    #viz.pyplotCDF(data_sort, '%s_%s_%s_%s'%(label, algo, type, item))
+                elif item == 'ee':
+                    stats[algo][type][item]['inrange'] = '%.2f%%'%(errin[algo][type]*100/num_test)
 
     pp.pprint(stats)
-    #sys.exit(0)
+    sys.exit(0)
 
 
     # data/log file config.

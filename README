@@ -38,9 +38,6 @@ Known Issues
 1. visAPs = [ ['00:19:E0:E3:85:D0','-92'] ], cid = 1304, timestamp=20101013-152014 
 2. visAPs = [ ['00:17:7B:0F:85:F0','-68'] ], cid = 1304, timestamp=20101013-095222
 3. sum_rss = [ 0, 0, 0, ... ], when issue 1 happens.
-3. different posresult for same visAPs as issue 1.
-issue 25: [ [ '52:C3:17:AE:71:51', '-91' ] ],
-K nearset FPs, which should be K nearest distances.
 
 Quick Start
 ------------

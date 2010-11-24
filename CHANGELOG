@@ -196,3 +196,6 @@
     4) Add pickdiffs tool for picking up different-ep/ee cases from reqreterr datafile.
 2010-11-23
     1) Fix issue 25: process all fps of K-nearest distances & canceling min of dist in each cluster.
+2010-11-24
+    1) Fix existing bugs for issue 25: when fps_cand only has one element, refining weight vector.
+    2) Fix bug when dataset is empty in evaloc module.

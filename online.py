@@ -179,9 +179,8 @@ def fixPos(len_wlan, wlan, verb=False):
     #print cids_max
     
 
-    # min_fps: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
-    #  min_sums: [ minsum1, minsum2, ... ]
-    min_fps = []; min_sums = []; all_pos_lenrss = []
+    # fps_cand: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
+    all_pos_lenrss = []
     fps_cand = []; sums_cand = []
     if verb: print '='*35
     for cid,keyaps in keys:
@@ -202,7 +201,8 @@ def fixPos(len_wlan, wlan, verb=False):
         pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
-            min_fps = [ list(keycfps[0]) ] 
+            fps_cand = [ list(keycfps[0]) ] 
+            print 'fps_cand: ', fps_cand
             break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
@@ -223,20 +223,16 @@ def fixPos(len_wlan, wlan, verb=False):
         mrsss = wl[1].astype(int)
 
         # Euclidean dist solving and sorting.
-        #  min_fps: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
-        # min_sums: [ min_sum1, min_sum2, ... ]
+        #  fps_cand: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
         sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
         fps_cand.extend( keycfps )
         sums_cand.extend( sum_rss )
-        idx_min = sum_rss.argmin()
-        min_fps.append( list(keycfps[idx_min]) )
-        #min_sums.append( sum_rss[idx_min] )
         if verb:
             print 'sum_rss: %s' % sum_rss
             print '-'*35
 
     # Location estimation.
-    if len(keys) > 1:
+    if len(fps_cand) > 1:
         # KNN
         # lst_set_sums_cand: list format for set of sums_cand.
         # bound_dist: distance boundary for K-min distances.
@@ -274,18 +270,25 @@ def fixPos(len_wlan, wlan, verb=False):
         num_dknn_fps = len(dknn_fps)
         if  num_dknn_fps > 1:
             coors = dknn_fps[:,2:4].astype(float)
-            if not np.any(dknn_sums):
-                #num_keyaps = [ len(rsss) for rsss in np.char.array(dknn_fps[:,-1]).split('|') ]
-                num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-1] ])
-                dknn_sums = np.sort(num_keyaps - len_wlan).tolist()
-            if not np.all(dknn_sums):
-                if np.any(dknn_sums):
-                    w_zero = dknn_sums[dknn_sums.count(0)] / len(dknn_sums)
+            num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-1] ])
+            # ww: weights of dknn weights.
+            ww = np.abs(num_keyaps - len_wlan).tolist()
+            #print ww
+            if not np.all(ww):
+                if np.any(ww):
+                    ww_sort = np.sort(ww)
+                    #print 'ww_sort:' , ww_sort
+                    idx_dknn_sums_sort = np.searchsorted(ww_sort, 0, 'right')
+                    #print 'idx_dknn_sums_sort', idx_dknn_sums_sort
+                    ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
+                    w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
                 else:
                     w_zero = 1
-                for idx,sum in enumerate(dknn_sums):
-                    if not sum: dknn_sums[idx] = w_zero
-            weights = np.reciprocal(dknn_sums)
+                for idx,sum in enumerate(ww):
+                    if not sum: ww[idx] = w_zero
+            #print 'ww:', ww
+            ws = np.array(ww) + dknn_sums
+            weights = np.reciprocal(ws)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
             posfix = np.average(coors, axis=0, weights=weights)
         else: posfix = np.array(dknn_fps[0][2:4]).astype(float)
@@ -304,9 +307,9 @@ def fixPos(len_wlan, wlan, verb=False):
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
     else: 
-        min_fps = min_fps[0][:-1]
-        if verb: print 'location:\n%s' % min_fps
-        posfix = np.array(min_fps[2:4])
+        fps_cand = fps_cand[0][:-1]
+        if verb: print 'location:\n%s' % fps_cand
+        posfix = np.array(fps_cand[2:4])
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
         if N_fp == 1: 
