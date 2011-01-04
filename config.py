@@ -14,33 +14,54 @@ RADIUS = 6372797 #meter
 dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 dsn_local_pg  = "host=localhost dbname=wppdb user=yxt password=yxt port=5433"
+dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
 dbtype_ora = 'oracle' 
 dbtype_pg  = 'postgresql'
 dbtype_my  = 'mysql'
+dbsvrs = {'192.168.19.132':{
+            'dsn':dsn_vance_pg_mic,
+            'dbtype':dbtype_pg,
+           },
+          '192.168.35.202':{
+            'dsn':dsn_vance_ora,
+            'dbtype':dbtype_ora,
+           },
+          'local_ora':{
+            'dsn':dsn_local_ora,
+            'dbtype':dbtype_ora,
+           },
+          'local_pg':{
+            'dsn':dsn_local_pg,
+            'dbtype':dbtype_pg,
+           },
+        }
 db_config_my = {
             'hostname' : 'localhost',
             'username' : 'pos',
             'password' : 'pos',
               'dbname' : 'wlanpos' }
 # SQL table related data structs.
-tbl_names_my = { 'cidaps':'cidaps', 
-                   'cfps':'cfps' }
-tbl_field_my = { 'cidaps':'(cid, keyaps)',
-                   'cfps':'(cid, spid, lat, lon, rsss)' }
+tbl_names_my = ( 'cidaps', 'cfps' )
+tbl_field_my = { 'cidaps':'(cid, keyaps, seq)',
+                   'cfps':'(cid, lat, lon, height, rsss, cfps_time)' }
 tbl_forms_my = {'cidaps':""" (
                      cid SMALLINT NOT NULL, 
                   keyaps VARCHAR(1024),
+                     seq SMALLINT,
                    INDEX icid (cid)
                 )""", 
-                'wpp_cfps':""" (
+                'cfps':""" (
                      cid SMALLINT NOT NULL,
-                    spid SMALLINT NOT NULL,
                      lat DOUBLE(9,6),
                      lon DOUBLE(9,6),
+                  height DOUBLE(5,1),
                     rsss VARCHAR(255),
+               cfps_time VARCHAR(20),
                    INDEX icid (cid)
                 )""" }
-tbl_names = ( 'wpp_clusteridaps','wpp_cfps' )
+# { table_name: table_instance }
+tbl_names = { 'wpp_clusteridaps':'wpp_clusteridaps',
+                      'wpp_cfps':'wpp_cfps' }
 tbl_field = { 'wpp_clusteridaps':'(clusterid, keyaps, seq)',
                       'wpp_cfps':'(clusterid, lat, lon, height, rsss, cfps_time)',
                 'wpp_uprecsinfo':'(spid,servid,time,imsi,imei,useragent,mcc,mnc,lac,cellid,cellrss,\
@@ -52,6 +73,7 @@ tbl_idx =   { 'wpp_clusteridaps':['clusterid','keyaps'], #{table_name:{'field_na
 tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
                         'cidaps':'tbl/cidaps.tbl',
                       'wpp_cfps':'tbl/cfprints.tbl',
+                          'cfps':'tbl/cfprints.tbl',
                         'tsttbl':'tbl/tsttbl.tbl' }
 tbl_forms = { 'oracle':{
                 'wpp_clusteridaps':""" (  
@@ -261,6 +283,16 @@ WLAN_FAKE = {
               ['D8:5D:4C:63:FA:A6', '-88'] ],
         32: # bigerr 135.20
             [ ['00:21:91:1D:C1:06', '-84'] ],
+        33: # bigerr 1581.43
+            [ ['00:b0:0c:4b:75:c0', '-82'], ['00:25:86:37:19:2e', '-84'],
+              ['00:90:4c:7e:00:64', '-85'], ['00:19:e0:e0:3f:7c', '-85'] ],
+        34: # crossover of bigerr 1581.43
+            [ ['00:b0:0c:4b:75:c0', '-82'], ['00:25:86:37:19:2e', '-84'],
+              ['00:90:4c:7e:00:64', '-85'], ['00:17:7b:fc:34:28', '-87'] ],
+        35: # bigerr 791
+            [ ['00:17:7b:0f:0f:58', '-78'], ['00:b0:0c:0f:3e:98', '-86'],
+              ['00:17:7b:0f:7a:b0', '-90'], ['1c:af:f7:a7:ba:b4', '-91'] ],
+            
 }
 icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
               'off': [ '"encryptoff"', '/kml/icons/encryptoff.png'],

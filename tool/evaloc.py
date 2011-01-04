@@ -91,14 +91,10 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
     sys.stdout.write('Slicing & Merging test data ... ')
     macrss = np.char.array(req[ :, [reqfmt['idx_macs'],reqfmt['idx_rsss']] ]).split('|')
     reqcols = [ reqfmt['idx_lat'], reqfmt['idx_lon'] ]
-    retcols = [ retfmt['ilat_cpp'], retfmt['ilon_cpp'], retfmt['ierr_cpp'] ]
-    # reqret format: ref(lat,lon), cpp(lat,lon,err)
-    reqret = np.append(req[:,reqcols], ret[:,retcols], axis=1).astype(float)
-    print 'Done'
 
     # complete *addcols* column definition: 
     # err_cpp, ee_cpp, py(lat,lon,err,ep,ee), ep_cpp_py, ee_cpp_py, google(lat,lon,err,ep,ee).
-    addcols = []; idiffs = []; atoken = None; istats = []
+    addcols = []; idiffs = []; atoken = None; istats = []; ipylocoks = []
     isErrinRange={'cpp': {'all':0, 'errless200':0}, 
                    'py': {'all':0, 'errless200':0}, 
                'google': {'all':0, 'errless200':0} }
@@ -110,18 +106,23 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
         istats_cpp = offsets_stats['cpp']
         istats.extend(istats_cpp) # offset of istats item in cpp section of addcols.
         idx_cur += idxscnt_addcols['cpp'][1]
+        retcols = [ retfmt['ilat_cpp'], retfmt['ilon_cpp'], retfmt['ierr_cpp'] ]
     if 'py' in algos: 
         usepy = True
         istats_py = (idx_cur + np.array(offsets_stats['py'])).tolist()
         istats.extend(istats_py) # offset of istats item in cpp section of addcols.
         if usecpp:
             idx_cur = idx_cur + idxscnt_addcols['py'][1] + idxscnt_addcols['cpp_py'][1]
+            # reqret format: ref(lat,lon), cpp(lat,lon,err)
+            reqret = np.append(req[:,reqcols], ret[:,retcols], axis=1).astype(float)
         else:
             idx_cur += idxscnt_addcols['py'][1]
+            reqret = req[:,reqcols].astype(float)
     if 'google' in algos: 
         usegoogle = True
         istats_google = (idx_cur + np.array(offsets_stats['google'])).tolist()
         istats.extend(istats_google) # offset of istats item in cpp section of addcols.
+    print 'Done'
     print 'istats: %s' % istats
 
     for icase in xrange(len(reqret)):
@@ -143,7 +144,6 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
                     isErrinRange['cpp']['errless200'] += 1
             ee_cpp = abs(ee)/cpperr
             addcol.append(ee_cpp)
-
         if usepy:
             # pyloc result.
             num_visAPs = len(macs)
@@ -151,6 +151,8 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
             idxs_max = np.argsort(rsss)[:INTERSET]
             mr = np.vstack((macs, rsss))[:,idxs_max]
             pyloc = wlanpos.fixPos(INTERSET, mr, verb=False)
+            if not pyloc: continue
+            ipylocoks.append(icase)
             addcol.extend(pyloc)
             # pyloc error to refloc.
             err_py = geo.dist_km(pyloc[1], pyloc[0], lonref, latref)*1000
@@ -163,7 +165,6 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
                     isErrinRange['py']['errless200'] += 1
             ee_py = abs(ee)/pyloc[2]
             addcol.append(ee_py)
-
             if usecpp:
                 # pyloc error to cpploc.
                 err_cpp_py = geo.dist_km(pyloc[1], pyloc[0], loncpp, latcpp)*1000
@@ -172,7 +173,6 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
                 ee_cpp_py = abs(err_cpp - err_py)
                 addcol.append(ee_cpp_py)
                 if err_cpp_py or ee_cpp_py: idiffs.append(icase)
-
         if usegoogle:
             # google location api results.
             mr = mr.tolist()
@@ -206,7 +206,7 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
         addcols.append(addcol)
         print 
 
-    return (addcols, isErrinRange, reqret, istats, idiffs)
+    return (addcols, isErrinRange, reqret, ipylocoks, istats, idiffs)
 
 
 def chkFmt(data=None):
@@ -278,8 +278,9 @@ def getIPaddr(ifname='eth0'):
         ifaces = nifs.interfaces()
         ifaces.remove('lo')
         for iface in ifaces:
-            if (inet_id in nifs.ifaddresses(iface)): 
-                inets = nifs.ifaddresses(iface)[inet_id]
+            ifaddrs = nifs.ifaddresses(iface)
+            if inet_id in ifaddrs: 
+                inets = ifaddrs[inet_id]
                 if len(inets) == 1:
                     ips[iface] = inets[0]['addr']
                 else:
@@ -316,15 +317,22 @@ def main():
 
     #algos = ('cpp', 'py', 'google')
     #algos = ('py', 'google')
-    algos = ('cpp', 'py')
-    #algos = ('py',)
+    #algos = ('cpp', 'py')
+    algos = ('py',)
 
-    if ('google' in algos) and (getIPaddr()['eth0'].split('.')[0] == '10'):
-        gl.setConn()
+    # Proxy Setting(buggy).
+    if 'google' in algos:
+        ipaddr = getIPaddr()
+        if 'eth0' in ipaddr: ipaddr = [ ipaddr['eth0'] ]
+        else: ipaddr = ipaddr.values()
+        for ip in ipaddr: 
+            if ip.split('.')[0] == '10': 
+                gl.setConn()
+                break
 
     print 'Reconstructing data matrix: macrss/refloc/%s ... ' % '/'.join(algos)
     # build data matrix with online google geolocation api request.
-    addcols, errin, reqret, istats, idiffs_cpp_py = collectData(req=req, reqfmt=colfmt_req, 
+    addcols, errin, reqret, ipyoks, istats, idiffs_cpp_py = collectData(req=req, reqfmt=colfmt_req, 
                                                             ret=ret, retfmt=colfmt_ret, algos=algos)
     addcols = np.array( addcols )
 
@@ -392,14 +400,13 @@ def main():
                     stats[algo][type][item]['inrange'] = '%.2f%%'%(errin[algo][type]*100/num_test)
 
     pp.pprint(stats)
-    sys.exit(0)
+    #sys.exit(0)
 
 
     # data/log file config.
     timestamp = time.strftime('%Y%m%d-%H%M%S')
     datafile = '%s/reqreterr_wpp_%s_%s.csv' % (fpath, label, timestamp)
     statsfile = '%s/stats_wpp_%s_%s.log' % (fpath, label, timestamp)
-    diffile = '%s/diffs_wpp_%s_%s.csv' % (fpath, label, timestamp)
 
     # shelved data dumping.
     stats_dict = shlv.open(statsfile)
@@ -407,21 +414,24 @@ def main():
         stats_dict[algo] = stats[algo]
     stats_dict.close()
     print 'stats results shelved into %s' % statsfile
-
     # shelved data reading.
     #stats_dict = dict(shlv.open(statsfile))
     #pp.pprint(stats_dict)
 
-    reqreterr = np.append(reqret, addcols, axis=1)
+    reqreterr = np.append(reqret[ipyoks], addcols, axis=1)
+    req = req[ipyoks,:]
     reqreterr = np.append(req[ :, [colfmt_req['idx_macs'],colfmt_req['idx_rsss']] ], reqreterr, axis=1)
-    diffs = reqreterr[idiffs_cpp_py,:]
-    print 'diff data: %d' % len(idiffs_cpp_py)
 
     np.savetxt(datafile, reqreterr, fmt='%s',delimiter=',')
     print '\nDumping all req/ret/err to: %s ... Done' % datafile
 
-    np.savetxt(diffile, diffs, fmt='%s',delimiter=',')
-    print '\nDumping diff req/ret/err to: %s ... Done' % diffile
+    if len(algos) > 1:
+        diffile = '%s/diffs_wpp_%s_%s.csv' % (fpath, label, timestamp)
+        diffs = reqreterr[idiffs_cpp_py,:]
+        print 'diff data: %d' % len(idiffs_cpp_py)
+
+        np.savetxt(diffile, diffs, fmt='%s',delimiter=',')
+        print '\nDumping diff req/ret/err to: %s ... Done' % diffile
 
     #errs_sort = [ [x] for x in errs_sort ]
     #np.savetxt('errsort.dat', errs_sort, fmt='%s',delimiter=',')

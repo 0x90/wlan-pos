@@ -15,12 +15,13 @@ from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         db_config_my, tbl_names_my, tbl_forms_my, tbl_field_my, \
         tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
 from kml import genKML
 from db import WppDB
 
 
-def ClusterDB(rmpfile):
+def ClusterIncr(rmpfile):
+    print 'Incr Clustering ...'
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
@@ -60,50 +61,58 @@ def ClusterDB(rmpfile):
     # Clustering heuristics.
     sys.stdout.write('Fingerprints clustering:')
     print 
-    tbl_names = ('wpp_clusteridaps', 'wpp_cfps')
-    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
-            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    for idx, wlanmacs in enumerate(topaps):
-        print '%s %s %s' % ('-'*15, idx+1, '-'*15)
-        fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
-        #     cidcntseq: all query results from db: cid,count(cid),max(seq).
-        # cidcntseq_max: query results with max count(cid).
-        cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
-        found_cluster = False
-        if cidcntseq:
-            # find out the most queried cluster /w the same AP count:
-            # cid count = max seq
-            cidcntseq = np.array(cidcntseq)
-            cidcnt = cidcntseq[:,1]
-            #print cidcntseq
-            idxs_sortdesc = np.argsort(cidcnt).tolist()
-            idxs_sortdesc.reverse()
-            #print idxs_sortdesc
-            cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
-            cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
-            #print cidcntseq_max
-            idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
-            #print idx_belong
-            if sum(idx_belong):
-                cids_belong = cidcntseq_max[idx_belong,[0,2]]
-                #print cids_belong
-                cid = cids_belong[0]
-                if cids_belong[1] == len(wlanmacs):
-                    found_cluster = True
-        sys.stdout.write('Cluster searching ... ')
-        if not found_cluster:
-            print 'Failed!'
-            # insert into cidaps/cfps with a new clusterid.
-            cid = wppdb.addCluster(wlanmacs)
-            wppdb.addFps(cid=cid, fps=[fps])
-        else:
-            print 'Found: (%d)' % cid
-            # insert fingerprints into the same cluserid in table cfps.
-            wppdb.addFps(cid=cid, fps=[fps])
-        print
+    # Support multi DB incr-clustering.
+    dbips = ('local_pg', )
+    for svrip in dbips:
+        #tbl_names = ('tsttbl',)
+        dbsvr = dbsvrs[svrip]
+        #print 'Loading data to DB svr: %s' % svrip
+        print '%s %s %s' % ('='*15, svrip, '='*15)
+        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
+        tbl_names['wpp_cfps']='wpp_cfps_incr'
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+                tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
+        for idx, wlanmacs in enumerate(topaps):
+            print '%s %s %s' % ('-'*15, idx+1, '-'*15)
+            fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
+            #     cidcntseq: all query results from db: cid,count(cid),max(seq).
+            # cidcntseq_max: query results with max count(cid).
+            cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
+            found_cluster = False
+            if cidcntseq:
+                # find out the most queried cluster /w the same AP count:
+                # cid count = max seq
+                cidcntseq = np.array(cidcntseq)
+                cidcnt = cidcntseq[:,1]
+                #print cidcntseq
+                idxs_sortdesc = np.argsort(cidcnt).tolist()
+                idxs_sortdesc.reverse()
+                #print idxs_sortdesc
+                cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+                cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+                #print cidcntseq_max
+                idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+                #print idx_belong
+                if sum(idx_belong):
+                    cids_belong = cidcntseq_max[idx_belong,[0,2]]
+                    #print cids_belong
+                    cid = cids_belong[0]
+                    if cids_belong[1] == len(wlanmacs):
+                        found_cluster = True
+            sys.stdout.write('Cluster searching ... ')
+            if not found_cluster:
+                print 'Failed!'
+                # insert into cidaps/cfps with a new clusterid.
+                cid = wppdb.addCluster(wlanmacs)
+                wppdb.addFps(cid=cid, fps=[fps])
+            else:
+                print 'Found: (%d)' % cid
+                # insert fingerprints into the same cluserid in table cfps.
+                wppdb.addFps(cid=cid, fps=[fps])
+            print
 
-    print '...Done'
-    wppdb.close()
+        print '...Done'
+        wppdb.close()
 
 
 def getRaw():
@@ -242,7 +251,7 @@ def genKMLfile(cfpsfile):
     genKML(cfps, kmlfile=kfile, icons=icon_types)
 
 
-def ClusterOffline(rmpfile):
+def ClusterAll(rmpfile):
     """
     Clustering the raw radio map fingerprints for fast indexing(mainly in db),
     generating following data structs: cid_aps, cfprints and crmp.
@@ -266,6 +275,7 @@ def ClusterOffline(rmpfile):
         visible APs >=4: declustering with top4, top3(if top4 fails);
         visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
+    print 'All Clustering ...'
     # rmpin: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
     # fpp_specs(14col), fpp_rawdata_xls(16col)
     # IMEI      0, 3
@@ -611,8 +621,8 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        #ClusterOffline(rmpfile)
-        ClusterDB(rmpfile)
+        #ClusterAll(rmpfile)
+        ClusterIncr(rmpfile)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:

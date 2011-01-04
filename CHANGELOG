@@ -199,3 +199,7 @@
 2010-11-24
     1) Fix existing bugs for issue 25: when fps_cand only has one element, refining weight vector.
     2) Fix bug when dataset is empty in evaloc module.
+2011-01-04
+    1) Fix bug in db.py for postgresql compatibility & table instance 
+    2) Implementing incremental clustering & verification process.
+    3) Deploy easy-to-use 'hg bug' for issue tracking.

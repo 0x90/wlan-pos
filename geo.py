@@ -96,7 +96,7 @@ def dist_unit(lat1, long1, lat2, long2):
 
 if __name__ == '__main__':
     lat1, lon1, lat2, lon2 = 39.88726,116.3442,39.89711,116.3500
-    lat3, lon3, lat4, lon4 = 39.89765,116.3530,39.89711,116.3500
+    lat3, lon3, lat4, lon4 = 39.902157500000001, 116.3508545,39.89967,116.35247
 
     print 'dist_unit: ', dist_unit(lat1, lon1, lat2, lon2)*(config.RADIUS)
     print '  dist_km: ', dist_km(lon1, lat1, lon2, lat2)*1000

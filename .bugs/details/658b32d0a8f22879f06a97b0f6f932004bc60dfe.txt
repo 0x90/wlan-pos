@@ -1,0 +1,13 @@
+# Lines starting with '#' and sections without content
+# are not displayed by a call to 'details'
+#
+[paths]
+db.py:WppDB:line 147
+
+
+[details]
+Instance of class WppDB can NOT predict the name of the instance of the two wpp tables(wpp_clusteridaps,wpp_cfps).
+
+
+[expected]
+tbl_names={tablename:tableinstance,}, like {'wpp_clusteridaps':'wpp_clusteridaps_incr'}, thus in config.py, we can define the table field name & type format according to each table name.

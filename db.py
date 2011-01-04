@@ -7,8 +7,8 @@ import numpy as np
 import cx_Oracle as ora
 import psycopg2 as pg
 
-from config import tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls
+from config import dbsvrs, tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dsn_vance_pg_mic, dbtype_ora, dbtype_pg, sqls
 
 
 class WppDB(object):
@@ -24,17 +24,18 @@ class WppDB(object):
                 sys.exit('\nERROR: %s' % e)
         elif self.dbtype == 'postgresql':
             try:
-                self.con = pg.connect(dsn) #"host=localhost dbname=wppdb user=yxt password=yxt port=5433"
+                self.con = pg.connect(dsn) 
                 self.con.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             except Exception, e:
-                sys.exit('\nERROR: %d: %s\n' % (e.pgcode, e.pgerror))
+                if not e.pgcode or not e.pgerror: sys.exit('Connection failed!\n%s' % e)
+                else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
         if not tbl_field or not tbl_forms or not tbl_names:
             sys.exit('Need name, field, format definition for all tables!')
         self.tbl_names = tbl_names
         self.tbl_field = tbl_field
-        self.tbl_forms = tbl_forms
+        self.tbl_forms = tbl_forms[self.dbtype]
             
         if not sqls: sys.exit('Need sql set!')
         self.sqls = sqls
@@ -64,19 +65,20 @@ class WppDB(object):
             else: self.tbl_files = tbl_files
         else: pass
 
-        for table in self.tbl_names:
-            csvfile = self.tbl_files[table]
+        for table_name in self.tbl_names:
+            table_inst = self.tbl_names[table_name]
+            csvfile = self.tbl_files[table_name]
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
             #
-            print 'TRUNCATE TABLE: %s' % table
-            self.cur.execute(self.sqls['SQL_TRUNCTB'] % table)
+            print 'TRUNCATE TABLE: %s' % table_inst
+            self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
             #
-            #print 'DROP TABLE: %s' % table
-            #self.cur.execute(self.sqls['SQL_DROPTB'] % table)
-            #print 'CREATE TABLE: %s' % table
+            #print 'DROP TABLE: %s' % table_inst
+            #self.cur.execute(self.sqls['SQL_DROPTB'] % table_inst)
+            #print 'CREATE TABLE: %s' % table_inst
             #self.cur.execute(self.sqls['SQL_CREATETB'] % \
-            #        (table, self.tbl_forms[table]))
+            #        (table_inst, self.tbl_forms[table_name]))
             if self.dbtype == 'oracle':
                 # Import csv data.
                 csvdat = csv.reader( open(csvfile,'r') )
@@ -84,22 +86,25 @@ class WppDB(object):
                     indat = [ line for line in csvdat ]
                 except csv.Error, e:
                     sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
-                print 'csv data %d records.' % len(indat)
-
-                self._insertMany(table=table, indat=indat)
+                #print 'Loading csv data: %d records.' % len(indat)
+                self._insertMany(table=table_inst, indat=indat)
             elif self.dbtype == 'postgresql':
-                self.cur.copy_from(file(csvfile), table, ',')
+                try:
+                    self.cur.copy_from(file(csvfile), table_inst, ',')
+                except Exception, e:
+                    if not e.pgcode or not e.pgerror: sys.exit(e)
+                    else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
             else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
-            self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table))
-            print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table)
+            self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
+            print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table_inst)
             #if self.tbl_idx:
-            #    for col_name in self.tbl_idx[table]:
+            #    for col_name in self.tbl_idx[table_name]:
             #        # index naming rule: i_tablename_colname.
-            #        idx_name = 'i_%s_%s' % (table, col_name)
+            #        idx_name = 'i_%s_%s' % (table_inst, col_name)
             #        self.cur.execute(self.sqls['SQL_CREATEIDX'] % \
-            #                (idx_name, table, col_name))
-            #        print self.sqls['SQL_CREATEIDX'] % (idx_name,table,col_name)
+            #                (idx_name, table_inst, col_name))
+            #        print self.sqls['SQL_CREATEIDX'] % (idx_name,table_inst,col_name)
             print '-'*40
 
         self.con.commit()
@@ -110,45 +115,58 @@ class WppDB(object):
         cid = self.cur.fetchone()[0] + 1
         return cid
 
-    def _insertMany(self, table=None, indat=None):
-        table_field = self.tbl_field[table]
+    def _insertMany(self, table_name=None, indat=None):
+        table_field = self.tbl_field[table_name]
         num_fields = len( table_field.split(',') )
         bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
         #print bindpos
-        self.cur.prepare(self.sqls['SQL_INSERT'] % (table, table_field, bindpos))
+        table_inst = self.tbl_names[table_name]
+        self.cur.prepare(self.sqls['SQL_INSERT'] % (table_inst, table_field, bindpos))
         self.cur.executemany(None, indat)
-        print 'Add %d rows to |%s|' % (self.cur.rowcount, table)
+        print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
         self.con.commit()
 
     def addCluster(self, macs=None):
-        table = 'wpp_clusteridaps'
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tbl_names[table_name]
         cid = self._getNewCid()
         cidmacseq = []
         for seq,mac in enumerate(macs):
             cidmacseq.append([ cid, mac, seq+1 ])
         #print cidmacseq
-        self._insertMany(table=table, indat=cidmacseq)
+        self._insertMany(table_name=table_name, indat=cidmacseq)
         return cid
 
     def addFps(self, cid=None, fps=None):
-        table = 'wpp_cfps'
+        table_name = 'wpp_cfps'
         cids = np.array([ [cid] for i in xrange(len(fps)) ])
         fps = np.array(fps)
         cidfps = np.append(cids, fps, axis=1).tolist()
         #print cidfps
-        self._insertMany(table=table, indat=cidfps)
+        self._insertMany(table_name=table_name, indat=cidfps)
 
     def getCIDcntMaxSeq(self, macs=None):
-        table = 'wpp_clusteridaps'
-        table_field = self.tbl_field[table]
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tbl_names[table_name]
+        table_field = self.tbl_field[table_name]
         if not type(macs) is list: 
             macs = list(macs)
         if not len(macs):
             sys.exit('Invalid macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
-        sql1 = self.sqls['SQL_SELECT'] % ("clusterid cid, count(clusterid) cidcnt", 
-            "%s where (%s) group by clusterid order by cidcnt desc) a, \
-            %s t where a.cid=t.clusterid  group by a.cid,a.cidcnt order by cidcnt desc"%(table,strWhere,table))
+        if self.dbtype == 'oracle':
+            sql1 = self.sqls['SQL_SELECT'] % \
+                ("clusterid cid, count(clusterid) cidcnt", 
+                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
+                 where a.cid=t.clusterid group by a.cid,a.cidcnt order by cidcnt desc" % \
+                (table_inst, strWhere, table_inst))
+        elif self.dbtype == 'postgresql':
+            sql1 = self.sqls['SQL_SELECT'] % \
+                ("clusterid as cid, count(clusterid) as cidcnt", 
+                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s as t \
+                 where a.cid=t.clusterid group by a.cid,a.cidcnt order by cidcnt desc" % \
+                (table_inst, strWhere, table_inst))
+        else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
         self.cur.execute(sql)
         return self.cur.fetchall()
@@ -157,9 +175,14 @@ class WppDB(object):
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=2)
 
-    #tbl_names = ('tsttbl',)
-    tbl_names = ('wpp_clusteridaps','wpp_cfps')
-    wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, tbl_idx=tbl_idx, sqls=sqls, 
-            tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms['oracle'])
-    wppdb.load_tables(tbl_files)
-    wppdb.close()
+    dbips = ('local_pg', )
+    for svrip in dbips:
+        #tbl_names = ('tsttbl',)
+        dbsvr = dbsvrs[svrip]
+        #print 'Loading data to DB svr: %s' % svrip
+        print '%s %s %s' % ('='*15, svrip, '='*15)
+        #tbl_names = ('tsttbl',)
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+                tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
+        wppdb.load_tables(tbl_files)
+        wppdb.close()

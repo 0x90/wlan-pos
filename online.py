@@ -144,7 +144,8 @@ def fixPos(len_wlan, wlan, verb=False):
     idxs_sortedNOInter = np.argsort( lst_NOInter )
     maxNI = lst_NOInter[idxs_sortedNOInter[-1]]
     if maxNI == 0: # no intersection found
-        sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
+        print 'NO overlapping cluster found! Fingerprinting TERMINATED!'
+        return []
     elif maxNI < CLUSTERKEYSIZE:
         # size of intersection set < offline key AP set size:4, 
         # offline keymacs/keyrsss (not online maxmacs/maxrsss) need to be cut down.
@@ -202,7 +203,6 @@ def fixPos(len_wlan, wlan, verb=False):
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
             fps_cand = [ list(keycfps[0]) ] 
-            print 'fps_cand: ', fps_cand
             break
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
