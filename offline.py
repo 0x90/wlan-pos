@@ -106,7 +106,7 @@ def ClusterIncr(rmpfile):
                 cid = wppdb.addCluster(wlanmacs)
                 wppdb.addFps(cid=cid, fps=[fps])
             else:
-                print 'Found: (%d)' % cid
+                print 'Found: (cid: %d)' % cid
                 # insert fingerprints into the same cluserid in table cfps.
                 wppdb.addFps(cid=cid, fps=[fps])
             print

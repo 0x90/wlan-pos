@@ -203,3 +203,6 @@
     1) Fix bug in db.py for postgresql compatibility & table instance 
     2) Implementing incremental clustering & verification process.
     3) Deploy easy-to-use 'hg bug' for issue tracking.
+2011-01-05
+    1) Fix bug 1a: rewrite WppDB._insertMany() to handle loading more than one records using copy from stdin(StringIO) of postgresql.
+    2) Refactor WppDB.load_table() to reuse _loadFile() & _insertMany() meta methods.

@@ -3,6 +3,7 @@ import sys
 import os
 import csv
 import pprint
+import StringIO as sio
 import numpy as np
 import cx_Oracle as ora
 import psycopg2 as pg
@@ -79,23 +80,8 @@ class WppDB(object):
             #print 'CREATE TABLE: %s' % table_inst
             #self.cur.execute(self.sqls['SQL_CREATETB'] % \
             #        (table_inst, self.tbl_forms[table_name]))
-            if self.dbtype == 'oracle':
-                # Import csv data.
-                csvdat = csv.reader( open(csvfile,'r') )
-                try:
-                    indat = [ line for line in csvdat ]
-                except csv.Error, e:
-                    sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
-                #print 'Loading csv data: %d records.' % len(indat)
-                self._insertMany(table=table_inst, indat=indat)
-            elif self.dbtype == 'postgresql':
-                try:
-                    self.cur.copy_from(file(csvfile), table_inst, ',')
-                except Exception, e:
-                    if not e.pgcode or not e.pgerror: sys.exit(e)
-                    else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
-            else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
-
+            self._loadFile(csvfile=csvfile, table_inst=table_inst)
+            #
             self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
             print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table_inst)
             #if self.tbl_idx:
@@ -109,41 +95,66 @@ class WppDB(object):
 
         self.con.commit()
 
-    def _getNewCid(self):
-        sql = sqls['SQL_SELECT'] % ('max(clusterid)', 'wpp_clusteridaps')
+    def _loadFile(self, csvfile=None, table_inst=None):
+        if self.dbtype == 'oracle':
+            # Import csv data.
+            csvdat = csv.reader( open(csvfile,'r') )
+            try:
+                indat = [ line for line in csvdat ]
+            except csv.Error, e:
+                sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
+            self._insertMany(table_inst=table_inst, indat=indat)
+        elif self.dbtype == 'postgresql':
+            try:
+                self.cur.copy_from(file(csvfile), table_inst, ',')
+            except Exception, e:
+                if not e.pgcode or not e.pgerror: sys.exit(e)
+                else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+        else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
+
+    def _getNewCid(self, table_inst=None):
+        sql = sqls['SQL_SELECT'] % ('max(clusterid)', table_inst)
         self.cur.execute(sql)
         cid = self.cur.fetchone()[0] + 1
         return cid
 
-    def _insertMany(self, table_name=None, indat=None):
-        table_field = self.tbl_field[table_name]
-        num_fields = len( table_field.split(',') )
-        bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
-        #print bindpos
-        table_inst = self.tbl_names[table_name]
-        self.cur.prepare(self.sqls['SQL_INSERT'] % (table_inst, table_field, bindpos))
-        self.cur.executemany(None, indat)
-        print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
+    def _insertMany(self, table_inst=None, indat=None):
+        if self.dbtype == 'oracle':
+            table_field = self.tbl_field[table_name]
+            num_fields = len( table_field.split(',') )
+            bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
+            self.cur.prepare(self.sqls['SQL_INSERT'] % (table_inst, table_field, bindpos))
+            self.cur.executemany(None, indat)
+            print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
+        elif self.dbtype == 'postgresql':
+            str_indat = '\n'.join([ ','.join([str(col) for col in fp]) for fp in indat ])
+            file_indat = sio.StringIO(str_indat)
+            try:
+                self.cur.copy_from(file_indat, table_inst, ',')
+            except Exception, e:
+                if not e.pgcode or not e.pgerror: sys.exit(e)
+                else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+            print 'Add %d rows to |%s|' % (len(indat), table_inst)
+        else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         self.con.commit()
 
     def addCluster(self, macs=None):
         table_name = 'wpp_clusteridaps'
         table_inst = self.tbl_names[table_name]
-        cid = self._getNewCid()
+        cid = self._getNewCid(table_inst=table_inst)
         cidmacseq = []
         for seq,mac in enumerate(macs):
             cidmacseq.append([ cid, mac, seq+1 ])
-        #print cidmacseq
-        self._insertMany(table_name=table_name, indat=cidmacseq)
+        self._insertMany(table_inst=table_inst, indat=cidmacseq)
         return cid
 
     def addFps(self, cid=None, fps=None):
         table_name = 'wpp_cfps'
+        table_inst = self.tbl_names[table_name]
         cids = np.array([ [cid] for i in xrange(len(fps)) ])
         fps = np.array(fps)
         cidfps = np.append(cids, fps, axis=1).tolist()
-        #print cidfps
-        self._insertMany(table_name=table_name, indat=cidfps)
+        self._insertMany(table_inst=table_inst, indat=cidfps)
 
     def getCIDcntMaxSeq(self, macs=None):
         table_name = 'wpp_clusteridaps'
@@ -177,11 +188,13 @@ if __name__ == "__main__":
 
     dbips = ('local_pg', )
     for svrip in dbips:
-        #tbl_names = ('tsttbl',)
         dbsvr = dbsvrs[svrip]
         #print 'Loading data to DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        #tbl_names = ('tsttbl',)
+        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_all'
+        tbl_names['wpp_cfps']='wpp_cfps_all'
+        #tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
+        #tbl_names['wpp_cfps']='wpp_cfps_incr'
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
         wppdb.load_tables(tbl_files)

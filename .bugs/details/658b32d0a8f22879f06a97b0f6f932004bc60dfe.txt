@@ -6,8 +6,10 @@ db.py:WppDB:line 147
 
 
 [details]
-Instance of class WppDB can NOT predict the name of the instance of the two wpp tables(wpp_clusteridaps,wpp_cfps).
+1)tables tobe operated over-coupling with tables available;
+2)Instance of class WppDB can NOT predict the name of the instance of the two wpp tables(wpp_clusteridaps,wpp_cfps).
 
 
 [expected]
-tbl_names={tablename:tableinstance,}, like {'wpp_clusteridaps':'wpp_clusteridaps_incr'}, thus in config.py, we can define the table field name & type format according to each table name.
+1)tables tobe operated tables_todo CAN be different from tables available tables_avail;
+2)tbl_names={tablename:tableinstance,}, like {'wpp_clusteridaps':'wpp_clusteridaps_incr'}, thus in config.py, we can define the table field name & type format according to each table name.
