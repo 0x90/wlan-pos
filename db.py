@@ -80,17 +80,28 @@ class WppDB(object):
             #print 'CREATE TABLE: %s' % table_inst
             #self.cur.execute(self.sqls['SQL_CREATETB'] % \
             #        (table_inst, self.tbl_forms[table_name]))
+            # Load the csv file.
             self._loadFile(csvfile=csvfile, table_inst=table_inst)
-            #
+            # Update the number of records.
             self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
             print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table_inst)
-            #if self.tbl_idx:
-            #    for col_name in self.tbl_idx[table_name]:
-            #        # index naming rule: i_tablename_colname.
-            #        idx_name = 'i_%s_%s' % (table_inst, col_name)
-            #        self.cur.execute(self.sqls['SQL_CREATEIDX'] % \
-            #                (idx_name, table_inst, col_name))
-            #        print self.sqls['SQL_CREATEIDX'] % (idx_name,table_inst,col_name)
+            # Update indexs.
+            if self.tbl_idx:
+                for col_name in self.tbl_idx[table_name]:
+                    # index naming rule: i_tablename_colname.
+                    idx_name = 'i_%s_%s' % (table_inst, col_name)
+                    # drop indexs.
+                    if self.dbtype == 'oracle':
+                        sql_drop_idx = self.sqls['SQL_DROP_IDX'] % idx_name
+                    elif self.dbtype == 'postgresql':
+                        sql_drop_idx = self.sqls['SQL_DROP_IDX_IE'] % idx_name
+                    else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
+                    self.cur.execute(sql_drop_idx)
+                    print sql_drop_idx
+                    # create indexs.
+                    sql_make_idx = self.sqls['SQL_CREATEIDX'] % (idx_name,table_inst,col_name)
+                    self.cur.execute(sql_make_idx)
+                    print sql_make_idx
             print '-'*40
 
         self.con.commit()
@@ -162,23 +173,25 @@ class WppDB(object):
         table_field = self.tbl_field[table_name]
         if not type(macs) is list: 
             macs = list(macs)
-        if not len(macs):
-            sys.exit('Invalid macs!')
+        num_macs = len(macs)
+        if not num_macs:
+            sys.exit('Null macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         if self.dbtype == 'oracle':
             sql1 = self.sqls['SQL_SELECT'] % \
                 ("clusterid cid, count(clusterid) cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
-                 where a.cid=t.clusterid group by a.cid,a.cidcnt order by cidcnt desc" % \
+                 where (cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst))
         elif self.dbtype == 'postgresql':
             sql1 = self.sqls['SQL_SELECT'] % \
                 ("clusterid as cid, count(clusterid) as cidcnt", 
-                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s as t \
-                 where a.cid=t.clusterid group by a.cid,a.cidcnt order by cidcnt desc" % \
-                (table_inst, strWhere, table_inst))
+                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
+                 where (cidcnt=%s) group by cid,cidcnt order by cidcnt desc" % \
+                (table_inst, strWhere, table_inst, num_macs))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
+        #print sql
         self.cur.execute(sql)
         return self.cur.fetchall()
 
@@ -191,10 +204,10 @@ if __name__ == "__main__":
         dbsvr = dbsvrs[svrip]
         #print 'Loading data to DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_all'
-        tbl_names['wpp_cfps']='wpp_cfps_all'
-        #tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
-        #tbl_names['wpp_cfps']='wpp_cfps_incr'
+        #tbl_names['wpp_clusteridaps']='wpp_clusteridaps_all'
+        #tbl_names['wpp_cfps']='wpp_cfps_all'
+        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
+        tbl_names['wpp_cfps']='wpp_cfps_incr'
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
         wppdb.load_tables(tbl_files)

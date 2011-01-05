@@ -63,13 +63,11 @@ def ClusterIncr(rmpfile):
     print 
     # Support multi DB incr-clustering.
     dbips = ('local_pg', )
+    tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
+    tbl_names['wpp_cfps']='wpp_cfps_incr'
     for svrip in dbips:
-        #tbl_names = ('tsttbl',)
         dbsvr = dbsvrs[svrip]
-        #print 'Loading data to DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
-        tbl_names['wpp_cfps']='wpp_cfps_incr'
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
         for idx, wlanmacs in enumerate(topaps):
@@ -621,8 +619,8 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        #ClusterAll(rmpfile)
-        ClusterIncr(rmpfile)
+        ClusterAll(rmpfile)
+        #ClusterIncr(rmpfile)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:
