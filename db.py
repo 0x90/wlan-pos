@@ -181,13 +181,13 @@ class WppDB(object):
             sql1 = self.sqls['SQL_SELECT'] % \
                 ("clusterid cid, count(clusterid) cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
-                 where (cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
+                 where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst))
         elif self.dbtype == 'postgresql':
             sql1 = self.sqls['SQL_SELECT'] % \
                 ("clusterid as cid, count(clusterid) as cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
-                 where (cidcnt=%s) group by cid,cidcnt order by cidcnt desc" % \
+                 where (cid=clusterid and cidcnt=%s) group by cid,cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst, num_macs))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
@@ -204,10 +204,12 @@ if __name__ == "__main__":
         dbsvr = dbsvrs[svrip]
         #print 'Loading data to DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        #tbl_names['wpp_clusteridaps']='wpp_clusteridaps_all'
-        #tbl_names['wpp_cfps']='wpp_cfps_all'
-        tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
-        tbl_names['wpp_cfps']='wpp_cfps_incr'
+        if sys.argv[1] == 'all':
+            tbl_names['wpp_clusteridaps']='wpp_clusteridaps_all'
+            tbl_names['wpp_cfps']='wpp_cfps_all'
+        else:
+            tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
+            tbl_names['wpp_cfps']='wpp_cfps_incr'
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
         wppdb.load_tables(tbl_files)

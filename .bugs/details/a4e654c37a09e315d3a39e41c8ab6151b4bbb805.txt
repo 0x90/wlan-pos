@@ -2,7 +2,7 @@
 # are not displayed by a call to 'details'
 #
 [paths]
-db.py:getCIDcntMaxSeq():line 170
+db.py:WppDB():line 170
 
-[solution]
-Add ('cidcnt=%s' % num_macs) in where condition.
+[details]
+when del a.cid=t.clusterid for where clause

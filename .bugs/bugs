@@ -2,4 +2,5 @@ over db-quering for all candidate clusters                       | owner:alexy, 
 WppDB._insertMany() can NOT handle postgresql cases              | owner:alexy, open:False, id:1af9c7649fde2538a802a35f4951b43fc6e3fd07, time:1294135293.6
 Static table name(e.g. table=wpp_cfps) in WppDB methods          | owner:alexy, open:True, id:658b32d0a8f22879f06a97b0f6f932004bc60dfe, time:1294116003.46
 Offline.py -u should be integrated into db.py                    | owner:alexy, open:True, id:7b37976e445c9343b46a56e35f49f566aeb187a7, time:1294111209.5
+Cluster query error of SQL in getCIDcntMaxSeq()                  | owner:alexy, open:False, id:a4e654c37a09e315d3a39e41c8ab6151b4bbb805, time:1294278390.44
 SQL query returns clusters with different # of APs from input FP | owner:alexy, open:False, id:f29287e6d9d1865a6a858eb2b551687bfa5ea489, time:1294220620.24

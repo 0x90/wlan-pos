@@ -21,14 +21,14 @@ from db import WppDB
 
 
 def ClusterIncr(rmpfile):
-    print 'Incr Clustering ...'
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
-        num_cols = np.shape(rawrmp)[1]
+        num_rows,num_cols = np.shape(rawrmp)
     except csv.Error, e:
         sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
     # CSV format judgement.
+    print 'Incr Clustering -> %s FPs' % num_rows
     if num_cols == 14:
         idx_macs = 11; idx_rsss = 12
         idx_lat = 8; idx_lon = 9; idx_h = 10
@@ -71,7 +71,7 @@ def ClusterIncr(rmpfile):
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
         for idx, wlanmacs in enumerate(topaps):
-            print '%s %s %s' % ('-'*15, idx+1, '-'*15)
+            print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
             #     cidcntseq: all query results from db: cid,count(cid),max(seq).
             # cidcntseq_max: query results with max count(cid).
@@ -273,7 +273,6 @@ def ClusterAll(rmpfile):
         visible APs >=4: declustering with top4, top3(if top4 fails);
         visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
-    print 'All Clustering ...'
     # rmpin: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
     # fpp_specs(14col), fpp_rawdata_xls(16col)
     # IMEI      0, 3
@@ -297,9 +296,10 @@ def ClusterAll(rmpfile):
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
-        num_cols = np.shape(rawrmp)[1]
+        num_rows,num_cols = np.shape(rawrmp)
     except csv.Error, e:
         sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
+    print 'All Clustering -> %s FPs' % num_rows
     # CSV format judgement.
     if num_cols == 14:
         idx_macs = 11; idx_rsss = 12
@@ -523,12 +523,17 @@ def main():
                 tormp = True
                 rawfile = a
         elif o in ("-c", "--cluster"):
-            if not os.path.isfile(a):
-                print 'Radio map file NOT exist: %s' % a
-                sys.exit(99)
-            else: 
+            if not a.isdigit(): 
+                print '\ncluster type: %s should be an INTEGER!' % str(a)
+                usage(); sys.exit(99)
+            else:
+                # 1-All; 2-Incr.
+                cluster_type = string.atoi(a)
                 docluster = True
-                rmpfile = a
+                rmpfile = sys.argv[3]
+                if not os.path.isfile(rmpfile):
+                    print 'Raw data file NOT exist: %s!' % rmpfile
+                    sys.exit(99)
         elif o in ("-k", "--kml"):
             if not os.path.isfile(a):
                 print 'cfprints table file NOT exist: %s' % a
@@ -619,8 +624,9 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        ClusterAll(rmpfile)
-        #ClusterIncr(rmpfile)
+        if cluster_type == 1: ClusterAll(rmpfile)
+        elif cluster_type == 2: ClusterIncr(rmpfile)
+        else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:

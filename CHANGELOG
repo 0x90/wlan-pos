@@ -207,3 +207,5 @@
     1) Fix bug 1a: rewrite WppDB._insertMany() to handle loading more than one records using copy from stdin(StringIO) of postgresql.
     2) Refactor WppDB.load_table() to reuse _loadFile() & _insertMany() meta methods.
     3) Fix bug f: sql query returns the clusters with the same number of aps as the incr fp.
+    4) Fix bug a: Cluster query error of SQL in getCIDcntMaxSeq().
+    5) Auto cluster & table upload procedures: All|Incr clustering: offline.py -c 1|2; db.py all|inc.
