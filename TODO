@@ -1,0 +1,24 @@
+MUST
+Mod  Exception raised instead of being printed.
+mod  Modularize radio map related operation, including Fingerprint(), Cluster() (BECAREFUL:global vars!).
+--------
+add  2-level clustering for cluster and spid searching space reduction.
+mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
+add  Statistical chart or figure and data spreadsheet generation for offline data.
+fix  when online top4 RSS values correspond to more than 4 MACs.
+add  Increamental DB table records upload.
+add  ssid.py for 1-1 mapping MAC and essid name.
+mod  Trunk: Probabilistic approach with 2 branches cloned: 1)GUI; 2)Profiling.
+--------
+mod  Refine WLAN RSS raw data collection method(syscall rewriten with Cython,SWIG,etc).
+opt  data structure and related operation.
+
+MIGHT
+mod  Functionalize online procedure.
+mod  offline different key APs may correspond to same spid and physical address.
+add  Filtering out unreliable raw-scanned APs for radiomap to have 10 APs left(rule: descending order rss or min-correlation).
+
+LATER
+add  OO support.
+add  WLAN signal coverage level contour plot (referred to 'lewifi').
+
