@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<info>
+    <intro>保存用户的信息</intro>
+    <list id='001'>
+        <head>jiaoshe_15</head>
+        <name>小丸子</name>
+        <number>12345678</number>
+        <age>44</age>
+        <sex>女</sex>
+        <hobby>上网，打游戏</hobby>
+        <note>我是一个来自广东深圳的女十，我期待和喜爱运动的你成为朋友</note>
+    </list>
+    <list>
+        <head>jiaoshe_12</head>
+        <name>功夫老伯</name>
+        <number>aa33678</number>
+        <age>78</age>
+        <sex>男</sex>
+        <hobby>功夫</hobby>
+        <note>我是一个老伯，我期待和喜爱运动的你成为朋友</note>
+    </list>
+</info>

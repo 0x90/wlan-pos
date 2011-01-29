@@ -2,6 +2,7 @@
 # "Getting Started with WSGI" - Armin Ronacher, 2007
 # http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi
 import re
+import sys
 from cgi import parse_qs, escape
 # import the helper functions we need to get and render tracebacks
 from sys import exc_info
@@ -9,10 +10,11 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-try:
-    from elementtree import ElementTree as et
-except ImportError:
-    from xml.etree import ElementTree as et
+#try:
+#    from elementtree import ElementTree as et
+#except ImportError:
+#    from xml.etree import ElementTree as et
+from xml.dom import minidom
 from traceback import format_tb
 
 
@@ -165,14 +167,17 @@ def application(environ, start_response):
         print 'content_length: ', content_length
         content_length = int(content_length)
         stream = LimitedStream(inp, content_length)
-        xmlin = stream.readline()
-        print xmlin
-        indat = et.parse(StringIO(xmlin)).getroot()
-        interesting = [entry for entry in indat.findall('host')]
-        print interesting
-        for e in interesting:
-            print "%s" % (e.findtext('host'))
-    #import sys; sys.exit(0)
+        datin = stream.read().split('?>')[1] # del xml-doc declaration.
+        print datin
+        #sys.exit(0)
+        #xmlroot = et.parse(StringIO(datin)).getroot()
+        xmldoc = minidom.parseString(datin)
+        macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value
+        rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value
+        cell = ('mcc', 'mnc', 'lac', 'cid', 'rss')
+        cellinfo = [xmldoc.getElementsByTagName('CellInfo')[0].attributes[item].value for item in cell]
+        print 'macs: %s\nrsss: %s\ncell: %s' % (macs,rsss,cellinfo)
+        xmldoc.unlink() # release dom obj.
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
         match = re.search(regex, path)
