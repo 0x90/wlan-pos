@@ -12,7 +12,7 @@ import MySQLdb
 #from db import WppDB, tbl_field, tbl_forms
 from wlan import scanWLAN_OS#, scanWLAN_RE
 from geo import dist_km
-from config import db_config_my, tbl_names_my, sqls, \
+from config import db_config_my, wpp_tables_my, sqls, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 
 
@@ -120,7 +120,7 @@ def fixPos(len_wlan, wlan, verb=False):
     
     try:
         cursor = conn.cursor()
-        table = tbl_names_my['cidaps']
+        table = wpp_tables_my['cidaps']
         #print 'select from table: %s' % table
         cursor.execute(sqls['SQL_SELECT'] % ('*', table))
         cidaps = cursor.fetchall()
@@ -186,7 +186,7 @@ def fixPos(len_wlan, wlan, verb=False):
     if verb: print '='*35
     for cid,keyaps in keys:
         try: # Returns values identified by field name(or field order if no arg).
-            table = tbl_names_my['cfps']
+            table = wpp_tables_my['cfps']
             state_where = 'cid = %s' % cid
             if verb: print 'select %s from table %s' % (state_where, table)
             cursor.execute(sqls['SQL_SELECT'] % ('*' , "%s where %s"%(table,state_where)))
