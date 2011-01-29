@@ -13,8 +13,8 @@ from pprint import pprint,PrettyPrinter
 from wlan import scanWLAN_RE
 from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
-        db_config_my, tbl_names_my, tbl_forms_my, tbl_field_my, \
-        tbl_names, tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my, \
+        wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
 from kml import genKML
 from db import WppDB
@@ -43,7 +43,6 @@ def ClusterIncr(rmpfile):
         
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('\nSelecting MACs for clustering ... ')
-    #print
     topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
     toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
     joinaps = []
@@ -63,13 +62,13 @@ def ClusterIncr(rmpfile):
     print 
     # Support multi DB incr-clustering.
     dbips = ('local_pg', )
-    tbl_names['wpp_clusteridaps']='wpp_clusteridaps_incr'
-    tbl_names['wpp_cfps']='wpp_cfps_incr'
+    wpp_tables['wpp_clusteridaps']='wpp_clusteridaps_incr'
+    wpp_tables['wpp_cfps']='wpp_cfps_incr'
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         print '%s %s %s' % ('='*15, svrip, '='*15)
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-                tbl_names=tbl_names,tbl_field=tbl_field,tbl_forms=tbl_forms)
+                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
         for idx, wlanmacs in enumerate(topaps):
             print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
@@ -92,6 +91,7 @@ def ClusterIncr(rmpfile):
                 idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
                 #print idx_belong
                 if sum(idx_belong):
+                    # cids_belong: [clusterid, number of keyaps]
                     cids_belong = cidcntseq_max[idx_belong,[0,2]]
                     #print cids_belong
                     cid = cids_belong[0]
@@ -101,14 +101,13 @@ def ClusterIncr(rmpfile):
             if not found_cluster:
                 print 'Failed!'
                 # insert into cidaps/cfps with a new clusterid.
-                cid = wppdb.addCluster(wlanmacs)
-                wppdb.addFps(cid=cid, fps=[fps])
+                new_cid = wppdb.addCluster(wlanmacs)
+                wppdb.addFps(cid=new_cid, fps=[fps])
             else:
                 print 'Found: (cid: %d)' % cid
                 # insert fingerprints into the same cluserid in table cfps.
                 wppdb.addFps(cid=cid, fps=[fps])
             print
-
         print '...Done'
         wppdb.close()
 
@@ -605,7 +604,7 @@ def main():
         try:
             # Returns values identified by field name(or field order if no arg).
             cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-            for table in tbl_names_my:
+            for table in wpp_tables_my:
                 print 'table: %s' % table
                 cursor.execute(sqls['SQL_DROP_MY'] % table)
                 cursor.execute(sqls['SQL_CREATETB_MY'] % (table, tbl_forms_my[table]))

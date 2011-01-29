@@ -15,11 +15,16 @@ dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 dsn_local_pg  = "host=localhost dbname=wppdb user=yxt password=yxt port=5433"
 dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
+dsn_vance_pg = "host=192.168.109.49 dbname=wppdb user=mwlan password=mwlan_pw port=5432"
 dbtype_ora = 'oracle' 
 dbtype_pg  = 'postgresql'
 dbtype_my  = 'mysql'
 dbsvrs = {'192.168.19.132':{
             'dsn':dsn_vance_pg_mic,
+            'dbtype':dbtype_pg,
+           },
+          '192.168.109.49':{
+            'dsn':dsn_vance_pg,
             'dbtype':dbtype_pg,
            },
           '192.168.35.202':{
@@ -41,7 +46,7 @@ db_config_my = {
             'password' : 'pos',
               'dbname' : 'wlanpos' }
 # SQL table related data structs.
-tbl_names_my = ( 'cidaps', 'cfps' )
+wpp_tables_my = ( 'cidaps', 'cfps' )
 tbl_field_my = { 'cidaps':'(cid, keyaps, seq)',
                    'cfps':'(cid, lat, lon, height, rsss, cfps_time)' }
 tbl_forms_my = {'cidaps':""" (
@@ -60,19 +65,23 @@ tbl_forms_my = {'cidaps':""" (
                    INDEX icid (cid)
                 )""" }
 # { table_name: table_instance }
-tbl_names = { 'wpp_clusteridaps':'wpp_clusteridaps',
+wpp_tables = { 'wpp_clusteridaps':'wpp_clusteridaps',
                       'wpp_cfps':'wpp_cfps' }
-tbl_field = { 'wpp_clusteridaps':'(clusterid, keyaps, seq)',
-                      'wpp_cfps':'(clusterid, lat, lon, height, rsss, cfps_time)',
-                'wpp_uprecsinfo':'(spid,servid,time,imsi,imei,useragent,mcc,mnc,lac,cellid,cellrss,\
-                                    lat,lon,height,wlanidentifier,wlanmatcher)',
-                        'tsttbl':'(clusterid, keyaps, seq)' }
-tbl_idx =   { 'wpp_clusteridaps':['clusterid','keyaps'], #{table_name:{'field_name'}}
-                      'wpp_cfps':['clusterid'],
-                        'tsttbl':['clusterid']}
+# NOTE: tbl_fields dont contain PRIMAY key or SERIAL columns, like *id* in wpp_uprecsinfo.
+tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
+                      'wpp_cfps':('clusterid', 'lat', 'lon', 'height', 'rsss', 'cfps_time'),
+                'wpp_uprecsinfo':('spid','servid','time','imsi','imei','useragent',
+                                  'mcc','mnc','lac','cellid','cellrss',
+                                  'lat','lon','height','wlanidentifier','wlanmatcher'),
+                        'tsttbl':('clusterid', 'keyaps', 'seq') }
+tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
+                      'wpp_cfps':('clusterid',),
+                'wpp_uprecsinfo':(),
+                        'tsttbl':('clusterid',)}
 tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
-                        'cidaps':'tbl/cidaps.tbl',
                       'wpp_cfps':'tbl/cfprints.tbl',
+                'wpp_uprecsinfo':'tbl/uprecs.tbl',
+                        'cidaps':'tbl/cidaps.tbl',
                           'cfps':'tbl/cfprints.tbl',
                         'tsttbl':'tbl/tsttbl.tbl' }
 tbl_forms = { 'oracle':{
@@ -114,25 +123,25 @@ tbl_forms = { 'oracle':{
                      clusterid INT NOT NULL, 
                         keyaps VARCHAR(360) NOT NULL,
                            seq INT NOT NULL)""", 
-                'wpp_cfps':""" (  
+                'wpp_cfps':""" (
                      clusterid INT NOT NULL,
                            lat NUMERIC(9,6) NOT NULL,
                            lon NUMERIC(9,6) NOT NULL,
                         height NUMERIC(5,1) DEFAULT 0,
                           rsss VARCHAR(100) NOT NULL,
                      cfps_time VARCHAR(20))""",
-                'wpp_uprecsinfo':""" (  
-                            id INT PRIMARY KEY,	
+                'wpp_uprecsinfo':""" (
+                            id SERIAL,
                           spid INT,
                         servid INT,
                           time VARCHAR(20),
                           imsi VARCHAR(20),
                           imei VARCHAR(20),
                      useragent VARCHAR(300),
-                           mcc INT,
-                           mnc INT,
-                           lac INT,
-                        cellid INT,
+                           mcc INT DEFAULT 0,
+                           mnc INT DEFAULT 0,
+                           lac INT DEFAULT 0,
+                        cellid INT DEFAULT 0,
                        cellrss VARCHAR(5),
                            lat NUMERIC(9,6),
                            lon NUMERIC(9,6),
