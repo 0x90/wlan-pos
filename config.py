@@ -46,7 +46,9 @@ db_config_my = {
             'password' : 'pos',
               'dbname' : 'wlanpos' }
 # SQL table related data structs.
-wpp_tables_my = ( 'cidaps', 'cfps' )
+wpp_tables_my = { 'cidaps' : 'cidaps', 
+                    'cfps' : 'cfps'}
+#wpp_tables_my = ( 'cidaps', 'cfps' )
 tbl_field_my = { 'cidaps':'(cid, keyaps, seq)',
                    'cfps':'(cid, lat, lon, height, rsss, cfps_time)' }
 tbl_forms_my = {'cidaps':""" (

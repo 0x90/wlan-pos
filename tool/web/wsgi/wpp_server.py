@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-# "Getting Started with WSGI" - Armin Ronacher, 2007
-# http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi
+# "Getting Started with WSGI" - Armin Ronacher, 2007, 
+# http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi.
+
 import re
 import sys
-from cgi import parse_qs, escape
+import cgi
+import time
 # import the helper functions we need to get and render tracebacks
-from sys import exc_info
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -15,7 +16,15 @@ except ImportError:
 #except ImportError:
 #    from xml.etree import ElementTree as et
 from xml.dom import minidom
-from traceback import format_tb
+import traceback as tb
+import numpy as np
+
+sys.path.append('/home/alexy/dev/src/wlan-pos/')
+sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
+import geo
+import online as wlanpos
+import config as cfg
+from config import termtxtcolors as colors
 
 
 # quick start with flask
@@ -28,9 +37,9 @@ from traceback import format_tb
 
 # foobar e.g 1
 #def hello_world(environ, start_response):
-#    parameters = parse_qs(environ.get('QUERY_STRING', ''))
+#    parameters = cgi.parse_qs(environ.get('QUERY_STRING', ''))
 #    if 'subject' in parameters:
-#        subject = escape(parameters['subject'][0])
+#        subject = cgi.escape(parameters['subject'][0])
 #    else:
 #        subject = 'World'
 #    start_response('200 OK', [('Content-Type', 'text/html')])
@@ -55,9 +64,9 @@ class ExceptionMiddleware(object):
         # if an exception occours we get the exception information
         # and prepare a traceback we can render
         except:
-            e_type, e_value, tb = exc_info()
+            e_type, e_value, tb = sys.exc_info()
             traceback = ['Traceback (most recent call last):']
-            traceback += format_tb(tb)
+            traceback += tb.format_tb(tb)
             traceback.append('%s: %s' % (e_type.__name__, e_value))
             # we might have not a stated response by now. try
             # to start one with the status code 500 or ignore an
@@ -139,7 +148,7 @@ def hello(environ, start_response):
     # get the name from the url if it was specified there.
     args = environ['myapp.url_args']
     if args:
-        subject = escape(args[0])
+        subject = cgi.escape(args[0])
     else:
         subject = 'World'
     start_response('200 OK', [('Content-Type', 'text/html')])
@@ -160,24 +169,20 @@ def application(environ, start_response):
 
     If nothing matches call the `not_found` function.
     """
-    #import pprint as pp
-    inp = environ.get('wsgi.input','')
-    content_length = environ.get('CONTENT_LENGTH', 10)
-    if content_length:
-        print 'content_length: ', content_length
-        content_length = int(content_length)
-        stream = LimitedStream(inp, content_length)
-        datin = stream.read().split('?>')[1] # del xml-doc declaration.
-        print datin
-        #sys.exit(0)
-        #xmlroot = et.parse(StringIO(datin)).getroot()
-        xmldoc = minidom.parseString(datin)
-        macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value
-        rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value
-        cell = ('mcc', 'mnc', 'lac', 'cid', 'rss')
-        cellinfo = [xmldoc.getElementsByTagName('CellInfo')[0].attributes[item].value for item in cell]
-        print 'macs: %s\nrsss: %s\ncell: %s' % (macs,rsss,cellinfo)
-        xmldoc.unlink() # release dom obj.
+    # test code for speed.
+    print '-->', time.strftime('%Y%m%d-%H%M%S')
+    #start_response('200 OK', [('Content-Type', 'application/xhtml+xml')])
+    #lat, lon, ee = [39.895167306122453, 116.34509951020408, 24.660629537376867]
+    #pos_resp="""<?xml version="1.0" encoding="UTF-8"?>
+    #    <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
+    #    <PosRes>
+    #            <Result ErrCode="100" ErrDesc="OK"/>
+    #            <Coord lat="%.6f" lon="%.6f" h="0.000000"/>
+    #            <ErrRange val="%.2f"/>
+    #    </PosRes>""" % (lat, lon, ee)
+    #print pos_resp
+    #print time.strftime('%Y%m%d-%H%M%S')
+    #return [pos_resp]
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
         match = re.search(regex, path)
@@ -186,11 +191,73 @@ def application(environ, start_response):
             return callback(environ, start_response)
     return not_found(environ, start_response)
 
+def wpp_handler(environ, start_response):
+    """WPP posreq handler"""
+    # get the name from the url if it was specified there.
+    args = environ['myapp.url_args']
+    if args:
+        subject = cgi.escape(args[0])
+    else:
+        subject = 'distribution'
+    print '-'*60
+    print 'Requesting wlan/%s serivce ...' % subject
+    inp = environ.get('wsgi.input','')
+    content_length = environ.get('CONTENT_LENGTH', 10)
+    if content_length:
+        print 'content_length: ', content_length
+        content_length = int(content_length)
+        stream = LimitedStream(inp, content_length)
+        datin = stream.read().split('dtd">')
+        if len(datin) == 1: # del xml-doc declaration.
+            datin = stream.read().split('?>')
+            if len(datin) == 1: datin = datin[0]
+            else: datin = datin[1] 
+        else: datin = datin[1] # del xml-doc declaration.
+        print datin
+        xmldoc = minidom.parseString(datin)
+        macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
+        rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value.split('|')
+        macs = np.array(macs)
+        rsss = np.array(rsss)
+        #print 'macs: %s\nrsss: %s' % (macs,rsss)
+        xmldoc.unlink() # release dom obj.
+        XHTML_IMT = "application/xhtml+xml"
+        start_response('200 OK', [('Content-Type', XHTML_IMT)])
+        # fix postion.
+        num_visAPs = len(macs)
+        INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
+        idxs_max = np.argsort(rsss)[:INTERSET]
+        mr = np.vstack((macs, rsss))[:,idxs_max]
+        loc = wlanpos.fixPos(INTERSET, mr, verb=False)
+        #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
+        # write PosRes xml.
+        lat_fail=lon_fail=ee_fail=0; errinfo_fail='PosFail'; errcode_fail='104'
+        errinfo='OK'; errcode='100'
+        if loc:
+            print loc
+            lat, lon, ee = loc
+        else:
+            lat = lat_fail
+            lon = lon_fail
+            ee = ee_fail
+        pos_resp="""<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
+        <PosRes>
+                <Result ErrCode="%s" ErrDesc="%s"/>
+                <Coord lat="%.6f" lon="%.6f" h="0.000000"/>
+                <ErrRange val="%.2f"/>
+        </PosRes>""" % (errcode, errinfo, lat, lon, ee)
+        print '-->', time.strftime('%Y%m%d-%H%M%S')
+        return [ pos_resp ]
+    else:
+        return not_found(environ, start_response)
+
 # map urls to functions
 urls = [
-    (r'^$', index),
-    (r'hello/?$', hello),
-    (r'hello/(.+)$', hello)
+    #(r'^$', index),
+    (r'wlan/(.+)$', wpp_handler),
+    #(r'hello/?$', hello),
+    #(r'hello/(.+)$', hello),
 ]
 
 
@@ -201,5 +268,10 @@ if __name__ == "__main__":
     #application = ExceptionMiddleware(application)
 
     from wsgiref.simple_server import make_server
-    srv = make_server('localhost', 18080, application)
-    srv.serve_forever()
+    from evaloc import getIPaddr
+    ipaddr = getIPaddr('wlan0')['wlan0']
+    port = 18080
+    httpd = make_server(ipaddr, port, application)
+    print 'Starting up HTTP server on %s:%d ...' % (ipaddr, port)
+    # Respond to requests until process is killed
+    httpd.serve_forever()
