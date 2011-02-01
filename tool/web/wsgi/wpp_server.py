@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # "Getting Started with WSGI" - Armin Ronacher, 2007, 
 # http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi.
-
 import re
 import sys
 import cgi
@@ -262,6 +261,16 @@ urls = [
 
 
 if __name__ == "__main__":
+    try:
+        import psyco
+        psyco.bind(wpp_handler)
+        psyco.bind(application)
+        #psyco.full()
+        #psyco.log()
+        #psyco.profile(0.3)
+    except ImportError:
+        pass
+
     #app.run()
 
     # middleware
