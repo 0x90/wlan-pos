@@ -54,9 +54,8 @@ if __name__ == "__main__":
     port = '18080'
     path_info = 'wlan/distribution'
     url_wpp = 'http://%s:%s/%s' % (ipaddr, port, path_info)
-    f = urllib2.urlopen(
-            url = url_wpp,
-            data = req_xml
-            #data = urllib.urlencode(data)
-            )
-    print f.read()
+
+    #req = urllib2.Request(url=url_wpp, data=urllib.urlencode(data))
+    req = urllib2.Request(url=url_wpp, data=req_xml)
+    resp = urllib2.urlopen(req)
+    print resp.code, resp.read()
