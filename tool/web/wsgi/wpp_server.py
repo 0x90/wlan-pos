@@ -15,15 +15,15 @@ except ImportError:
 #except ImportError:
 #    from xml.etree import ElementTree as et
 from xml.dom import minidom
+from wsgiref.simple_server import make_server
 import traceback as tb
 import numpy as np
 
 sys.path.append('/home/alexy/dev/src/wlan-pos/')
 sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
-import geo
 import online as wlanpos
 import config as cfg
-from config import termtxtcolors as colors
+from evaloc import getIPaddr
 
 
 # quick start with flask
@@ -260,6 +260,17 @@ urls = [
 ]
 
 
+class PimpedWSGIServer(simple_server.WSGIServer):
+    # To increase the backlog
+    request_queue_size = 500
+
+ 
+class PimpedHandler(simple_server.WSGIRequestHandler):
+    # to disable logging
+    def log_message(self, *args):
+        pass
+
+
 if __name__ == "__main__":
     try:
         import psyco
@@ -276,11 +287,11 @@ if __name__ == "__main__":
     # middleware
     #application = ExceptionMiddleware(application)
 
-    from wsgiref.simple_server import make_server
-    from evaloc import getIPaddr
     ipaddr = getIPaddr('wlan0')['wlan0']
     port = 18080
-    httpd = make_server(ipaddr, port, application)
+    #httpd = make_server(ipaddr, port, application)
+    httpd = PimpedWSGIServer(('',port), PimpedHandler)
+    httpd.set_app(application)
     print 'Starting up HTTP server on %s:%d ...' % (ipaddr, port)
     # Respond to requests until process is killed
     httpd.serve_forever()
