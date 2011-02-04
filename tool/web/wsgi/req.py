@@ -50,10 +50,15 @@ resp_xml = """
 
 if __name__ == "__main__":
     from evaloc import getIPaddr
-    ipaddr = getIPaddr('wlan0')['wlan0']
+    ipaddr = getIPaddr()
+    if 'wlan0' in ipaddr:
+        ipaddr = ipaddr['wlan0']
+    else:
+        ipaddr = ipaddr['eth0']
     port = '18080'
     path_info = 'wlan/distribution'
     url_wpp = 'http://%s:%s/%s' % (ipaddr, port, path_info)
+    print 'Requesting %s from %s' % (url_wpp, ipaddr)
 
     #req = urllib2.Request(url=url_wpp, data=urllib.urlencode(data))
     req = urllib2.Request(url=url_wpp, data=req_xml)

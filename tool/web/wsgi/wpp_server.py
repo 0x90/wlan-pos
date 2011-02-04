@@ -15,12 +15,14 @@ except ImportError:
 #except ImportError:
 #    from xml.etree import ElementTree as et
 from xml.dom import minidom
-from wsgiref.simple_server import make_server
+from wsgiref import simple_server
 import traceback as tb
 import numpy as np
 
-sys.path.append('/home/alexy/dev/src/wlan-pos/')
-sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
+path_repo = '/home/alexy/dev/src/wlan-pos/'
+sys.path.append(path_repo)
+sys.path.append(path_repo + 'tool')
+#sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
 import online as wlanpos
 import config as cfg
 from evaloc import getIPaddr
@@ -198,17 +200,17 @@ def wpp_handler(environ, start_response):
         subject = cgi.escape(args[0])
     else:
         subject = 'distribution'
-    print '-'*60
     print 'Requesting wlan/%s serivce ...' % subject
     inp = environ.get('wsgi.input','')
     content_length = environ.get('CONTENT_LENGTH', 10)
     if content_length:
         print 'content_length: ', content_length
-        content_length = int(content_length)
-        stream = LimitedStream(inp, content_length)
-        datin = stream.read().split('dtd">')
+        stream = LimitedStream(inp, int(content_length))
+        datin = stream.read()
+        if not datin: sys.exit(99)
+        datin = datin.split('dtd">')
         if len(datin) == 1: # del xml-doc declaration.
-            datin = stream.read().split('?>')
+            datin = datin[0].split('?>')
             if len(datin) == 1: datin = datin[0]
             else: datin = datin[1] 
         else: datin = datin[1] # del xml-doc declaration.
@@ -247,6 +249,7 @@ def wpp_handler(environ, start_response):
                 <ErrRange val="%.2f"/>
         </PosRes>""" % (errcode, errinfo, lat, lon, ee)
         print '-->', time.strftime('%Y%m%d-%H%M%S')
+        print '-'*60
         return [ pos_resp ]
     else:
         return not_found(environ, start_response)
@@ -287,11 +290,15 @@ if __name__ == "__main__":
     # middleware
     #application = ExceptionMiddleware(application)
 
-    ipaddr = getIPaddr('wlan0')['wlan0']
     port = 18080
-    #httpd = make_server(ipaddr, port, application)
     httpd = PimpedWSGIServer(('',port), PimpedHandler)
     httpd.set_app(application)
+    ipaddr = getIPaddr()
+    if 'wlan0' in ipaddr:
+        ipaddr = ipaddr['wlan0']
+    else:
+        ipaddr = ipaddr['eth0']
+    #httpd = simple_server.make_server(ipaddr, port, application)
     print 'Starting up HTTP server on %s:%d ...' % (ipaddr, port)
     # Respond to requests until process is killed
     httpd.serve_forever()

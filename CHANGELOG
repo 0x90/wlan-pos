@@ -211,3 +211,6 @@
     5) Auto cluster & table upload procedures: All|Incr clustering: offline.py -c 1|2; db.py all|inc.
 2011-01-31
     1) Implement WSGI server for WPP service, supporting WPP interface API.
+2011-02-04
+    1) Fix bug when WPP req msg has no 'dtd>' line in tool.web.wsgi.wpp_server.
+    2) Add Apache Benchmark script for cocurrence test in tool/cocur.
