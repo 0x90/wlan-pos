@@ -291,8 +291,22 @@ if __name__ == "__main__":
     #application = ExceptionMiddleware(application)
 
     port = 18080
-    httpd = PimpedWSGIServer(('',port), PimpedHandler)
-    httpd.set_app(application)
+
+    # wsgiref server from python stdlib.
+    #httpd = PimpedWSGIServer(('',port), PimpedHandler)
+    #httpd.set_app(application)
+    # Gevent server.
+    from gevent.wsgi import WSGIServer
+    httpd = WSGIServer(('', port), application, spawn=None)
+    httpd.backlog = 256
+    # Meinheld server.
+    #from meinheld import server
+    #server.listen(("0.0.0.0", 18080))
+    # Bjoern server.
+    #import bjoern
+    #bjoern.listen(application, '0.0.0.0', port)
+
+    # Get IP address.
     ipaddr = getIPaddr()
     if 'wlan0' in ipaddr:
         ipaddr = ipaddr['wlan0']
@@ -300,5 +314,8 @@ if __name__ == "__main__":
         ipaddr = ipaddr['eth0']
     #httpd = simple_server.make_server(ipaddr, port, application)
     print 'Starting up HTTP server on %s:%d ...' % (ipaddr, port)
+
     # Respond to requests until process is killed
-    httpd.serve_forever()
+    httpd.serve_forever() # wsgiref, Gevent
+    #bjoern.run() # bjoern
+    #server.run(application) # Meinheld
