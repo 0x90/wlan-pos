@@ -195,12 +195,12 @@ def application(environ, start_response):
 def wpp_handler(environ, start_response):
     """WPP posreq handler"""
     # get the name from the url if it was specified there.
-    args = environ['myapp.url_args']
-    if args:
-        subject = cgi.escape(args[0])
-    else:
-        subject = 'distribution'
-    print 'Requesting wlan/%s serivce ...' % subject
+    #args = environ['myapp.url_args']
+    #if args:
+    #    subject = cgi.escape(args[0])
+    #else:
+    #    subject = 'distribution'
+    #print 'Requesting wlan/%s serivce ...' % subject
     inp = environ.get('wsgi.input','')
     content_length = environ.get('CONTENT_LENGTH', 10)
     if content_length:
@@ -294,18 +294,31 @@ if __name__ == "__main__":
 
     # wsgiref server from python stdlib.
     #httpd = PimpedWSGIServer(('',port), PimpedHandler)
-    #httpd.set_app(application)
+    #httpd.set_app(wpp_handler)
     # Gevent server.
     from gevent.wsgi import WSGIServer
-    httpd = WSGIServer(('', port), application, spawn=None)
+    httpd = WSGIServer(('', port), wpp_handler, spawn=None)
     httpd.backlog = 256
     # Meinheld server.
     #from meinheld import server
     #server.listen(("0.0.0.0", 18080))
     # Bjoern server.
     #import bjoern
-    #bjoern.listen(application, '0.0.0.0', port)
+    #bjoern.listen(wpp_handler, '0.0.0.0', port)
+    # FIXME: Fapws4 server.
+    #import fapws._evwsgi as evwsgi
+    #from fapws import base
+    #evwsgi.start('0.0.0.0', '18080') 
+    #evwsgi.set_base_module(base)
+    #evwsgi.wsgi_cb(('/wlan', wpp_handler))
+    #evwsgi.set_debug(0)	   
+    # Gunicorn 
+    # $gunicorn -b :18080 -w 5 wpp_server:wpp_handler
+    # $gunicorn -b :18080 -w 5 -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
+    # $gunicorn -b :18080 -w 5 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
+    # $gunicorn -b :18080 -w 5 -k "egg:gevent#gunicorn_worker" wpp_server:wpp_handler
 
+    
     # Get IP address.
     ipaddr = getIPaddr()
     if 'wlan0' in ipaddr:
@@ -318,4 +331,5 @@ if __name__ == "__main__":
     # Respond to requests until process is killed
     httpd.serve_forever() # wsgiref, Gevent
     #bjoern.run() # bjoern
-    #server.run(application) # Meinheld
+    #server.run(wpp_handler) # Meinheld
+    #evwsgi.run() # Fapws3
