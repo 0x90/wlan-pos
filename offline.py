@@ -62,8 +62,8 @@ def ClusterIncr(rmpfile):
     print 
     # Support multi DB incr-clustering.
     dbips = ('local_pg', )
-    wpp_tables['wpp_clusteridaps']='wpp_clusteridaps_incr'
-    wpp_tables['wpp_cfps']='wpp_cfps_incr'
+    wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
+    wpp_tables['wpp_cfps'] = 'wpp_cfps'
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         print '%s %s %s' % ('='*15, svrip, '='*15)
@@ -469,7 +469,7 @@ usage:
     <sudo> offline <option> <infile>
 option:
     -a --aio [NOT avail]   :  All-in-one offline processing.
-    -c --cluster=<rmpfile> :  Fingerprints clustering based on max-rss-APs.
+    -c --cluster=<type id> :  Fingerprints clustering, type_id: 1-All,2-Incr.
     -d --db=<dbfiles>      :  Specify the db files to upload.
     -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
     -h --help              :  Show this help.
@@ -623,7 +623,7 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        if cluster_type == 1: ClusterAll(rmpfile)
+        if cluster_type   == 1: ClusterAll(rmpfile)
         elif cluster_type == 2: ClusterIncr(rmpfile)
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 

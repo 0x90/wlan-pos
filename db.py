@@ -90,19 +90,19 @@ class WppDB(object):
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
             #
-            #print 'TRUNCATE TABLE: %s' % table_inst
-            #self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
+            print 'TRUNCATE TABLE: %s' % table_inst
+            self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
             #
             #print 'DROP TABLE: %s' % table_inst
             #self.cur.execute(self.sqls['SQL_DROPTB'] % table_inst)
-            print 'CREATE TABLE: %s' % table_inst
-            self.cur.execute(self.sqls['SQL_CREATETB'] % \
-                    (table_inst, self.tbl_forms[table_name]))
+            #print 'CREATE TABLE: %s' % table_inst
+            #self.cur.execute(self.sqls['SQL_CREATETB'] % \
+            #        (table_inst, self.tbl_forms[table_name]))
             # Load the csv file.
             self._loadFile(csvfile=csvfile, table_name=table_name)
             # Update the number of records.
             self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
-            print 'Total %s rows in %s now.' % (self.cur.fetchone()[0], table_inst)
+            print 'Total [%s] rows in |%s|' % (self.cur.fetchone()[0], table_inst)
             # Update indexs.
             if self.tbl_idx:
                 for col_name in self.tbl_idx[table_name]:
@@ -215,7 +215,7 @@ class WppDB(object):
                 (table_inst, strWhere, table_inst, num_macs))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
-        #print sql
+        print sql
         self.cur.execute(sql)
         return self.cur.fetchall()
 
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(0)
 
-    dbips = ('192.168.109.49', )
+    dbips = ('local_pg', )
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         #print 'Loading data to DB svr: %s' % svrip

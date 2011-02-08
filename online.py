@@ -12,7 +12,9 @@ import MySQLdb
 #from db import WppDB, tbl_field, tbl_forms
 from wlan import scanWLAN_OS#, scanWLAN_RE
 from geo import dist_km
-from config import db_config_my, wpp_tables_my, sqls, \
+from db import WppDB
+from config import db_config_my, wpp_tables_my, sqls, dbsvrs, \
+        wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
 
 
@@ -83,7 +85,7 @@ def getWLAN(fake=0):
     return (INTERSET, scannedwlan)
 
 
-def fixPos(len_wlan, wlan, verb=False):
+def fixPos_old(len_wlan, wlan, verb=False):
     """
     Returns the online fixed user location in lat/lon format.
     
@@ -163,22 +165,6 @@ def fixPos(len_wlan, wlan, verb=False):
     idxs_maxNOInter = idxs_sortedNOInter[idx_start:]
     keys = [ [cids[idx], topaps[idx]] for idx in idxs_maxNOInter ]
     if verb: pp.pprint(keys)
-
-    # online locationing with better db table structure support.
-    #dsn_local_ora = "yxt/yxt@localhost:1521/XE"; dbtype_ora = 'oracle'
-    #wppdb = WppDB(dsn=dsn_local_ora, dbtype=dbtype_ora, sqls=sqls, 
-    #        tbl_field=tbl_field, tbl_forms=tbl_forms['oracle'])
-    ## cidcnts: cid and corresponding intersect size. e.g. [(1,2),(7,1)]
-    #cidcnts = wppdb.getCIDcount(wlan[0])
-    #if not cidcnts:
-    #    sys.exit('NO overlapping cluster found! Fingerprinting TERMINATED!')
-    #print cidcnts
-    #cnts_db = [ cnt for cid,cnt in cidcnts ]
-    #cids_db = [ cid for cid,cnt in cidcnts ]
-    #cnt_max = cnts_db.count(cnts_db[0])
-    #cids_max = cids_db[:cnt_max]
-    #print cids_max
-    
 
     # fps_cand: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     all_pos_lenrss = []
@@ -330,6 +316,216 @@ def fixPos(len_wlan, wlan, verb=False):
 
     return ret
 
+
+def fixPos(len_wlan, wlan, verb=False):
+    """
+    Returns the online fixed user location in lat/lon format.
+    
+    Parameters
+    ----------
+    len_wlan: int, mandatory
+        Number of online visible WLAN APs.
+    wlan: np.array, string list, mandatory
+        Array of MAC/RSS for online visible APs.
+        e.g. [['00:15:70:9E:91:60' '00:15:70:9E:91:61' '00:15:70:9E:91:62' '00:15:70:9E:6C:6C']
+              ['-55' '-56' '-57' '-68']]. 
+    verb: verbose mode option, default: False
+        More debugging info if enabled(True).
+    
+    Returns
+    -------
+    posfix: np.array, float
+        Final fixed location(lat, lon).
+        e.g. [ 39.922942  116.472673 ]
+    """
+    interpart_offline = False; interpart_online = False
+    if verb: pp = PrettyPrinter(indent=2)
+
+    # keys: ID and key APs of matched cluster(s) with max intersect APs.
+
+    dbip = 'local_pg'
+    dbsvr = dbsvrs[dbip]
+    wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+            tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+    # return max counted CID and its key AP(s):macs|rsss.
+    result = wppdb.getMaxcntCIDMACs(macs=wlan[0])
+    found_cluster = False
+    #if cidcntseq:
+    #    # find out the most queried cluster /w the same AP count:
+    #    # cid count = max seq
+    #    cidcntseq = np.array(cidcntseq)
+    #    cidcnt = cidcntseq[:,1]
+    #    print cidcntseq
+    #    idxs_sortdesc = np.argsort(cidcnt).tolist()
+    #    idxs_sortdesc.reverse()
+    #    print idxs_sortdesc
+    #    cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+    #    cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+    #    print cidcntseq_max
+    #    idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+    #    print idx_belong
+    #    if sum(idx_belong):
+    #        # cids_belong: [clusterid, number of keyaps]
+    #        cids_belong = cidcntseq_max[idx_belong,[0,2]]
+    #        print cids_belong
+    #        cid = cids_belong[0]
+    #        if cids_belong[1] == len(wlanmacs):
+    #            found_cluster = True
+    sys.stdout.write('Cluster searching ... ')
+    if not found_cluster:
+        print 'Failed!'
+    else:
+        print 'Found: (cid: %d)' % cid
+    wppdb.close()
+    sys.exit(0)
+
+    # Evaluation|sort of similarity between online FP & radio map FP.
+    # fps_cand: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
+    all_pos_lenrss = []
+    fps_cand = []; sums_cand = []
+    if verb: print '='*35
+    for cid,keyaps in keys:
+        try: # Returns values identified by field name(or field order if no arg).
+            table = wpp_tables_my['cfps']
+            state_where = 'cid = %s' % cid
+            if verb: print 'select %s from table %s' % (state_where, table)
+            cursor.execute(sqls['SQL_SELECT'] % ('*' , "%s where %s"%(table,state_where)))
+            keycfps = cursor.fetchall()
+        except MySQLdb.Error,e:
+            print "Error(%d): %s" % (e.args[0], e.args[1])
+            cursor.close(); conn.close()
+            sys.exit(99)
+        if verb:
+            print ' keyaps: %s' % keyaps
+            if len(keycfps) == 1: print 'keycfps: %s' % keycfps
+            else: print 'keycfps: '; pp.pprint(keycfps)
+        pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
+        # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
+        if len(keys) == cursor.rowcount == 1:
+            fps_cand = [ list(keycfps[0]) ] 
+            break
+        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
+        keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
+        for idx,pos in enumerate(pos_lenrss):
+            pos_lenrss[idx].append(len(keyrsss[idx]))
+        all_pos_lenrss.extend(pos_lenrss)
+        # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
+        if interpart_offline:
+            if interpart_online:
+                wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
+                idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
+                wl = wl[:,idxs_inters]
+            else: wl = wlan
+        else: wl = wlan
+        idxs_taken = [ keyaps.index(x) for x in wl[0] ]
+        keyrsss = keyrsss.take(idxs_taken, axis=1)
+        mrsss = wl[1].astype(int)
+        # Euclidean dist solving and sorting.
+        sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
+        fps_cand.extend( keycfps )
+        sums_cand.extend( sum_rss )
+        if verb:
+            print 'sum_rss: %s' % sum_rss
+            print '-'*35
+
+    # Location estimation.
+    if len(fps_cand) > 1:
+        # KNN
+        # lst_set_sums_cand: list format for set of sums_cand.
+        # bound_dist: distance boundary for K-min distances.
+        lst_set_sums_cand =  np.array(list(set(sums_cand)))
+        idx_bound_dist = np.argsort(lst_set_sums_cand)[:KNN][-1]
+        bound_dist = lst_set_sums_cand[idx_bound_dist]
+        idx_sums_sort = np.argsort(sums_cand)
+
+        sums_cand = np.array(sums_cand)
+        fps_cand = np.array(fps_cand)
+
+        sums_cand_sort = sums_cand[idx_sums_sort]
+        idx_bound_fp = np.searchsorted(sums_cand_sort, bound_dist, 'right')
+        idx_sums_sort_bound = idx_sums_sort[:idx_bound_fp]
+        #idxs_kmin = np.argsort(min_sums)[:KNN]
+        sorted_sums = sums_cand[idx_sums_sort_bound]
+        sorted_fps = fps_cand[idx_sums_sort_bound]
+        if verb:
+            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_fps)
+        # DKNN
+        if sorted_sums[0]: 
+            boundry = sorted_sums[0]*KWIN
+        else: 
+            if sorted_sums[1]:
+                boundry = KWIN
+                # What the hell are the following two lines doing here!
+                #idx_zero_bound = np.searchsorted(sorted_sums, 0, side='right')
+                #sorted_sums[:idx_zero_bound] = boundry / (idx_zero_bound + .5)
+            else: boundry = 0
+        idx_dkmin = np.searchsorted(sorted_sums, boundry, side='right')
+        dknn_sums = sorted_sums[:idx_dkmin].tolist()
+        dknn_fps = sorted_fps[:idx_dkmin]
+        if verb: print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_fps)
+        # Weighted_AVG_DKNN.
+        num_dknn_fps = len(dknn_fps)
+        if  num_dknn_fps > 1:
+            coors = dknn_fps[:,2:4].astype(float)
+            num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-1] ])
+            # ww: weights of dknn weights.
+            ww = np.abs(num_keyaps - len_wlan).tolist()
+            #print ww
+            if not np.all(ww):
+                if np.any(ww):
+                    ww_sort = np.sort(ww)
+                    #print 'ww_sort:' , ww_sort
+                    idx_dknn_sums_sort = np.searchsorted(ww_sort, 0, 'right')
+                    #print 'idx_dknn_sums_sort', idx_dknn_sums_sort
+                    ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
+                    w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
+                else:
+                    w_zero = 1
+                for idx,sum in enumerate(ww):
+                    if not sum: ww[idx] = w_zero
+            #print 'ww:', ww
+            ws = np.array(ww) + dknn_sums
+            weights = np.reciprocal(ws)
+            if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
+            posfix = np.average(coors, axis=0, weights=weights)
+        else: posfix = np.array(dknn_fps[0][2:4]).astype(float)
+        # ErrRange Estimation (more than 1 relevant clusters).
+        idxs_clusters = idx_sums_sort_bound[:idx_dkmin]
+        if len(idxs_clusters) == 1: 
+            if maxNI == 1: poserr = 100
+            else: poserr = 50
+        else: 
+            if verb:
+                print 'idxs_clusters: %s' % idxs_clusters
+                print 'all_pos_lenrss:'; pp.pprint(all_pos_lenrss)
+            #allposs_dknn = np.vstack(np.array(all_pos_lenrss, object)[idxs_clusters])
+            allposs_dknn = np.array(all_pos_lenrss, object)[idxs_clusters]
+            if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
+            poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in allposs_dknn ]) 
+    else: 
+        fps_cand = fps_cand[0][:-1]
+        if verb: print 'location:\n%s' % fps_cand
+        posfix = np.array(fps_cand[2:4])
+        # ErrRange Estimation (only 1 relevant clusters).
+        N_fp = len(keycfps)
+        if N_fp == 1: 
+            if maxNI == 1: poserr = 100
+            else: poserr = 50
+        else:
+            if verb: 
+                print 'posfix: %s' % posfix
+                print 'pos_lenrss: '; pp.pprint(pos_lenrss)
+            poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in pos_lenrss ]) / (N_fp-1)
+    ret = posfix.tolist()
+    ret.append(poserr)
+    if verb: print 'posresult: %s' % ret
+
+    cursor.close()
+    conn.close()
+
+    return ret
 
 
 def main():
