@@ -350,32 +350,15 @@ def fixPos(len_wlan, wlan, verb=False):
     # return max counted CID and its key AP(s):macs|rsss.
     result = wppdb.getMaxcntCIDMACs(macs=wlan[0])
     found_cluster = False
-    #if cidcntseq:
-    #    # find out the most queried cluster /w the same AP count:
-    #    # cid count = max seq
-    #    cidcntseq = np.array(cidcntseq)
-    #    cidcnt = cidcntseq[:,1]
-    #    print cidcntseq
-    #    idxs_sortdesc = np.argsort(cidcnt).tolist()
-    #    idxs_sortdesc.reverse()
-    #    print idxs_sortdesc
-    #    cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
-    #    cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
-    #    print cidcntseq_max
-    #    idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
-    #    print idx_belong
-    #    if sum(idx_belong):
-    #        # cids_belong: [clusterid, number of keyaps]
-    #        cids_belong = cidcntseq_max[idx_belong,[0,2]]
-    #        print cids_belong
-    #        cid = cids_belong[0]
-    #        if cids_belong[1] == len(wlanmacs):
-    #            found_cluster = True
+    if result:
+        found_cluster = True
     sys.stdout.write('Cluster searching ... ')
     if not found_cluster:
         print 'Failed!'
     else:
-        print 'Found: (cid: %d)' % cid
+        #print 'Found: (cid: %d)' % cid
+        print 'Found!'
+        print result,len(result)
     wppdb.close()
     sys.exit(0)
 

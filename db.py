@@ -5,7 +5,7 @@ import csv
 import pprint
 import StringIO as sio
 import numpy as np
-import cx_Oracle as ora
+#import cx_Oracle as ora
 import psycopg2 as pg
 
 from config import dbsvrs, wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
@@ -67,15 +67,6 @@ class WppDB(object):
     def close(self):
         self.cur.close()
         self.con.close()
-
-    def getCIDcount(self, macs=None):
-        if not macs: sys.exit('Need macs!')
-        strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
-        sql = self.sqls['SQL_SELECT'] % ("clusterid, count(clusterid) cmask", 
-                "wpp_clusteridaps where (%s) group by clusterid order by cmask desc"%strWhere)
-        print sql
-        self.cur.execute(sql)
-        return self.cur.fetchall()
 
     def load_tables(self, tbl_files=None):
         if not self.tbl_files: 
@@ -195,11 +186,9 @@ class WppDB(object):
     def getCIDcntMaxSeq(self, macs=None):
         table_name = 'wpp_clusteridaps'
         table_inst = self.tables[table_name]
-        if not type(macs) is list: 
-            macs = list(macs)
+        if not type(macs) is list: macs = list(macs)
         num_macs = len(macs)
-        if not num_macs:
-            sys.exit('Null macs!')
+        if not num_macs: sys.exit('Null macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         if self.dbtype == 'oracle':
             sql1 = self.sqls['SQL_SELECT'] % \
@@ -215,7 +204,37 @@ class WppDB(object):
                 (table_inst, strWhere, table_inst, num_macs))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
-        print sql
+        #print sql
+        self.cur.execute(sql)
+        return self.cur.fetchall()
+
+    def getMaxcntCIDMACs(self, macs=None):
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tables[table_name]
+        if not type(macs) is list: macs = list(macs)
+        num_macs = len(macs)
+        if not num_macs: sys.exit('Null macs!')
+        strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
+        if self.dbtype == 'postgresql':
+            #sql = "SELECT cid,MAX(cidcnt) FROM (\
+            #       SELECT clusterid AS cid, COUNT(clusterid) AS cidcnt \
+            #       FROM %s WHERE (%s) GROUP BY cid) a,%s \
+            #       WHERE cidcnt = (\
+            #       SELECT MAX(cidcnt) as maxcidcnt FROM (\
+            #       SELECT clusterid AS cid, COUNT(clusterid) AS cidcnt \
+            #       FROM %s WHERE (%s) GROUP BY cid) b ) GROUP BY cid" % \
+            #    (table_inst, strWhere, table_inst, table_inst, strWhere)
+            sql = "SELECT clusterid AS cid, COUNT(clusterid) AS cidcnt \
+                   FROM %s WHERE (%s) GROUP BY cid ORDER BY cidcnt desc" % \
+                (table_inst, strWhere)
+        elif self.dbtype == 'oracle':
+            sql1 = self.sqls['SQL_SELECT'] % \
+                ("clusterid cid, count(clusterid) cidcnt", 
+                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
+                 where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
+                (table_inst, strWhere, table_inst))
+        else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
+        #print sql
         self.cur.execute(sql)
         return self.cur.fetchall()
 
