@@ -208,12 +208,63 @@ class WppDB(object):
         self.cur.execute(sql)
         return self.cur.fetchall()
 
-    def getMaxcntCIDMACs(self, macs=None):
-        table_name = 'wpp_clusteridaps'
-        table_inst = self.tables[table_name]
+    #maxNI,keys = [2, [
+    #    [['00:21:91:1D:C0:D4', '00:19:E0:E1:76:A4', '00:25:86:4D:B4:C4'],
+    #        [[5634, 5634, 39.898019, 116.367113, '-83|-85|-89']] ],
+    #    [['00:21:91:1D:C0:D4', '00:25:86:4D:B4:C4'],
+    #        [[6161, 6161, 39.898307, 116.367233, '-90|-90']] ] ]]
+    def getBestClusters(self, macs=None):
         if not type(macs) is list: macs = list(macs)
         num_macs = len(macs)
         if not num_macs: sys.exit('Null macs!')
+        # fetch id(s) of best cluster(s).
+        cidcnt = self._getBestCIDMaxNI(macs)
+        if not cidcnt.any(): return [0,None]
+        maxNI = cidcnt[0,1]
+        idx_maxNI = cidcnt[:,1].tolist().count(maxNI)
+        best_clusters = cidcnt[:idx_maxNI,0]
+        #print best_clusters
+        cfps = self._getFPs(cids=best_clusters)
+        #print cfps
+        aps = self._getKeyMACs(cids=best_clusters)
+        #print aps
+        cids = aps[:,0].tolist()
+        keys = []
+        for i,cid in enumerate(best_clusters):
+            keyaps  = [ x[1] for x in aps if x[0]==str(cid) ]
+            keycfps = [ x for x in cfps if x[0]==cid ]
+            keys.append([keyaps, keycfps])
+        #print keys
+        return [maxNI, keys]
+
+
+    def _getKeyMACs(self, cids=None):
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tables[table_name]
+        bc = [ str(x) for x in cids ]
+        strWhere = "%s%s" % ("clusterid=", " or clusterid=".join(bc))
+        #strWhere = "%s%s%s" % ("clusterid='", "' or clusterid='".join(bc), "'")
+        sql = "SELECT * FROM %s WHERE (%s)" % (table_inst, strWhere)
+        #print sql
+        self.cur.execute(sql)
+        return np.array(self.cur.fetchall())
+
+
+    def _getFPs(self, cids=None):
+        table_name = 'wpp_cfps'
+        table_inst = self.tables[table_name]
+        bc = [ str(x) for x in cids ]
+        #strWhere = "%s%s%s" % ("clusterid='", "' or clusterid='".join(bc), "'")
+        strWhere = "%s%s" % ("clusterid=", " or clusterid=".join(bc))
+        sql = "SELECT * FROM %s WHERE (%s)" % (table_inst, strWhere)
+        #print sql
+        self.cur.execute(sql)
+        return np.array(self.cur.fetchall())
+
+
+    def _getBestCIDMaxNI(self, macs=None):
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tables[table_name]
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         if self.dbtype == 'postgresql':
             #sql = "SELECT cid,MAX(cidcnt) FROM (\
@@ -236,7 +287,7 @@ class WppDB(object):
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         #print sql
         self.cur.execute(sql)
-        return self.cur.fetchall()
+        return np.array(self.cur.fetchall())
 
 
 if __name__ == "__main__":

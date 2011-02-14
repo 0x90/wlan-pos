@@ -214,3 +214,6 @@
 2011-02-04
     1) Fix bug when WPP req msg has no 'dtd>' line in tool.web.wsgi.wpp_server.
     2) Add Apache Benchmark script for cocurrence test in tool/cocur.
+2011-02-14
+    1) Refactor db.WppDB.getBestClusters() API for online fixpos.
+	2) Update bug list for db API db.WppDB.getBestClusters().

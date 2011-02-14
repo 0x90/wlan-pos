@@ -5,6 +5,7 @@ import getopt
 #import string
 import errno
 from pprint import pprint,PrettyPrinter
+import copy as cp
 
 import numpy as np
 import MySQLdb
@@ -27,15 +28,15 @@ Location fingerprinting using deterministic/probablistic approaches.
 usage:
     offline <option> <infile>
 option:
-    -a --address=<key id>:  key id of address book configured in address.py.
-                            <key id>: 1-cmri; 2-home(temporarily closed).
+    -a --algo=<algo id>  :  Id of different online positioning algos.
+                            <algo id>: 1-old(man based); 2-new(sql based).
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
                             <mode id> same as in WLAN_FAKE of config module.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 example:
-    #online.py -a 2 -v 
-    #online.py -f 1 -v 
+    $online.py -a 2 -v -f 25  #fake wlan verbose mode using algo with id=2.
+    $online.py -f 1 -v 
 """ % time.strftime('%Y')
 
 
@@ -156,7 +157,6 @@ def fixPos_old(len_wlan, wlan, verb=False):
             # size of intersection set < online AP set size:len_wlan < CLUSTERKEYSIZE, 
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
-            import copy as cp
         if verb: print 'Partly matched cluster(s) found(max intersect size: %d):' % maxNI
     else: 
         if verb: print 'Full matched cluster(s) found:' 
@@ -185,29 +185,25 @@ def fixPos_old(len_wlan, wlan, verb=False):
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
-        pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys) == cursor.rowcount == 1:
-            fps_cand = [ list(keycfps[0]) ] 
+            fps_cand = [ list(keycfps[0]) ]
             break
+        pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
         for idx,pos in enumerate(pos_lenrss):
             pos_lenrss[idx].append(len(keyrsss[idx]))
         all_pos_lenrss.extend(pos_lenrss)
-
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
-        if interpart_offline:
-            if interpart_online:
-                wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
-                idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
-                wl = wl[:,idxs_inters]
-            else: wl = wlan
+        if interpart_offline and interpart_online:
+            wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
+            idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
+            wl = wl[:,idxs_inters]
         else: wl = wlan
         idxs_taken = [ keyaps.index(x) for x in wl[0] ]
         keyrsss = keyrsss.take(idxs_taken, axis=1)
         mrsss = wl[1].astype(int)
-
         # Euclidean dist solving and sorting.
         #  fps_cand: [ min_spid1:[cid, spid, lat, lon, macs], min_spid2, ... ]
         sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
@@ -292,7 +288,7 @@ def fixPos_old(len_wlan, wlan, verb=False):
             if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
-    else: 
+    else:
         fps_cand = fps_cand[0][:-1]
         if verb: print 'location:\n%s' % fps_cand
         posfix = np.array(fps_cand[2:4])
@@ -302,18 +298,17 @@ def fixPos_old(len_wlan, wlan, verb=False):
             if maxNI == 1: poserr = 100
             else: poserr = 50
         else:
-            if verb: 
+            if verb:
                 print 'posfix: %s' % posfix
-                print 'pos_lenrss: '; pp.pprint(pos_lenrss)
+                print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
             poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in pos_lenrss ]) / (N_fp-1)
+                for p in all_pos_lenrss ]) / (N_fp-1)
     ret = posfix.tolist()
     ret.append(poserr)
     if verb: print 'posresult: %s' % ret
-
+    # db close.
     cursor.close()
     conn.close()
-
     return ret
 
 
@@ -341,52 +336,53 @@ def fixPos(len_wlan, wlan, verb=False):
     interpart_offline = False; interpart_online = False
     if verb: pp = PrettyPrinter(indent=2)
 
-    # keys: ID and key APs of matched cluster(s) with max intersect APs.
-
     dbip = 'local_pg'
     dbsvr = dbsvrs[dbip]
     wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-            tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
-    # return max counted CID and its key AP(s):macs|rsss.
-    result = wppdb.getMaxcntCIDMACs(macs=wlan[0])
-    found_cluster = False
-    if result:
-        found_cluster = True
-    sys.stdout.write('Cluster searching ... ')
-    if not found_cluster:
-        print 'Failed!'
-    else:
-        #print 'Found: (cid: %d)' % cid
-        print 'Found!'
-        print result,len(result)
+            tables=wpp_tables, tbl_field=tbl_field, tbl_forms=tbl_forms)
+    # db query result: [ maxNI, keys:[ [keyaps:[], keycfps:(())], ... ] ].
+    # maxNI=0 if no cluster found.
+    maxNI,keys = wppdb.getBestClusters(macs=wlan[0])
+    #maxNI,keys = [2, [
+    #    [['00:21:91:1D:C0:D4', '00:19:E0:E1:76:A4', '00:25:86:4D:B4:C4'], 
+    #        [[5634, 5634, 39.898019, 116.367113, '-83|-85|-89']] ],
+    #    [['00:21:91:1D:C0:D4', '00:25:86:4D:B4:C4'],
+    #        [[6161, 6161, 39.898307, 116.367233, '-90|-90']] ] ]]
     wppdb.close()
-    sys.exit(0)
+    # maxNI portion from fixPos_old().
+    if maxNI == 0: # no intersection found
+        print 'NO cluster found! Fingerprinting TERMINATED!'
+        return []
+    elif maxNI < CLUSTERKEYSIZE:
+        # size of intersection set < offline key AP set size:4, 
+        # offline keymacs/keyrsss (not online maxmacs/maxrsss) need to be cut down.
+        interpart_offline = True
+        if maxNI < len_wlan: #TODO: TBE.
+            # size of intersection set < online AP set size(len_wlan) < CLUSTERKEYSIZE,
+            # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
+            interpart_online = True
+        if verb: print 'Partly[%d] matched cluster(s) found:' % maxNI
+    else: 
+        if verb: print 'Full matched cluster(s) found:' 
+        else: pass
+    if verb: pp.pprint(keys)
 
     # Evaluation|sort of similarity between online FP & radio map FP.
     # fps_cand: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
+    # keys: ID and key APs of matched cluster(s) with max intersect APs.
     all_pos_lenrss = []
     fps_cand = []; sums_cand = []
     if verb: print '='*35
-    for cid,keyaps in keys:
-        try: # Returns values identified by field name(or field order if no arg).
-            table = wpp_tables_my['cfps']
-            state_where = 'cid = %s' % cid
-            if verb: print 'select %s from table %s' % (state_where, table)
-            cursor.execute(sqls['SQL_SELECT'] % ('*' , "%s where %s"%(table,state_where)))
-            keycfps = cursor.fetchall()
-        except MySQLdb.Error,e:
-            print "Error(%d): %s" % (e.args[0], e.args[1])
-            cursor.close(); conn.close()
-            sys.exit(99)
+    for keyaps,keycfps in keys:
         if verb:
             print ' keyaps: %s' % keyaps
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
-        pos_lenrss = (np.array(keycfps)[:,2:4].astype(float)).tolist()
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
-        if len(keys) == cursor.rowcount == 1:
-            fps_cand = [ list(keycfps[0]) ] 
+        if len(keys) == 1:
+            fps_cand = [ list(keycfps[0]) ]
             break
+        pos_lenrss = (np.array(keycfps)[:,1:3].astype(float)).tolist()
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
         for idx,pos in enumerate(pos_lenrss):
@@ -449,8 +445,8 @@ def fixPos(len_wlan, wlan, verb=False):
         # Weighted_AVG_DKNN.
         num_dknn_fps = len(dknn_fps)
         if  num_dknn_fps > 1:
-            coors = dknn_fps[:,2:4].astype(float)
-            num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-1] ])
+            coors = dknn_fps[:,1:3].astype(float)
+            num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-2] ])
             # ww: weights of dknn weights.
             ww = np.abs(num_keyaps - len_wlan).tolist()
             #print ww
@@ -471,7 +467,7 @@ def fixPos(len_wlan, wlan, verb=False):
             weights = np.reciprocal(ws)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
             posfix = np.average(coors, axis=0, weights=weights)
-        else: posfix = np.array(dknn_fps[0][2:4]).astype(float)
+        else: posfix = np.array(dknn_fps[0][1:3]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
         idxs_clusters = idx_sums_sort_bound[:idx_dkmin]
         if len(idxs_clusters) == 1: 
@@ -487,9 +483,9 @@ def fixPos(len_wlan, wlan, verb=False):
             poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]) 
     else: 
-        fps_cand = fps_cand[0][:-1]
+        fps_cand = fps_cand[0][:-2]
         if verb: print 'location:\n%s' % fps_cand
-        posfix = np.array(fps_cand[2:4])
+        posfix = np.array(fps_cand[1:3]).astype(float)
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
         if N_fp == 1: 
@@ -498,15 +494,12 @@ def fixPos(len_wlan, wlan, verb=False):
         else:
             if verb: 
                 print 'posfix: %s' % posfix
-                print 'pos_lenrss: '; pp.pprint(pos_lenrss)
+                print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
             poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in pos_lenrss ]) / (N_fp-1)
+                for p in all_pos_lenrss ]) / (N_fp-1)
     ret = posfix.tolist()
     ret.append(poserr)
     if verb: print 'posresult: %s' % ret
-
-    cursor.close()
-    conn.close()
 
     return ret
 
@@ -517,7 +510,7 @@ def main():
             # methods(os,pprint)/parameters(addr_book,XXXPATH) 
             # imported from standard or 3rd-party modules can be avoided.
             "a:f:hv",
-            ["address=","fake","help","verbose"])
+            ["algo=","fake","help","verbose"])
     except getopt.GetoptError:
         print 'Error: getopt!\n'
         usage(); sys.exit(99)
@@ -529,13 +522,15 @@ def main():
     verbose = False; wlanfake = 0
 
     for o,a in opts:
-        if o in ("-a", "--address"):
-            if a.isdigit(): 
-                addrid = int(a)
-                if 1 <= addrid <= 2: continue
+        if o in ("-a", "--algo"):
+            if a.isdigit():
+                algoid = int(a)
+                if algoid in range(1,3): 
+                    print 'algo id: %s' % a;
+                    continue
                 else: pass
             else: pass
-            print '\nIllegal address id: %s!' % a
+            print '\nInvalid algo id: %s\n'%a 
             usage(); sys.exit(99)
         elif o in ("-f", "--fake"):
             if a.isdigit(): 
@@ -558,155 +553,13 @@ def main():
     len_visAPs, wifis = getWLAN(wlanfake)
 
     # Fix current position.
-    posresult = fixPos(len_visAPs, wifis, verbose)
+    if algoid == 1:
+        posresult = fixPos_old(len_visAPs, wifis, verbose)
+    elif algoid == 2:
+        posresult = fixPos(len_visAPs, wifis, verbose)
+    else: sys.exit('Invalid algoid: %s!' % algoid)
+    if not posresult: sys.exit(99)
     print 'final posfix/poserr: \n%s' % posresult
-
-    sys.exit(0)
-
-
-    # Deprecated: radio map file related operation code that is no longer used.
-    # NOTE:
-    #   The `numpy.core.defchararray` exists for backwards compatibility with
-    #   Numarray, it is not recommended for new development. If one needs
-    #   arrays of strings, use arrays of `dtype` `object_`, `string_` or
-    #   `unicode_`, and use the free functions in the `numpy.char` module
-    #   for fast *vectorized string operations*.
-    #   chararrays should be created using `numpy.char.array` or
-    #   `numpy.char.asarray`, rather than `numpy.core.defchararray` directly.
-    #
-    # FIXME: usecols for only spid-macs-rsss picking failed.
-    radiomap = np.loadtxt(rmpfile, dtype=np.dtype(dt_rmp_nocluster), delimiter=',')
-    macs_rmp = np.char.array(radiomap['macs']).split('|')
-    # rsss_rmp may contain fingerprints that has more than INTERSET elements 
-    # because of the lower storage precision in radio map, which is evaluated 
-    # by far NOT to affect the whole. 
-    # One possible way to fix this might to modify this line of code:
-    # rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx]))
-    # to be like the following line, which is not yet verified.
-    # rss_rmap_dist[i].append(string.atof(rsss_rmp[:,:INTERSET][i][idx]))
-    rsss_rmp = np.char.array(radiomap['rsss']).split('|')
-    #print 'macs_rmp: %s' % macs_rmp
-    #print 'rsss_rmp: %s' % rsss_rmp
-
-    # K_NN takes minimum value between KNN and number of fingerprints in case of 
-    # mal-assignment of ary_kmin when there are not enough KNN fingerprints.
-    len_rmp = len(macs_rmp)
-    if len_rmp < 2 or not isinstance(macs_rmp[0], list):
-        print '\nNot enough(>1) fingerprints in radio map: %s!\n' % rmpfile
-        sys.exit(99)
-    K_NN = min( KNN, len_rmp )
-
-    # Vectorized operation for Euclidean distance.
-    #
-    # 'rss_scan_dist' and 'rss_rmap_dist' contain rss of APs intersection  
-    # between visible AP set from WLAN scanning and the AP set of each radio 
-    # map fingerprint, these two vars are to be used for dist computation.
-    mac_inters = []
-    for i in range(len_rmp):
-        mac_inters.append([])
-        for j in range(len(maxmacs)):
-            try:
-                idx = list(macs_rmp[i]).index(maxmacs[j])
-                mac_inters[i].append(maxmacs[j])
-            except:
-                #print '\nNotice: Cannot find %s in %s!\n' % (maxmacs[j], macs_rmp[i])
-                continue
-        #print 'mac_inters: '; pp.pprint(mac_inters)
-        #print '-'*60
-    #print 'mac_inters: '; pp.pprint(mac_inters)
-
-    # Solve final mac_inter ready for distance computation.
-    inter = set( mac_inters.pop() )
-    while not len(mac_inters) is 0:
-        inter = inter & set(mac_inters.pop())
-    mac_inter = list(inter)
-    if len(mac_inter) == 0:
-        print '\nError: NO common AP(s) of (all FPs) & (scanned) found!'
-        sys.exit(99)
-    print 'mac_inter:'; pp.pprint(mac_inter)
-
-    rss_scan_dist = []
-    rss_rmap_dist = []
-    for i in range(len_rmp):
-        rss_scan_dist.append([])
-        rss_rmap_dist.append([])
-        for mac in mac_inter:
-            try:
-                idx_rmap = list(macs_rmp[i]).index(mac)
-                idx_scan = maxmacs.index(mac)
-                rss_scan_dist[i].append(maxrsss[idx_scan])
-                rss_rmap_dist[i].append(string.atof(rsss_rmp[i][idx_rmap]))
-            except:
-                print '\nError: Cannot find %s in %s!\n' % (mac, macs_rmp[i])
-                if not len(rss_scan_dist[i]) == 0:
-                    rss_scan_dist.pop(i) 
-                if not len(rss_rmap_dist[i]) == 0:
-                    rss_rmap_dist.pop(i)
-                break
-        #print 'rss_scan_dist: %s' % rss_scan_dist
-        #print 'rss_rmap_dist: %s' % rss_rmap_dist
-        #print '-'*60
-
-    rss_scan_dist = np.array(rss_scan_dist)
-    rss_rmap_dist = np.array(rss_rmap_dist)
-    print 'rss_scan_dist: '; pp.pprint(rss_scan_dist)
-    print 'rss_rmap_dist: '; pp.pprint(rss_rmap_dist)
-
-    rss_dist = ( rss_scan_dist - rss_rmap_dist )**2
-    #print 'squared rss distance: '; pp.pprint(rss_dist)
-
-    sum_rss = rss_dist.sum(axis=1)
-    # idx_sort: index array of sorted sum_rss.
-    idx_sort = sum_rss.argsort()
-    k_idx_sort = idx_sort[:K_NN]
-    print 'k_idx_sort:'; pp.pprint(k_idx_sort)
-    # ary_kmin: {spid:[ dist, [lat,lon] ]}
-    ary_kmin = []
-    #addr_kmin = []
-    for idx in k_idx_sort:
-        spidx = radiomap['spid'][idx]
-        ary_kmin.append( spidx )
-        ary_kmin.append( sum_rss[idx] )
-        #ary_kmin.extend([ radiomap['lat'][idx],radiomap['lon'][idx] ])
-        ary_kmin.extend( list(radiomap[idx])[1:3] ) #1,3: lat,lon row index in fp. 
-        #addr_kmin.append( addr[spidx] )
-    ary_kmin = np.array(ary_kmin).reshape(K_NN,-1)
-
-    print 'ary_kmin:'; pp.pprint(ary_kmin)
-
-    print '\nKNN spid(s): %s' % str( list(ary_kmin[:,0]) )
-    #print 'Address: %s' % addr_kmin
-    print 'Centroid location: %s\n' % str( tuple(ary_kmin[:,2:].mean(axis=0)) )
-
-
-    #TODO:optimize sort routine with both indices and vals retuened.
-    #
-    # np.argsort(a, axis=-1, kind='quicksort', order=None)
-    # Returns the indices that would sort an array.
-    # 
-    # Perform an indirect sort along the given axis using the algorithm specified
-    # by the `kind` keyword. It returns an array of indices of the same shape as
-    # `a` that index data along the given axis in sorted order.
-    #
-    # Parameters
-    # ----------
-    # a : array_like
-    #     Array to sort.
-    # axis : int or None, optional
-    #     Axis along which to sort.  The default is -1 (the last axis). If None,
-    #     the flattened array is used.
-    # kind : {'quicksort', 'mergesort', 'heapsort'}, optional
-    #     Sorting algorithm.
-    # order : list, optional
-    #     When `a` is an array with fields defined, this argument specifies
-    #     which fields to compare first, second, etc.  Not all fields need be
-    #     specified.
-    #
-    # Returns
-    # -------
-    # index_array : ndarray, int
-    #     Array of indices that sort `a` along the specified axis.
-    #     In other words, ``a[index_array]`` yields a sorted `a`.
 
 
 if __name__ == "__main__":
