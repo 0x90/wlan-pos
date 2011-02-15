@@ -201,7 +201,6 @@ def collectData(req=None, reqfmt=None, ret=None, retfmt=None, algos=None):
                     isErrinRange['google']['errless200'] += 1
             ee_google = abs(ee)/gloc_pos['accuracy']
             addcol.append(ee_google)
-
         print '%d: %s' % (icase+1, addcol)
         addcols.append(addcol)
         print 
@@ -400,7 +399,7 @@ def main():
                     stats[algo][type][item]['inrange'] = '%.2f%%'%(errin[algo][type]*100/num_test)
 
     pp.pprint(stats)
-    #sys.exit(0)
+    sys.exit(0)
 
 
     # data/log file config.

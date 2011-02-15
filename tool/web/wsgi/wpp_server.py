@@ -296,12 +296,12 @@ if __name__ == "__main__":
     #httpd = PimpedWSGIServer(('',port), PimpedHandler)
     #httpd.set_app(wpp_handler)
     # Gevent server.
-    from gevent.wsgi import WSGIServer
-    httpd = WSGIServer(('', port), wpp_handler, spawn=None)
-    httpd.backlog = 256
+    #from gevent.wsgi import WSGIServer
+    #httpd = WSGIServer(('', port), wpp_handler, spawn=None)
+    #httpd.backlog = 256
     # Meinheld server.
-    #from meinheld import server
-    #server.listen(("0.0.0.0", 18080))
+    from meinheld import server
+    server.listen(("0.0.0.0", 18080))
     # Bjoern server.
     #import bjoern
     #bjoern.listen(wpp_handler, '0.0.0.0', port)
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     print 'Starting up HTTP server on %s:%d ...' % (ipaddr, port)
 
     # Respond to requests until process is killed
-    httpd.serve_forever() # wsgiref, Gevent
+    #httpd.serve_forever() # wsgiref, Gevent
     #bjoern.run() # bjoern
-    #server.run(wpp_handler) # Meinheld
+    server.run(wpp_handler) # Meinheld
     #evwsgi.run() # Fapws3

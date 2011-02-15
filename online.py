@@ -343,13 +343,12 @@ def fixPos(len_wlan, wlan, verb=False):
     # db query result: [ maxNI, keys:[ [keyaps:[], keycfps:(())], ... ] ].
     # maxNI=0 if no cluster found.
     maxNI,keys = wppdb.getBestClusters(macs=wlan[0])
+    wppdb.close()
     #maxNI,keys = [2, [
     #    [['00:21:91:1D:C0:D4', '00:19:E0:E1:76:A4', '00:25:86:4D:B4:C4'], 
     #        [[5634, 5634, 39.898019, 116.367113, '-83|-85|-89']] ],
     #    [['00:21:91:1D:C0:D4', '00:25:86:4D:B4:C4'],
     #        [[6161, 6161, 39.898307, 116.367233, '-90|-90']] ] ]]
-    wppdb.close()
-    # maxNI portion from fixPos_old().
     if maxNI == 0: # no intersection found
         print 'NO cluster found! Fingerprinting TERMINATED!'
         return []
@@ -379,7 +378,7 @@ def fixPos(len_wlan, wlan, verb=False):
             if len(keycfps) == 1: print 'keycfps: %s' % keycfps
             else: print 'keycfps: '; pp.pprint(keycfps)
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
-        if len(keys) == 1:
+        if len(keys)==1 and len(keycfps)==1:
             fps_cand = [ list(keycfps[0]) ]
             break
         pos_lenrss = (np.array(keycfps)[:,1:3].astype(float)).tolist()

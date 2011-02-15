@@ -1,0 +1,10 @@
+#!/bin/bash
+# script for ab cocurrence test.
+# This tool *MUST* be run after apache/httpd starts and wpp_server listening on port 18080.
+# $0 <num_req> <num_cocur>
+wpp_server_path=tool/web/wsgi
+
+cd $wpp_server_path
+#gunicorn -b :18080 -w 5 wpp_server:wpp_handler
+#gunicorn -b :18080 -w 5 -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
+gunicorn -b :18080 -w 3 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
