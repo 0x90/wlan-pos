@@ -299,6 +299,7 @@ if __name__ == "__main__":
     #from gevent.wsgi import WSGIServer
     #httpd = WSGIServer(('', port), wpp_handler, spawn=None)
     #httpd.backlog = 256
+    #httpd.log = False
     # Meinheld server.
     from meinheld import server
     server.listen(("0.0.0.0", 18080))
