@@ -3,6 +3,7 @@
 # http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi.
 import re
 import sys
+import os
 import cgi
 #import time
 import datetime as dt
@@ -20,10 +21,9 @@ from wsgiref import simple_server
 import traceback as tb
 import numpy as np
 
-path_repo = '/root/wpp/src/wlan-pos/'
+path_repo = os.path.split(os.path.abspath(__file__))[0] + '/../../../'
 sys.path.append(path_repo)
 sys.path.append(path_repo + 'tool')
-#sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
 import online as wlanpos
 import config as cfg
 from evaloc import getIPaddr

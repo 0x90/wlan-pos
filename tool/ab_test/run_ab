@@ -1,0 +1,13 @@
+#!/bin/bash
+wpp_ip=192.168.0.101
+wpp_port=18080
+wpp_path=wlan/distribution
+wpp_url=http://$wpp_ip:$wpp_port/$wpp_path
+
+abdir=`dirname $0`
+postfile=$abdir/wpp_req.xml
+
+# FPP @ 35.201 (neusoft)
+#ab -n $1 -c $2 -p fpp_req.xml http://192.168.35.201:12401/FPP_AD/adapter
+# WPP @ 35.203
+ab -n $1 -c $2 -p $postfile $wpp_url

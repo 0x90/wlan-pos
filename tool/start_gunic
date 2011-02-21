@@ -10,4 +10,4 @@ echo "workers: $nworkers"
 cd $wpp_server_path
 #gunicorn -b :18080 -w $nworkers wpp_server:wpp_handler
 gunicorn -b :18080 -w $nworkers -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
-#gunicorn -b :18080 -w 5 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
+#gunicorn -b :18080 -w 3 -k "egg:gunicorn#gevent" wpp_server:wpp_handler

@@ -2,6 +2,7 @@
 # collect test results and analyze the statistics of the data.
 from __future__ import division
 import sys
+import os
 import csv
 import urllib2 as ul
 import time
@@ -9,12 +10,13 @@ import shelve as shlv
 import pprint as pp
 import numpy as np
 
-sys.path.append('/home/alexy/dev/src/wlan-pos/')
+path_repo = os.path.split(os.path.abspath(__file__))[0] + '/../../../'
+sys.path.append(path_repo)
+sys.path.append(path_repo + 'tool')
 import geo
 import online as wlanpos
 import config as cfg
 from config import termtxtcolors as colors
-sys.path.append('/home/alexy/dev/src/wlan-pos/tool/')
 #import dataviz as viz
 import geolocation_api as gl
 
