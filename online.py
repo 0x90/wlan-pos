@@ -8,7 +8,7 @@ from pprint import pprint,PrettyPrinter
 import copy as cp
 
 import numpy as np
-import MySQLdb
+#import MySQLdb
 
 #from db import WppDB, tbl_field, tbl_forms
 from wlan import scanWLAN_OS#, scanWLAN_RE
@@ -336,6 +336,7 @@ def fixPos(len_wlan, wlan, verb=False):
     interpart_offline = False; interpart_online = False
     if verb: pp = PrettyPrinter(indent=2)
 
+    #dbip = '192.168.109.54'
     dbip = 'local_pg'
     dbsvr = dbsvrs[dbip]
     wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 

@@ -4,7 +4,8 @@
 import re
 import sys
 import cgi
-import time
+#import time
+import datetime as dt
 # import the helper functions we need to get and render tracebacks
 try:
     from cStringIO import StringIO
@@ -19,7 +20,7 @@ from wsgiref import simple_server
 import traceback as tb
 import numpy as np
 
-path_repo = '/home/alexy/dev/src/wlan-pos/'
+path_repo = '/root/wpp/src/wlan-pos/'
 sys.path.append(path_repo)
 sys.path.append(path_repo + 'tool')
 #sys.path.append('/home/alexy/dev/src/wlan-pos/tool')
@@ -204,6 +205,9 @@ def wpp_handler(environ, start_response):
     inp = environ.get('wsgi.input','')
     content_length = environ.get('CONTENT_LENGTH', 10)
     if content_length:
+        #print '-->', time.strftime('%Y%m%d-%H%M%S')
+        t = dt.datetime.now()
+        print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         print 'content_length: ', content_length
         stream = LimitedStream(inp, int(content_length))
         datin = stream.read()
@@ -215,6 +219,7 @@ def wpp_handler(environ, start_response):
             else: datin = datin[1] 
         else: datin = datin[1] # del xml-doc declaration.
         print datin
+        print '-'*30
         xmldoc = minidom.parseString(datin)
         macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
         rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value.split('|')
@@ -223,7 +228,6 @@ def wpp_handler(environ, start_response):
         #print 'macs: %s\nrsss: %s' % (macs,rsss)
         xmldoc.unlink() # release dom obj.
         XHTML_IMT = "application/xhtml+xml"
-        start_response('200 OK', [('Content-Type', XHTML_IMT)])
         # fix postion.
         num_visAPs = len(macs)
         INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
@@ -232,10 +236,10 @@ def wpp_handler(environ, start_response):
         loc = wlanpos.fixPos(INTERSET, mr, verb=False)
         #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
         # write PosRes xml.
-        lat_fail=lon_fail=ee_fail=0; errinfo_fail='PosFail'; errcode_fail='104'
+        lat_fail=lon_fail=0; ee_fail=5000; errinfo_fail='PosFail'; errcode_fail='104'
         errinfo='OK'; errcode='100'
         if loc:
-            print loc
+            print '-->',loc
             lat, lon, ee = loc
         else:
             lat = lat_fail
@@ -248,8 +252,13 @@ def wpp_handler(environ, start_response):
                 <Coord lat="%.6f" lon="%.6f" h="0.000000"/>
                 <ErrRange val="%.2f"/>
         </PosRes>""" % (errcode, errinfo, lat, lon, ee)
-        print '-->', time.strftime('%Y%m%d-%H%M%S')
-        print '-'*60
+        contlen = len(pos_resp)
+        start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(contlen))])
+        print pos_resp
+        #print '-->', time.strftime('%Y%m%d-%H%M%S')
+        t = dt.datetime.now()
+        print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+        print '='*30
         return [ pos_resp ]
     else:
         return not_found(environ, start_response)

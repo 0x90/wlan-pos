@@ -13,14 +13,19 @@ RADIUS = 6372797 #meter
 # DB related configuration.
 dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
-dsn_local_pg  = "host=localhost dbname=wppdb user=yxt password=yxt port=5433"
+dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
 dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
 dsn_vance_pg = "host=192.168.109.49 dbname=wppdb user=mwlan password=mwlan_pw port=5432"
+dsn_moto_pg = "host=192.168.109.54 dbname=wppdb user=wpp password=wpp port=5432"
 dbtype_ora = 'oracle' 
 dbtype_pg  = 'postgresql'
 dbtype_my  = 'mysql'
 dbsvrs = {'192.168.19.132':{
             'dsn':dsn_vance_pg_mic,
+            'dbtype':dbtype_pg,
+           },
+          '192.168.109.54':{
+            'dsn':dsn_moto_pg,
             'dbtype':dbtype_pg,
            },
           '192.168.109.49':{

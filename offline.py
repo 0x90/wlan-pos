@@ -11,12 +11,12 @@ import numpy as np
 from pprint import pprint,PrettyPrinter
 
 from wlan import scanWLAN_RE
-from gps import getGPS
+#from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my, \
         wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
-from kml import genKML
+#from kml import genKML
 from db import WppDB
 
 

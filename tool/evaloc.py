@@ -15,7 +15,7 @@ import online as wlanpos
 import config as cfg
 from config import termtxtcolors as colors
 sys.path.append('/home/alexy/dev/src/wlan-pos/tool/')
-import dataviz as viz
+#import dataviz as viz
 import geolocation_api as gl
 
 

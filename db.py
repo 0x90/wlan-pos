@@ -81,14 +81,14 @@ class WppDB(object):
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
             #
-            print 'TRUNCATE TABLE: %s' % table_inst
-            self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
+            #print 'TRUNCATE TABLE: %s' % table_inst
+            #self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
             #
             #print 'DROP TABLE: %s' % table_inst
             #self.cur.execute(self.sqls['SQL_DROPTB'] % table_inst)
-            #print 'CREATE TABLE: %s' % table_inst
-            #self.cur.execute(self.sqls['SQL_CREATETB'] % \
-            #        (table_inst, self.tbl_forms[table_name]))
+            print 'CREATE TABLE: %s' % table_inst
+            self.cur.execute(self.sqls['SQL_CREATETB'] % \
+                    (table_inst, self.tbl_forms[table_name]))
             # Load the csv file.
             self._loadFile(csvfile=csvfile, table_name=table_name)
             # Update the number of records.
@@ -316,6 +316,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     dbips = ('local_pg', )
+    #dbips = ('192.168.109.54', )
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         #print 'Loading data to DB svr: %s' % svrip
