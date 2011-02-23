@@ -3,11 +3,17 @@
 # This tool *MUST* be run after apache/httpd starts and wpp_server listening on port 18080.
 # $0 <num_req> <num_cocur>
 wpp_server_path=tool/web/wsgi
+datetime=`date +%Y%m%d-%H%M%S`
+#LOGDIR=tool/web/wsgi/log
+LOGDIR=log
+LOGFILE=$LOGDIR/wpp_$datetime.log
+[ -f $LOGDIR ] || mkdir -p $LOGDIR
 
 nworkers=`python -c 'import os; print os.sysconf("SC_NPROCESSORS_ONLN")*2+1'`
 echo "workers: $nworkers"
 #exit 0
+
 cd $wpp_server_path
-#gunicorn -b :18080 -w $nworkers wpp_server:wpp_handler
-gunicorn -b :18080 -w $nworkers -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
-#gunicorn -b :18080 -w 3 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
+#gunicorn -b :18080 -w $nworkers wpp_server:wpp_handler --log-file $LOGFILE
+gunicorn -b :18080 -w $nworkers -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler --log-file $LOGFILE
+#gunicorn -b :18080 -w 3 -k "egg:gunicorn#gevent" wpp_server:wpp_handler --log-file $LOGFILE
