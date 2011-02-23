@@ -16,7 +16,7 @@ from geo import dist_km
 from db import WppDB
 from config import db_config_my, wpp_tables_my, sqls, dbsvrs, \
         wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN
+        KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN, DB_ONLINE
 
 
 def usage():
@@ -336,8 +336,7 @@ def fixPos(len_wlan, wlan, verb=False):
     interpart_offline = False; interpart_online = False
     if verb: pp = PrettyPrinter(indent=2)
 
-    #dbip = '192.168.109.54'
-    dbip = 'local_pg'
+    dbip = DB_ONLINE
     dbsvr = dbsvrs[dbip]
     wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
             tables=wpp_tables, tbl_field=tbl_field, tbl_forms=tbl_forms)

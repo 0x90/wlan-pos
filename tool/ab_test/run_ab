@@ -1,5 +1,5 @@
 #!/bin/bash
-wpp_ip=192.168.0.101
+wpp_ip=192.168.12.213
 wpp_port=18080
 wpp_path=wlan/distribution
 wpp_url=http://$wpp_ip:$wpp_port/$wpp_path

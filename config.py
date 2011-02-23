@@ -11,6 +11,9 @@ KWIN = 1.25
 RADIUS = 6372797 #meter
 
 # DB related configuration.
+DB_ONLINE = 'local_pg'
+DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
+DB_UPLOAD = ( 'local_pg', )
 dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"

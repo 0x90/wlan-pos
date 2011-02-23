@@ -14,7 +14,7 @@ from wlan import scanWLAN_RE
 #from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my, \
-        wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
 #from kml import genKML
 from db import WppDB
@@ -61,7 +61,7 @@ def ClusterIncr(rmpfile):
     sys.stdout.write('Fingerprints clustering:')
     print 
     # Support multi DB incr-clustering.
-    dbips = ('local_pg', )
+    dbips = DB_OFFLINE
     wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
     wpp_tables['wpp_cfps'] = 'wpp_cfps'
     for svrip in dbips:

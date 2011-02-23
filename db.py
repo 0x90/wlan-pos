@@ -8,8 +8,9 @@ import numpy as np
 #import cx_Oracle as ora
 import psycopg2 as pg
 
-from config import dbsvrs, wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dsn_vance_pg_mic, dbtype_ora, dbtype_pg, sqls
+from config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
+        tbl_field, tbl_forms, tbl_idx, tbl_files, \
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dsn_vance_pg_mic, dbtype_ora, dbtype_pg
 
 
 def usage():
@@ -68,7 +69,7 @@ class WppDB(object):
         self.cur.close()
         self.con.close()
 
-    def load_tables(self, tbl_files=None):
+    def loadTables(self, tbl_files=None):
         if not self.tbl_files: 
             if not tbl_files:
                 sys.exit('\nERROR: %s: Need a csv file!\n' % csvfile)
@@ -315,7 +316,8 @@ if __name__ == "__main__":
         usage()
         sys.exit(0)
 
-    dbips = ('local_pg', )
+    #dbips = ('local_pg', )
+    dbips = DB_UPLOAD
     #dbips = ('192.168.109.54', )
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
@@ -323,5 +325,5 @@ if __name__ == "__main__":
         print '%s %s %s' % ('='*15, svrip, '='*15)
         wppdb = WppDB(dsn=dbsvr['dsn'],dbtype=dbsvr['dbtype'],tbl_idx=tbl_idx, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms,sqls=sqls)
-        wppdb.load_tables(tbl_files)
+        wppdb.loadTables(tbl_files)
         wppdb.close()

@@ -137,6 +137,18 @@ class LimitedStream(object):
         self.buffer = sio.read()
         return line
 
+def hgweb_handler(environ, start_response):
+    from mercurial import demandimport; demandimport.enable()
+    #from mercurial.hgweb.hgwebdir_mod import hgwebdir
+    #from mercurial.hgweb.request import wsgiapplication
+    from mercurial.hgweb import hgweb
+     
+    hgweb_conf = '/etc/mercurial/hgweb.conf'
+    #make_web_app = hgwebdir(hgweb_conf)
+    hg_webapp = hgweb(hgweb_conf)
+     
+    #hg_webapp = wsgiapplication(make_web_app)
+    return hg_webapp(environ, start_response)
 
 def index(environ, start_response):
     """This function will be mounted on "/" and display a link
@@ -172,23 +184,13 @@ def application(environ, start_response):
     If nothing matches call the `not_found` function.
     """
     # test code for speed.
-    print '-->', time.strftime('%Y%m%d-%H%M%S')
-    #start_response('200 OK', [('Content-Type', 'application/xhtml+xml')])
-    #lat, lon, ee = [39.895167306122453, 116.34509951020408, 24.660629537376867]
-    #pos_resp="""<?xml version="1.0" encoding="UTF-8"?>
-    #    <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
-    #    <PosRes>
-    #            <Result ErrCode="100" ErrDesc="OK"/>
-    #            <Coord lat="%.6f" lon="%.6f" h="0.000000"/>
-    #            <ErrRange val="%.2f"/>
-    #    </PosRes>""" % (lat, lon, ee)
-    #print pos_resp
-    #print time.strftime('%Y%m%d-%H%M%S')
-    #return [pos_resp]
+    t = dt.datetime.now()
+    print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
         match = re.search(regex, path)
         if match is not None:
+            print regex, callback
             environ['myapp.url_args'] = match.groups()
             return callback(environ, start_response)
     return not_found(environ, start_response)
@@ -266,7 +268,8 @@ def wpp_handler(environ, start_response):
 # map urls to functions
 urls = [
     #(r'^$', index),
-    (r'wlan/(.+)$', wpp_handler),
+    (r'wlan/distribution$', wpp_handler),
+    #(r'wlan/hg$', hgweb_handler),
     #(r'hello/?$', hello),
     #(r'hello/(.+)$', hello),
 ]

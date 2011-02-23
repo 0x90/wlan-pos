@@ -1,0 +1,82 @@
+#!/bin/bash
+# script for gunicorn control.
+# $0 [options]
+
+PATH_WPPTOOL=`dirname $0`
+PATH_WPPWSGI=$PATH_WPPTOOL/web/wsgi
+LOGDIR=$PATH_WPPWSGI/log
+[ -d $LOGDIR ] || mkdir -p $LOGDIR
+PIDFILE=/tmp/gunicorn.pid
+WORKER_CLASS_MEINHELD="egg:meinheld#gunicorn_worker"
+WORKER_CLASS_GEVENT="egg:gunicorn#gevent"
+APPMODULE=wpp_server:wpp_handler
+
+start_gunic() {
+    #nworkers=`python -c 'import os; \
+    #    nps=os.sysconf("SC_NPROCESSORS_ONLN"); \
+    #    nps=(nps*2 if (nps<=5) else (nps+1)); \
+    #    print nps'`
+    nps=`cat /proc/cpuinfo  |grep processor |wc -l`
+    [ $nps -lt 5 ] && nworkers=`echo "$nps*2" |bc` || nworkers=`echo "$nps+1" |bc`
+    echo "workers: $nworkers"
+
+    datetime=`date +%Y%m%d-%H%M%S`
+    LOGFILE=log/gunicorn_$datetime.log
+    cd $PATH_WPPWSGI
+    touch $LOGFILE
+    gunicorn -b :18080 -w $nworkers $APPMODULE --log-file $LOGFILE -p $PIDFILE
+    #gunicorn -b :18080 -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $LOGFILE -p $PIDFILE
+    #gunicorn -b :18080 -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $LOGFILE -p $PIDFILE
+}
+
+count_workers(){
+	nprocs=`pskill -l gunicorn |wc -l`
+	nworkers=`echo "$nprocs-1" |bc`
+	echo $nworkers
+}
+
+case "$1" in
+    start)
+        start_gunic
+        ;;
+    stop)
+        pskill gunicorn
+        ;;
+    reload)
+        kill -HUP `cat $PIDFILE`
+        ;;
+    addw)
+        addw_num=$2
+        [ $addw_num -ge 1 ] || exit 99
+		echo -ne "Adding from $(count_workers) "
+		for i in $(seq $addw_num)
+		do
+			kill -TTIN `cat $PIDFILE`
+			echo -n "."
+			sleep 1
+		done
+		echo " to $(count_workers) workers"
+        ;;
+    delw)
+        delw_num=$2
+		nprocs=`pskill -l gunicorn |wc -l`
+		nworkers=`echo "$nprocs-1" |bc`
+        [ $delw_num -ge $nworkers ] && exit 99
+		echo -ne "Decreasing from $(count_workers) "
+		for i in $(seq $delw_num)
+		do
+			kill -TTOU `cat $PIDFILE`
+			echo -n "."
+			sleep 1
+		done
+		echo " to $(count_workers) workers"
+        ;;
+    status)
+		nworkers=$(count_workers)
+		echo "workers: $nworkers"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|reload|status|addw <num>|delw <num>}"
+        exit 1
+        ;;
+esac
