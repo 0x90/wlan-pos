@@ -1,0 +1,16 @@
+#!/bin/bash
+# script for ab cocurrence test.
+# This tool *MUST* be run after apache/httpd starts and wpp_server listening on port 18080.
+# $0 <num_req> <num_cocur>
+
+ifname=eth0
+req_file=tool/web/wpp_req.xml
+cont_type='text/xml'
+
+num_req=$1
+num_cocur=$2
+
+ip=`ifconfig $ifname |grep inet|grep -v inet6 |awk '{print $2}' |awk -F: '{print $2}'`
+url=http://$ip:18080/wlan/distribution
+
+ab -p $req_file -T $cont_type -n $num_req -c $num_cocur $url

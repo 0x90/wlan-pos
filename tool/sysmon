@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#LOOP=5
+LOOP=5000
+LOGDIR=$HOME/tmp/sysmon_log
+[ -d $LOGDIR ] || mkdir -p $LOGDIR
+datetime=`date +%Y%m%d-%H%M%S`
+LOGFILE=$LOGDIR/sysmon_${datetime}_n$1c$2.log
+
+
+echo "#time,cpu idle(%),mem free(m)" >> $LOGFILE
+for i in $(seq $LOOP)
+do
+	CPU=`top -n 1|grep "Cpu"| awk '{printf $5}' |awk -F% '{printf $1}'`
+	MEMFree=`free -m| grep "Mem:"| awk '{print $4}'`
+	#MEMTotal=`free -m| grep "Mem:"| awk '{print $2}'`
+	#IO=`vmstat 1 2| sed -n '/[0-9]/p' | sed -n '2p' | gawk '{print $16}'`
+	tstamp=`date +%H%M%S-%D`
+
+	echo "$tstamp,$CPU,$MEMFree" 2>&1 |tee -a $LOGFILE
+	#echo "MEMTotal: $MEMTotal(M)"
+	#echo "IO: $IO"
+done
