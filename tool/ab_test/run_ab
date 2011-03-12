@@ -4,10 +4,16 @@ wpp_port=18080
 wpp_path=wlan/distribution
 wpp_url=http://$wpp_ip:$wpp_port/$wpp_path
 
+fpp_ip=192.168.0.100
+fpp_port=8080
+fpp_path=FPP_AD/adapter
+fpp_url=http://$fpp_ip:$fpp_port/$fpp_path
+
 abdir=`dirname $0`
-postfile=$abdir/wpp_req.xml
+postfile_wpp=$abdir/wpp_req.xml
+postfile_fpp=$abdir/fpp_req.xml
 
 # FPP @ 35.201 (neusoft)
-#ab -n $1 -c $2 -p fpp_req.xml http://192.168.35.201:12401/FPP_AD/adapter
+ab -n $1 -c $2 -p $postfile_wpp $fpp_url
 # WPP @ 35.203
-ab -n $1 -c $2 -p $postfile $wpp_url
+#ab -n $1 -c $2 -p $postfile_fpp $wpp_url
