@@ -10,7 +10,7 @@ PIDFILE=/tmp/gunicorn.pid
 WORKER_CLASS_MEINHELD="egg:meinheld#gunicorn_worker"
 WORKER_CLASS_GEVENT="egg:gunicorn#gevent"
 APPMODULE=wpp_server:wpp_handler
-servport=8080
+servport=18080
 
 start_gunic() {
     #nworkers=`python -c 'import os; \
@@ -25,9 +25,9 @@ start_gunic() {
     LOGFILE=log/gunicorn_$datetime.log
     cd $PATH_WPPWSGI
     touch $LOGFILE
-    nohup gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $LOGFILE -p $PIDFILE
-    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $LOGFILE -p $PIDFILE
-    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $LOGFILE -p $PIDFILE
+    nohup gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $LOGFILE -p $PIDFILE &
+    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $LOGFILE -p $PIDFILE &
+    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $LOGFILE -p $PIDFILE &
 }
 
 count_workers(){
