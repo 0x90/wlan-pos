@@ -16,16 +16,16 @@ if __name__ == "__main__":
     from evaloc import getIPaddr
     ipsrc = getIPaddr()
     #ipserver = '192.168.109.48'
-    #ipserver = '192.168.109.51'
-    #ipserver = '192.168.109.56'
+    #ipserver = '192.168.109.53'
+    ipserver = '192.168.109.56'
     #ipserver = '192.168.109.58'
-    ipserver = '192.168.0.100'
+    #ipserver = '192.168.0.100'
     if 'wlan0' in ipsrc:
         ipsrc = ipsrc['wlan0']
     else:
         ipsrc = ipsrc['eth0']
     port = '18080'
-    #port = '8080'
+    #port = '8081'
     #path_info = 'fpp_ad/adapter'
     path_info = 'wlan/distribution'
     url_server = 'http://%s:%s/%s' % (ipserver, port, path_info)
