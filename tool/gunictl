@@ -10,7 +10,7 @@ PIDFILE=/tmp/gunicorn.pid
 WORKER_CLASS_MEINHELD="egg:meinheld#gunicorn_worker"
 WORKER_CLASS_GEVENT="egg:gunicorn#gevent"
 APPMODULE=wpp_server:wpp_handler
-servport=18080
+servport=8080
 
 start_gunic() {
     #nworkers=`python -c 'import os; \

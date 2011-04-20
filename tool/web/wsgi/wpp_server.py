@@ -302,7 +302,7 @@ if __name__ == "__main__":
     # middleware
     #application = ExceptionMiddleware(application)
 
-    port = 18080
+    port = 8080
 
     # wsgiref server from python stdlib.
     #httpd = PimpedWSGIServer(('',port), PimpedHandler)
@@ -314,22 +314,22 @@ if __name__ == "__main__":
     #httpd.log = False
     # Meinheld server.
     from meinheld import server
-    server.listen(("0.0.0.0", 18080))
+    server.listen(("0.0.0.0", 8080))
     # Bjoern server.
     #import bjoern
     #bjoern.listen(wpp_handler, '0.0.0.0', port)
     # FIXME: Fapws4 server.
     #import fapws._evwsgi as evwsgi
     #from fapws import base
-    #evwsgi.start('0.0.0.0', '18080') 
+    #evwsgi.start('0.0.0.0', '8080') 
     #evwsgi.set_base_module(base)
     #evwsgi.wsgi_cb(('/wlan', wpp_handler))
     #evwsgi.set_debug(0)	   
     # Gunicorn 
-    # $gunicorn -b :18080 -w 5 wpp_server:wpp_handler
-    # $gunicorn -b :18080 -w 5 -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
-    # $gunicorn -b :18080 -w 5 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
-    # $gunicorn -b :18080 -w 5 -k "egg:gevent#gunicorn_worker" wpp_server:wpp_handler
+    # $gunicorn -b :8080 -w 5 wpp_server:wpp_handler
+    # $gunicorn -b :8080 -w 5 -k "egg:meinheld#gunicorn_worker" wpp_server:wpp_handler
+    # $gunicorn -b :8080 -w 5 -k "egg:gunicorn#gevent" wpp_server:wpp_handler
+    # $gunicorn -b :8080 -w 5 -k "egg:gevent#gunicorn_worker" wpp_server:wpp_handler
 
     
     # Get IP address.

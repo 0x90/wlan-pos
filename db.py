@@ -47,7 +47,7 @@ class WppDB(object):
                 self.con = pg.connect(dsn) 
                 self.con.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             except Exception, e:
-                if not e.pgcode or not e.pgerror: sys.exit('Connection failed!\n%s' % e)
+                if not e.pgcode or not e.pgerror: sys.exit('PostgreSQL: Connection failed!\n%s' % e)
                 else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
