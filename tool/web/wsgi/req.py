@@ -27,6 +27,33 @@ urlpath_fpp_neu = 'fpp_ad/adapter'
 urlpath_fpp_moto = 'fpp/servlet'
 urlpath_wpp = 'wlan/distribution'
 
+targets = {
+        'wpp_py':{
+                  'ip':ip_wpp_py, 
+                'port':port_wpp_py, 
+             'urlpath':urlpath_wpp,
+            'req_data':req_wpp},
+     'wpp_local':{
+                  'ip':ip_wpp_local, 
+                'port':port_wpp_py, 
+             'urlpath':urlpath_wpp,
+            'req_data':req_wpp},
+     'wpp_vance':{
+                  'ip':ip_vance_proxy, 
+                'port':port_wpp_vance, 
+             'urlpath':urlpath_wpp,
+            'req_data':req_wpp},
+       'fpp_neu':{
+                  'ip':ip_fpp_neu, 
+                'port':port_fpp_neu, 
+             'urlpath':urlpath_fpp_neu,
+            'req_data':req_fpp},
+      'fpp_moto':{
+                  'ip':ip_fpp_moto, 
+                'port':port_fpp_moto, 
+             'urlpath':urlpath_fpp_moto,
+            'req_data':req_fpp},
+}
 
 if __name__ == "__main__":
     from evaloc import getIPaddr
@@ -36,33 +63,6 @@ if __name__ == "__main__":
     else:
         ipsrc = ipsrc['eth0']
 
-    targets = {
-            'wpp_py':{
-                      'ip':ip_wpp_py, 
-                    'port':port_wpp_py, 
-                 'urlpath':urlpath_wpp,
-                'req_data':req_wpp},
-         'wpp_local':{
-                      'ip':ip_wpp_local, 
-                    'port':port_wpp_py, 
-                 'urlpath':urlpath_wpp,
-                'req_data':req_wpp},
-         'wpp_vance':{
-                      'ip':ip_vance_proxy, 
-                    'port':port_wpp_vance, 
-                 'urlpath':urlpath_wpp,
-                'req_data':req_wpp},
-           'fpp_neu':{
-                      'ip':ip_fpp_neu, 
-                    'port':port_fpp_neu, 
-                 'urlpath':urlpath_fpp_neu,
-                'req_data':req_fpp},
-          'fpp_moto':{
-                      'ip':ip_fpp_moto, 
-                    'port':port_fpp_moto, 
-                 'urlpath':urlpath_fpp_moto,
-                'req_data':req_fpp},
-    }
     target = targets['wpp_local']
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print 'Requesting %s from %s' % (url, ipsrc)
