@@ -26,6 +26,12 @@ start_gunic() {
     LOGFILE=log/gunicorn_$datetime.log
     cd $PATH_WPPWSGI
     touch $LOGFILE
+	# check if the size of logfile.
+	if [ -f nohup.out ]; then
+		llog=`wc -l nohup.out |awk '{print $1}'`
+		#echo $llog
+		[ $llog -gt 500000 ] && tar cjvf log/nohup.out.tbz2 nohup.out; rm nohup.out
+	fi
     nohup gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $LOGFILE -p $PIDFILE &
     #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $LOGFILE -p $PIDFILE &
     #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $LOGFILE -p $PIDFILE &
