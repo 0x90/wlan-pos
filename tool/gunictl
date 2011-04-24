@@ -7,8 +7,8 @@ PATH_WPPWSGI=$PATH_WPPTOOL/web/wsgi
 LOGDIR=$PATH_WPPWSGI/log
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
 PIDFILE=/tmp/gunicorn.pid
-WORKER_CLASS_MEINHELD="egg:meinheld#gunicorn_worker"
-WORKER_CLASS_GEVENT="egg:gunicorn#gevent"
+WORKER_MEINHELD="egg:meinheld#gunicorn_worker"
+WORKER_GEVENT="egg:gunicorn#gevent"
 APPMODULE=wpp_server:wpp_handler
 servport=8080
 
@@ -27,27 +27,27 @@ start_gunic() {
     WPP_LOGFILE=log/wpp.log
     cd $PATH_WPPWSGI
     touch $GUNICORN_LOGFILE
-	# check if the size of logfile.
-	if [ -f $WPP_LOGFILE ]; then
-		nline=`wc -l $WPP_LOGFILE |awk '{print $1}'`
-		#echo $nline
-		if [ $nline -gt 500000 ]; then 
+    # check if the size of logfile.
+    if [ -f $WPP_LOGFILE ]; then
+        nline=`wc -l $WPP_LOGFILE |awk '{print $1}'`
+        #echo $nline
+        if [ $nline -gt 500000 ]; then 
             mv -f ${WPP_LOGFILE} ${WPP_LOGFILE}_$datetime 
             tar cjvf ${WPP_LOGFILE}_$datetime.tbz2 ${WPP_LOGFILE}_$datetime
             rm -f ${WPP_LOGFILE}_$datetime
         fi
-	fi
+    fi
     CMD="gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
-    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
-    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE "
-    echo -e "\n\nLOG START AT: $datetime\n" >> $WPP_LOGFILE
+    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_MEINHELD $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
+    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_GEVENT $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
+    echo -e "\n\n##### LOG START @ $datetime #####\n" >> $WPP_LOGFILE
     nohup  $CMD >> $WPP_LOGFILE 2>&1 &
 }
 
 count_workers(){
-	nprocs=`pskill -l gunicorn |wc -l`
-	nworkers=`echo "$nprocs-1" |bc`
-	echo $nworkers
+    nprocs=`pskill -l gunicorn |wc -l`
+    nworkers=`echo "$nprocs-1" |bc`
+    echo $nworkers
 }
 
 case "$1" in
@@ -63,14 +63,14 @@ case "$1" in
     addw)
         addw_num=$2
         [ $addw_num -ge 1 ] || exit 99
-		echo -ne "Adding from $(count_workers) "
-		for i in $(seq $addw_num)
-		do
-			kill -TTIN `cat $PIDFILE`
-			echo -n "."
-			sleep 1
-		done
-		echo " to $(count_workers) workers"
+        echo -ne "Adding from $(count_workers) "
+        for i in $(seq $addw_num)
+        do
+            kill -TTIN `cat $PIDFILE`
+            echo -n "."
+            sleep 1
+        done
+        echo " to $(count_workers) workers"
         ;;
     delw)
         delw_num=$2
