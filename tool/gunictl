@@ -23,18 +23,25 @@ start_gunic() {
     echo "workers: $nworkers"
 
     datetime=`date +%Y%m%d-%H%M%S`
-    LOGFILE=log/gunicorn_$datetime.log
+    GUNICORN_LOGFILE=log/gunicorn_$datetime.log
+    WPP_LOGFILE=log/wpp.log
     cd $PATH_WPPWSGI
-    touch $LOGFILE
+    touch $GUNICORN_LOGFILE
 	# check if the size of logfile.
-	if [ -f nohup.out ]; then
-		llog=`wc -l nohup.out |awk '{print $1}'`
-		#echo $llog
-		[ $llog -gt 500000 ] && tar cjvf log/nohup.out.tbz2 nohup.out; rm nohup.out
+	if [ -f $WPP_LOGFILE ]; then
+		nline=`wc -l $WPP_LOGFILE |awk '{print $1}'`
+		#echo $nline
+		if [ $nline -gt 500000 ]; then 
+            mv -f ${WPP_LOGFILE} ${WPP_LOGFILE}_$datetime 
+            tar cjvf ${WPP_LOGFILE}_$datetime.tbz2 ${WPP_LOGFILE}_$datetime
+            rm -f ${WPP_LOGFILE}_$datetime
+        fi
 	fi
-    nohup gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $LOGFILE -p $PIDFILE &
-    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $LOGFILE -p $PIDFILE &
-    #nohup gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $LOGFILE -p $PIDFILE &
+    CMD="gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
+    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_MEINHELD $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
+    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_CLASS_GEVENT $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE "
+    echo -e "\n\nLOG START AT: $datetime\n" >> $WPP_LOGFILE
+    nohup  $CMD >> $WPP_LOGFILE 2>&1 &
 }
 
 count_workers(){
