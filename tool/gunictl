@@ -46,7 +46,7 @@ start_gunic() {
 
 count_workers(){
     nprocs=`pskill -l gunicorn |wc -l`
-    nworkers=`echo "$nprocs-1" |bc`
+    [ $nprocs -gt 1 ] && nworkers=`echo "$nprocs-1" |bc` || nworkers=$nprocs
     echo $nworkers
 }
 
