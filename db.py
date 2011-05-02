@@ -25,7 +25,7 @@ option:
     normal:  wpp_clusteridaps & wpp_cfps.
     call  :  All-clustering table import.
     cincr :  Incr-clustering table import.
-    uprec :  uprecs rawdata table import.
+    uprecs:  uprecs rawdata & version tables import.
 example:
     #db.py normal
 """ % time.strftime('%Y')
@@ -68,6 +68,14 @@ class WppDB(object):
     def close(self):
         self.cur.close()
         self.con.close()
+
+    def getRawdataVersion(self):
+        table_name = 'wpp_uprecsver'
+        table_inst = self.tables[table_name]
+        sql = self.sqls['SQL_SELECT'] % ('ver_uprecs', table_inst)
+        self.cur.execute(sql)
+        ver_rdata = self.cur.fetchone()[0]
+        return ver_rdata
 
     def loadTables(self, tbl_files=None):
         if not self.tbl_files: 
@@ -125,7 +133,7 @@ class WppDB(object):
                 indat = [ line for line in csvdat ]
             except csv.Error, e:
                 sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
-            self._insertMany(table_name=table_name, indat=indat)
+            self.insertMany(table_name=table_name, indat=indat)
         elif self.dbtype == 'postgresql':
             if not table_name == 'wpp_uprecsinfo': cols = None
             else: cols = self.tbl_field[table_name]
@@ -143,7 +151,7 @@ class WppDB(object):
         new_cid = self.cur.fetchone()[0] + 1
         return new_cid
 
-    def _insertMany(self, table_name=None, indat=None):
+    def insertMany(self, table_name=None, indat=None):
         table_inst = self.tables[table_name]
         if self.dbtype == 'oracle':
             table_field = self.tbl_field[table_name]
@@ -174,7 +182,7 @@ class WppDB(object):
         cidmacseq = []
         for seq,mac in enumerate(macs):
             cidmacseq.append([ new_cid, mac, seq+1 ])
-        self._insertMany(table_name=table_name, indat=cidmacseq)
+        self.insertMany(table_name=table_name, indat=cidmacseq)
         return new_cid
 
     def addFps(self, cid=None, fps=None):
@@ -182,7 +190,7 @@ class WppDB(object):
         cids = np.array([ [cid] for i in xrange(len(fps)) ])
         fps = np.array(fps)
         cidfps = np.append(cids, fps, axis=1).tolist()
-        self._insertMany(table_name=table_name, indat=cidfps)
+        self.insertMany(table_name=table_name, indat=cidfps)
 
     def getCIDcntMaxSeq(self, macs=None):
         table_name = 'wpp_clusteridaps'
@@ -294,6 +302,9 @@ class WppDB(object):
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=2)
 
+    if not len(sys.argv) == 2: 
+        usage() 
+        sys.exit(0)
     if sys.argv[1]:
         updb_opt = sys.argv[1]
         if updb_opt == 'call':
@@ -302,8 +313,8 @@ if __name__ == "__main__":
         elif updb_opt == 'cincr':
             wpp_tables['wpp_clusteridaps']='wpp_clusteridaps_incr'
             wpp_tables['wpp_cfps']='wpp_cfps_incr'
-        elif updb_opt == 'uprec':
-            wpp_tables['wpp_uprecsinfo']='wpp_uprecsinfo'
+        elif updb_opt == 'uprecs':
+            wpp_tables = {'wpp_uprecsinfo':'wpp_uprecsinfo','wpp_uprecsver':'wpp_uprecsver'}
         elif updb_opt == 'normal':
             # ONLY load two algo tables: wpp_clusteridaps, wpp_cfps.
             pass

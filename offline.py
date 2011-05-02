@@ -6,6 +6,8 @@ import csv
 import getopt
 import string
 from time import strftime
+from ftplib import FTP
+from bz2 import BZ2File
 
 import numpy as np
 from pprint import pprint,PrettyPrinter
@@ -20,7 +22,7 @@ from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
 from db import WppDB
 
 
-def ClusterIncr(rmpfile):
+def doClusterIncr(rmpfile):
     rmpin = csv.reader( open(rmpfile,'r') )
     try:
         rawrmp = np.array([ fp for fp in rmpin ])
@@ -143,7 +145,7 @@ def getRaw():
     return rawdata
 
 
-def Fingerprint(rawfile):
+def genFPs(rawfile):
     """
     Generating (unclustered) fingerprint for certain sampling point(specified by 
         raw file content) from GPS/WLAN raw scanned data.
@@ -248,7 +250,7 @@ def genKMLfile(cfpsfile):
     genKML(cfps, kmlfile=kfile, icons=icon_types)
 
 
-def ClusterAll(rmpfile):
+def doClusterAll(rmpfile):
     """
     Clustering the raw radio map fingerprints for fast indexing(mainly in db),
     generating following data structs: cid_aps, cfprints and crmp.
@@ -478,19 +480,82 @@ option:
     -n --no-dump           :  No data dumping to file.
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
-    -u --upload=<updbmode> :  Upload clustered fingerprint tables into database, in certain mode: 
-                              1-initial import(default); 2-increamental update.
+    -u --updatedb=<mode>   :  Updating algorithm data, which uses rawdata from FPP's FTP.
     -v --verbose           :  Verbose mode.
 NOTE:
     <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
 """
+
+def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
+    """
+    Arg1: connection string.
+    Arg2: current wpp version of rawdata.
+    Output1: fpp rawdata versions needed for wpp.
+    Output2: local path(s) of rawdata bzip2(s).
+    """
+    ftp = FTP()
+    #ftp.set_debuglevel(1)
+    print ftp.connect(host=ftp_addr['ip'],port=ftp_addr['port'],timeout=10)
+    print ftp.login(user=ftp_addr['user'],passwd=ftp_addr['passwd'])
+    print ftp.cwd(ftp_addr['path'])
+    files = ftp.nlst()
+    # Naming rule of bzip2 file: FPP_RawData_<hostname>_<ver>.csv.bz2
+    bz2s_latest = [ f for f in files if f.endswith('bz2') 
+            and int(f.split('_')[-1].split('.')[0])>ver_wpp ]
+    dirlocal = '/home/alexy/tmp/wpp/local'
+    localbzs = []
+    for bz2 in bz2s_latest:
+        cmd = 'RETR %s' % bz2; print cmd
+        localbz = '%s/%s' % (dirlocal, bz2)
+        fd_local = open(localbz, 'wb')
+        print ftp.retrbinary(cmd, fd_local.write)
+        fd_local.close()
+        localbzs.append(localbz)
+    #ftp.set_debuglevel(0)
+    print ftp.quit()
+    ver_fpp = max([ int(f.split('_')[-1].split('.')[0]) for f in bz2s_latest ])
+    return (ver_fpp,localbzs)
+
+
+def updateAlgoData():
+    """
+    Update data directly used by Algo in DB(wpp_clusterid, wpp_cfps).
+    1) Retrieve latest incremental rawdata(csv) from remote FTP server(hosted by FPP).
+    2) Import rawdata csv into wpp_uprecsinfo using db.insertMany().
+    3) Execute incr-clustering for latest rawdata using offline.doClusterIncr().
+    """
+    dbips = DB_OFFLINE
+    for svrip in dbips:
+        dbsvr = dbsvrs[svrip]
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+        ver_wpp = wppdb.getRawdataVersion()
+        print ver_wpp
+        # Sync rawdata into wpp_uprecsinfo from remote FTP server.
+        ftp_addr = {'user':'alexy','passwd':'yan714257','ip':'localhost','port':21,'path':'tmp/wpp/ftp'}
+        ver_fpp,localbzs = syncFtpUprecs(ftp_addr, ver_wpp)
+        print localbzs
+        # Decompress bzip2 files & Import CSV file into wpp_uprecsinfo table.
+        for bzfile in localbzs:
+            csvdat = csv.reader( BZ2File(bzfile) )
+            try:
+                indat = np.array([ line for line in csvdat ])
+            except csv.Error, e:
+                sys.exit('\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
+            vers = np.array([ [ver_fpp] for i in xrange(len(indat)) ])
+            indat = np.append(indat, vers, axis=1).tolist()
+            print indat[0]
+            wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat)
+        # Incr clustering. 
+        #doClusterIncr(file_uprecs)
+        wppdb.close()
 
 
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:ns:t:u:v",
             ["aio","cluster","fake","help","spid=","kml=","no-dump",
-             "raw-scan=","to-rmp=","upload","verbose"])
+             "raw-scan=","to-rmp=","updatedb","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -498,7 +563,7 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    spid=0; times=0; tormp=False; updb=False
+    spid=0; times=0; tormp=False; updatedb=False
     rawfile=None; tfail=0; docluster=False; dokml=False
     global verbose,pp,nodump,fake,updbmode
     verbose=False; pp=None; nodump=False; fake=False; updbmode=1
@@ -544,14 +609,14 @@ def main():
             nodump = True
         elif o in ("-f", "--fake"):
             fake = True
-        elif o in ("-u", "--upload"):
+        elif o in ("-u", "--updatedb"):
             if a.isdigit(): 
                 updbmode = string.atoi(a)
                 if not (1 <= updbmode <= 2):
-                    print '\nError: updbmode: (%d) NOT supported yet!' % updbmode
+                    print '\nError: updatedb mode: (%d) NOT supported yet!' % updbmode
                     usage(); sys.exit(99)
                 else:
-                    updb = True
+                    updatedb = True
             else: 
                 print '\nError: "-d/--db" should be followed by an INTEGER!'
                 usage(); sys.exit(99)
@@ -568,7 +633,7 @@ def main():
     # Raw data to fingerprint convertion.
     if tormp:
         fingerprint = []
-        fingerprint = Fingerprint(rawfile)
+        fingerprint = genFPs(rawfile)
         if not fingerprint:
             print 'Error: Fingerprint generation FAILED: %s' % rawfile
             sys.exit(99)
@@ -586,36 +651,35 @@ def main():
             else: print fingerprint
             sys.exit(0)
 
-    # Uploading to database.
-    #TODO: upload mode 2
-    if updb:
-        import MySQLdb
-        try:
-            conn = MySQLdb.connect(host = db_config_my['hostname'], 
-                                   user = db_config_my['username'], 
-                                 passwd = db_config_my['password'], 
-                                     db = db_config_my['dbname'], 
-                               compress = 1)
-                            #cursorclass = MySQLdb.cursors.DictCursor)
-        except MySQLdb.Error,e:
-            print "\nCan NOT connect %s@server: %s!" % (username, hostname)
-            print "Error(%d): %s" % (e.args[0], e.args[1])
-            sys.exit(99)
-        try:
-            # Returns values identified by field name(or field order if no arg).
-            cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-            for table in wpp_tables_my:
-                print 'table: %s' % table
-                cursor.execute(sqls['SQL_DROP_MY'] % table)
-                cursor.execute(sqls['SQL_CREATETB_MY'] % (table, tbl_forms_my[table]))
-                cursor.execute(sqls['SQL_CSVIN_MY'] % (tbl_files[table], table, tbl_field_my[table]))
-            cursor.close()
-        except MySQLdb.Error,e:
-            print "Error(%d): %s" % (e.args[0], e.args[1])
-            sys.exit(99)
-
-        conn.commit()
-        conn.close()
+    # Update Algorithm related data.
+    if updatedb:
+        updateAlgoData()
+        #import MySQLdb
+        #try:
+        #    conn = MySQLdb.connect(host = db_config_my['hostname'], 
+        #                           user = db_config_my['username'], 
+        #                         passwd = db_config_my['password'], 
+        #                             db = db_config_my['dbname'], 
+        #                       compress = 1)
+        #                    #cursorclass = MySQLdb.cursors.DictCursor)
+        #except MySQLdb.Error,e:
+        #    print "\nCan NOT connect %s@server: %s!" % (username, hostname)
+        #    print "Error(%d): %s" % (e.args[0], e.args[1])
+        #    sys.exit(99)
+        #try:
+        #    # Returns values identified by field name(or field order if no arg).
+        #    cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        #    for table in wpp_tables_my:
+        #        print 'table: %s' % table
+        #        cursor.execute(sqls['SQL_DROP_MY'] % table)
+        #        cursor.execute(sqls['SQL_CREATETB_MY'] % (table, tbl_forms_my[table]))
+        #        cursor.execute(sqls['SQL_CSVIN_MY'] % (tbl_files[table], table, tbl_field_my[table]))
+        #    cursor.close()
+        #except MySQLdb.Error,e:
+        #    print "Error(%d): %s" % (e.args[0], e.args[1])
+        #    sys.exit(99)
+        #conn.commit()
+        #conn.close()
 
     # KML generation.
     if dokml:
@@ -623,8 +687,8 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        if cluster_type   == 1: ClusterAll(rmpfile)
-        elif cluster_type == 2: ClusterIncr(rmpfile)
+        if cluster_type   == 1: doClusterAll(rmpfile)
+        elif cluster_type == 2: doClusterIncr(rmpfile)
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 
     # WLAN & GPS scan for raw data collection.

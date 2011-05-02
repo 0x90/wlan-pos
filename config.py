@@ -76,21 +76,26 @@ tbl_forms_my = {'cidaps':""" (
                 )""" }
 # { table_name: table_instance }
 wpp_tables = { 'wpp_clusteridaps':'wpp_clusteridaps',
-                      'wpp_cfps':'wpp_cfps' }
+                       'wpp_cfps':'wpp_cfps',
+                 'wpp_uprecsinfo':'wpp_uprecsinfo',
+                  'wpp_uprecsver':'wpp_uprecsver' }
 # NOTE: tbl_fields dont contain PRIMAY key or SERIAL columns, like *id* in wpp_uprecsinfo.
 tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                       'wpp_cfps':('clusterid', 'lat', 'lon', 'height', 'rsss', 'cfps_time'),
                 'wpp_uprecsinfo':('spid','servid','time','imsi','imei','useragent',
                                   'mcc','mnc','lac','cellid','cellrss',
-                                  'lat','lon','height','wlanidentifier','wlanmatcher'),
+                                  'lat','lon','height','wlanidentifier','wlanmatcher',
+                                  'ver_uprecs'),
                         'tsttbl':('clusterid', 'keyaps', 'seq') }
 tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
                       'wpp_cfps':('clusterid',),
-                'wpp_uprecsinfo':(),
+                'wpp_uprecsinfo':('ver_uprecs',),
+                 'wpp_uprecsver':(),
                         'tsttbl':('clusterid',)}
 tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
                       'wpp_cfps':'tbl/cfprints.tbl',
                 'wpp_uprecsinfo':'tbl/uprecs.tbl',
+                 'wpp_uprecsver':'tbl/uprecsver.tbl',
                         'cidaps':'tbl/cidaps.tbl',
                           'cfps':'tbl/cfprints.tbl',
                         'tsttbl':'tbl/tsttbl.tbl' }
@@ -140,8 +145,9 @@ tbl_forms = { 'oracle':{
                         height NUMERIC(5,1) DEFAULT 0,
                           rsss VARCHAR(100) NOT NULL,
                      cfps_time VARCHAR(20))""",
+                'wpp_uprecsver':""" (
+                    ver_uprecs INT DEFAULT 0)""",
                 'wpp_uprecsinfo':""" (
-                            id SERIAL,
                           spid INT,
                         servid INT,
                           time VARCHAR(20),
@@ -153,11 +159,12 @@ tbl_forms = { 'oracle':{
                            lac INT DEFAULT 0,
                         cellid INT DEFAULT 0,
                        cellrss VARCHAR(5),
-                           lat NUMERIC(9,6),
-                           lon NUMERIC(9,6),
-                        height NUMERIC(5,1),
+                           lat NUMERIC(9,6) DEFAULT 0,
+                           lon NUMERIC(9,6) DEFAULT 0,
+                        height NUMERIC(5,1) DEFAULT 0,
                 wlanidentifier VARCHAR(1024),
-                   wlanmatcher VARCHAR(255))""",
+                   wlanmatcher VARCHAR(255),
+                    ver_uprecs INT DEFAULT 0)""",
                 'tsttbl':"""(
                      clusterid INT, 
                         keyaps VARCHAR2(71) NOT NULL,

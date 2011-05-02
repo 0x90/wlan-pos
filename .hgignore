@@ -30,6 +30,8 @@ kml/*.kml
 tbl/*-*.tbl
 tbl/cidaps.tbl
 tbl/cfprints.tbl
+tbl/uprecs.tbl
+tbl/uprecsver.tbl
 cdf.mp
 cdf_*.jpg
 mp/cdf.eps
