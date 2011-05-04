@@ -183,7 +183,7 @@ class WppDB(object):
             except Exception, e:
                 if not e.pgcode or not e.pgerror: sys.exit(e)
                 #else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
-                raise Exception(e.pgcode, e.pgerror)
+                raise Exception(e.pgerror)
             print 'Add %d rows to |%s|' % (len(indat), table_inst)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         self.con.commit()

@@ -9,6 +9,10 @@ import StringIO as sio
 from time import strftime
 from ftplib import FTP
 from bz2 import BZ2File
+from smtplib import SMTP
+from email.MIMEText import MIMEText
+from email.Header import Header
+from email.Utils import parseaddr, formataddr
 
 import numpy as np
 from pprint import pprint,PrettyPrinter
@@ -21,6 +25,7 @@ from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
 from db import WppDB
+from config import mailcfg, errmsg
 
 
 def doClusterIncr(fd_csv=None):
@@ -526,12 +531,54 @@ def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
     return (vers_fpp,localbzs)
 
 
+def send_email(sender, username, passwd, recipient, subject, body):
+    """Send an email.
+    All arguments should be Unicode strings (plain ASCII works as well).
+    Only the real name part of sender and recipient addresses may contain
+    non-ASCII characters.
+    The email will be properly MIME encoded and delivered though SMTP to
+    localhost port 25.  This is easy to change if you want something different.
+    The charset of the email will be the first one out of US-ASCII, ISO-8859-1
+    and UTF-8 that can represent all the characters occurring in the email.
+    """
+    # Header class is smart enough to try US-ASCII, then the charset we
+    # provide, then fall back to UTF-8.
+    header_charset = 'ISO-8859-1'
+    # We must choose the body charset manually
+    for body_charset in 'US-ASCII', 'ISO-8859-1', 'UTF-8':
+        try:
+            body.encode(body_charset)
+        except UnicodeError: pass
+        else: break
+    # Split real name (which is optional) and email address parts
+    sender_name, sender_addr = parseaddr(sender)
+    recipient_name, recipient_addr = parseaddr(recipient)
+    # We must always pass Unicode strings to Header, otherwise it will
+    # use RFC 2047 encoding even on plain ASCII strings.
+    sender_name = str(Header(unicode(sender_name), header_charset))
+    recipient_name = str(Header(unicode(recipient_name), header_charset))
+    # Make sure email addresses do not contain non-ASCII characters
+    sender_addr = sender_addr.encode('ascii')
+    recipient_addr = recipient_addr.encode('ascii')
+    # Create the message ('plain' stands for Content-Type: text/plain)
+    msg = MIMEText(body.encode(body_charset), 'plain', body_charset)
+    msg['From'] = formataddr((sender_name, sender_addr))
+    msg['To'] = formataddr((recipient_name, recipient_addr))
+    msg['Subject'] = Header(unicode(subject), header_charset)
+    # Send the message via SMTP to localhost:25
+    smtp = SMTP("smtp.gmail.com:587")
+    smtp.starttls()  
+    smtp.login(username, passwd)  
+    smtp.sendmail(sender, recipient, msg.as_string())
+    smtp.quit()
+
+
 def updateAlgoData():
     """
     Update data directly used by Algo in DB(wpp_clusterid, wpp_cfps).
     1) Retrieve latest incremental rawdata(csv) from remote FTP server(hosted by FPP).
-    2) Import rawdata csv into wpp_uprecsinfo using db.insertMany().
-    3) Execute incr-clustering for latest rawdata using offline.doClusterIncr().
+    2) Decompress bzip2, import CSV into wpp_uprecsinfo with its ver_uprecs, Update ver_uprecs in wpp_uprecsver.
+    4) Incr clustering inserted rawdata for direct algo use.
     """
     dbips = DB_OFFLINE
     for svrip in dbips:
@@ -544,11 +591,7 @@ def updateAlgoData():
         from config import ftp_addrs
         vers_fpp,localbzs = syncFtpUprecs(ftp_addrs['local'], ver_wpp)
         print localbzs
-        # Handle each bzip2 file with following steps:
-        # 1) Decompress bzip2 files.
-        # 2) Import CSV content into wpp_uprecsinfo table appended with its ver_uprecs.
-        # 3) Update ver_uprecs in wpp_uprecsver.
-        # 4) Incr clustering inserted rawdata for direct algo use.
+        # Handle each bzip2 file.
         for bzfile in localbzs:
             # Filter out the ver_uprecs info from the name of each bzip file.
             ver_bzfile = bzfile.split('_')[-1].split('.')[0]
@@ -565,37 +608,28 @@ def updateAlgoData():
             # Import csv into wpp_uprecsinfo.
             try:
                 wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers)
-                # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
-                # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
-                wppdb.setRawdataVersion(ver_bzfile)
-                print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
-                # Incr clustering. 
-                # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
-                sqlwhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
-                cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
-                sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%sqlwhere)
-                rdata_loc = wppdb.execute(sql)
-                str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
-                fd_csv = sio.StringIO(str_rdata_loc)
-                doClusterIncr(fd_csv)
             except Exception, e:
                 print 'Insert Failed: %s !' % e
                 # Send alert email to admin.
                 # TODO: Encoding for chinese characters, reference:
-                # 'Sending Unicode emails in Python' in scrapbook.
-                from smtplib import SMTP
-                from config import mailcfg, errmsg
-                from email.MIMEText import MIMEText
                 print 'Sending alert email -> %s' % mailcfg['to']
                 subject = "WPP ERROR: insert rawdata, ver: %s" % ver_bzfile
-                mailcontent = errmsg['db'] % ('wpp_uprecsinfo','insert',e)
-                msg = mailcfg['msg'] % (subject, mailcontent)
-                print msg
-                mailsvr = SMTP('smtp.gmail.com:587')  
-                mailsvr.starttls()  
-                mailsvr.login(mailcfg['user'],mailcfg['passwd'])  
-                mailsvr.sendmail(mailcfg['from'], mailcfg['to'], msg.encode('utf-8'))  
-                mailsvr.quit()
+                body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',e) ).decode('utf-8')
+                send_email(mailcfg['from'],mailcfg['user'],mailcfg['passwd'],mailcfg['to'],subject,body)
+                continue
+            # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
+            # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
+            wppdb.setRawdataVersion(ver_bzfile)
+            print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
+            # Incr clustering. 
+            # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
+            sqlwhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
+            cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
+            sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%sqlwhere)
+            rdata_loc = wppdb.execute(sql)
+            str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
+            fd_csv = sio.StringIO(str_rdata_loc)
+            doClusterIncr(fd_csv)
         wppdb.close()
 
 

@@ -24,15 +24,6 @@ mailcfg = {
        'to'  : '13811310350@139.com',
       'user' : 'xiaotian.yan',
     'passwd' : 'yan714257',
-       'msg' : """From: From WPP <xiaotian.yan@gmail.com>
-To: To YanXT <13811310350@139.com>
-Subject: %s.
-
-%s
-
---
-WPP
-""" 
 }
 errmsg = { 
     'db' : """TABLE: [%s], OPERATION: [%s], 
