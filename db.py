@@ -69,6 +69,11 @@ class WppDB(object):
         self.cur.close()
         self.con.close()
 
+    def execute(self, sql):
+        self.cur.execute(sql)
+        query = self.cur.fetchall()
+        return query
+
     def getRawdataVersion(self):
         table_name = 'wpp_uprecsver'
         table_inst = self.tables[table_name]
@@ -76,6 +81,13 @@ class WppDB(object):
         self.cur.execute(sql)
         ver_rdata = self.cur.fetchone()[0]
         return ver_rdata
+
+    def setRawdataVersion(self, ver_new):
+        table_name = 'wpp_uprecsver'
+        table_inst = self.tables[table_name]
+        sql = self.sqls['SQL_UPDATE'] % (table_inst, 'ver_uprecs', ver_new)
+        self.cur.execute(sql)
+        self.con.commit()
 
     def loadTables(self, tbl_files=None):
         if not self.tbl_files: 
@@ -170,7 +182,8 @@ class WppDB(object):
                 self.cur.copy_from(file_indat, table_inst, sep=',', columns=cols)
             except Exception, e:
                 if not e.pgcode or not e.pgerror: sys.exit(e)
-                else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+                #else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+                raise Exception(e.pgcode, e.pgerror)
             print 'Add %d rows to |%s|' % (len(indat), table_inst)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         self.con.commit()

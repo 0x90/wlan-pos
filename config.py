@@ -10,6 +10,34 @@ KNN = 4
 KWIN = 1.25
 RADIUS = 6372797 #meter
 
+# FPP-WPP rawdata sync related.
+ftp_addrs = { 
+    'local': {
+        'user':'alexy',
+      'passwd':'yan714257',
+          'ip':'localhost',
+        'port':21,
+        'path':'tmp/wpp/ftp'},
+}
+mailcfg = {
+      'from' : 'xiaotian.yan@gmail.com',
+       'to'  : '13811310350@139.com',
+      'user' : 'xiaotian.yan',
+    'passwd' : 'yan714257',
+       'msg' : """From: From WPP <xiaotian.yan@gmail.com>
+To: To YanXT <13811310350@139.com>
+Subject: %s.
+
+%s
+
+--
+WPP
+""" 
+}
+errmsg = { 
+    'db' : """TABLE: [%s], OPERATION: [%s], 
+        DETAILS: %s""",
+}
 # DB related configuration.
 DB_ONLINE = 'local_pg'
 DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
@@ -171,6 +199,7 @@ tbl_forms = { 'oracle':{
                            seq INT NOT NULL)""" }}
 # SQL statements.
 sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
+         'SQL_UPDATE' : "UPDATE %s SET %s = %s",
          'SQL_DROPTB' : "DROP TABLE %s PURGE",
          'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
         'SQL_TRUNCTB' : "TRUNCATE TABLE %s",

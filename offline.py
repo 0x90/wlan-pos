@@ -5,6 +5,7 @@ import sys
 import csv
 import getopt
 import string
+import StringIO as sio
 from time import strftime
 from ftplib import FTP
 from bz2 import BZ2File
@@ -15,20 +16,23 @@ from pprint import pprint,PrettyPrinter
 from wlan import scanWLAN_RE
 #from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
-        db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my, \
         wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
+        #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
 from db import WppDB
 
 
-def doClusterIncr(rmpfile):
-    rmpin = csv.reader( open(rmpfile,'r') )
+def doClusterIncr(fd_csv=None):
+    """
+    fd_csv: file descriptor of rawdata in csv format.
+    """
+    csvdat = csv.reader(fd_csv)
     try:
-        rawrmp = np.array([ fp for fp in rmpin ])
+        rawrmp = np.array([ fp for fp in csvdat ])
         num_rows,num_cols = np.shape(rawrmp)
     except csv.Error, e:
-        sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
+        sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     # CSV format judgement.
     print 'Incr Clustering -> %s FPs' % num_rows
     if num_cols == 14:
@@ -69,6 +73,7 @@ def doClusterIncr(rmpfile):
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         print '%s %s %s' % ('='*15, svrip, '='*15)
+        # TODO: move wppdb into updateAlgoData() to be outside of doClusterIncr().
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
         for idx, wlanmacs in enumerate(topaps):
@@ -103,12 +108,12 @@ def doClusterIncr(rmpfile):
             if not found_cluster:
                 print 'Failed!'
                 # insert into cidaps/cfps with a new clusterid.
-                new_cid = wppdb.addCluster(wlanmacs)
-                wppdb.addFps(cid=new_cid, fps=[fps])
+                #new_cid = wppdb.addCluster(wlanmacs)
+                #wppdb.addFps(cid=new_cid, fps=[fps])
             else:
                 print 'Found: (cid: %d)' % cid
                 # insert fingerprints into the same cluserid in table cfps.
-                wppdb.addFps(cid=cid, fps=[fps])
+                #wppdb.addFps(cid=cid, fps=[fps])
             print
         print '...Done'
         wppdb.close()
@@ -250,7 +255,7 @@ def genKMLfile(cfpsfile):
     genKML(cfps, kmlfile=kfile, icons=icon_types)
 
 
-def doClusterAll(rmpfile):
+def doClusterAll(fd_csv=None):
     """
     Clustering the raw radio map fingerprints for fast indexing(mainly in db),
     generating following data structs: cid_aps, cfprints and crmp.
@@ -274,7 +279,7 @@ def doClusterAll(rmpfile):
         visible APs >=4: declustering with top4, top3(if top4 fails);
         visible APs < 4: try top3 or 2 to see whether included in any cluster key AP set.
     """
-    # rmpin: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
+    # csvdat: compatible with fpp-wpp rawdata spec, which defines the sampling data format: 
     # fpp_specs(14col), fpp_rawdata_xls(16col)
     # IMEI      0, 3
     # IMSI      1, 4
@@ -294,12 +299,12 @@ def doClusterAll(rmpfile):
     # spid        , 0
     # servid      , 1
 
-    rmpin = csv.reader( open(rmpfile,'r') )
+    csvdat = csv.reader( fd_csv )
     try:
-        rawrmp = np.array([ fp for fp in rmpin ])
+        rawrmp = np.array([ fp for fp in csvdat ])
         num_rows,num_cols = np.shape(rawrmp)
     except csv.Error, e:
-        sys.exit('\nERROR: %s, line %d: %s!\n' % (rmpfile, rmpin.line_num, e))
+        sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     print 'All Clustering -> %s FPs' % num_rows
     # CSV format judgement.
     if num_cols == 14:
@@ -486,16 +491,20 @@ NOTE:
     <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
 """
 
+
 def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
     """
-    Arg1: connection string.
-    Arg2: current wpp version of rawdata.
-    Output1: fpp rawdata versions needed for wpp.
-    Output2: local path(s) of rawdata bzip2(s).
+    ftp_addr: connection string.
+    ver_wpp:  current wpp version of rawdata.
+    vers_fpp: fpp rawdata versions needed for wpp.
+    localbzs: local path(s) of rawdata bzip2(s).
     """
     ftp = FTP()
     #ftp.set_debuglevel(1)
-    print ftp.connect(host=ftp_addr['ip'],port=ftp_addr['port'],timeout=10)
+    try:
+        print ftp.connect(host=ftp_addr['ip'],port=ftp_addr['port'],timeout=10)
+    except:
+        sys.exit("FTP Connection Failed: %s@%s:%s !" % (ftp_addr['user'],ftp_addr['ip'],ftp_addr['port']))
     print ftp.login(user=ftp_addr['user'],passwd=ftp_addr['passwd'])
     print ftp.cwd(ftp_addr['path'])
     files = ftp.nlst()
@@ -513,8 +522,8 @@ def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
         localbzs.append(localbz)
     #ftp.set_debuglevel(0)
     print ftp.quit()
-    ver_fpp = max([ int(f.split('_')[-1].split('.')[0]) for f in bz2s_latest ])
-    return (ver_fpp,localbzs)
+    vers_fpp = [ int(f.split('_')[-1].split('.')[0]) for f in bz2s_latest ]
+    return (vers_fpp,localbzs)
 
 
 def updateAlgoData():
@@ -530,24 +539,63 @@ def updateAlgoData():
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
         ver_wpp = wppdb.getRawdataVersion()
-        print ver_wpp
+        print 'current ver_uprecs: %s' % ver_wpp
         # Sync rawdata into wpp_uprecsinfo from remote FTP server.
-        ftp_addr = {'user':'alexy','passwd':'yan714257','ip':'localhost','port':21,'path':'tmp/wpp/ftp'}
-        ver_fpp,localbzs = syncFtpUprecs(ftp_addr, ver_wpp)
+        from config import ftp_addrs
+        vers_fpp,localbzs = syncFtpUprecs(ftp_addrs['local'], ver_wpp)
         print localbzs
-        # Decompress bzip2 files & Import CSV file into wpp_uprecsinfo table.
+        # Handle each bzip2 file with following steps:
+        # 1) Decompress bzip2 files.
+        # 2) Import CSV content into wpp_uprecsinfo table appended with its ver_uprecs.
+        # 3) Update ver_uprecs in wpp_uprecsver.
+        # 4) Incr clustering inserted rawdata for direct algo use.
         for bzfile in localbzs:
-            csvdat = csv.reader( BZ2File(bzfile) )
+            # Filter out the ver_uprecs info from the name of each bzip file.
+            ver_bzfile = bzfile.split('_')[-1].split('.')[0]
+            # Decompress bzip2.
+            fd_csv = BZ2File(bzfile)
+            csvdat = csv.reader( fd_csv )
             try:
                 indat = np.array([ line for line in csvdat ])
             except csv.Error, e:
                 sys.exit('\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
-            vers = np.array([ [ver_fpp] for i in xrange(len(indat)) ])
-            indat = np.append(indat, vers, axis=1).tolist()
-            print indat[0]
-            wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat)
-        # Incr clustering. 
-        #doClusterIncr(file_uprecs)
+            # Append ver_uprecs info to last col.
+            vers = np.array([ [ver_bzfile] for i in xrange(len(indat)) ])
+            indat_withvers = np.append(indat, vers, axis=1).tolist()
+            # Import csv into wpp_uprecsinfo.
+            try:
+                wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers)
+                # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
+                # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
+                wppdb.setRawdataVersion(ver_bzfile)
+                print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
+                # Incr clustering. 
+                # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
+                sqlwhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
+                cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
+                sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%sqlwhere)
+                rdata_loc = wppdb.execute(sql)
+                str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
+                fd_csv = sio.StringIO(str_rdata_loc)
+                doClusterIncr(fd_csv)
+            except Exception, e:
+                print 'Insert Failed: %s !' % e
+                # Send alert email to admin.
+                # TODO: Encoding for chinese characters, reference:
+                # 'Sending Unicode emails in Python' in scrapbook.
+                from smtplib import SMTP
+                from config import mailcfg, errmsg
+                from email.MIMEText import MIMEText
+                print 'Sending alert email -> %s' % mailcfg['to']
+                subject = "WPP ERROR: insert rawdata, ver: %s" % ver_bzfile
+                mailcontent = errmsg['db'] % ('wpp_uprecsinfo','insert',e)
+                msg = mailcfg['msg'] % (subject, mailcontent)
+                print msg
+                mailsvr = SMTP('smtp.gmail.com:587')  
+                mailsvr.starttls()  
+                mailsvr.login(mailcfg['user'],mailcfg['passwd'])  
+                mailsvr.sendmail(mailcfg['from'], mailcfg['to'], msg.encode('utf-8'))  
+                mailsvr.quit()
         wppdb.close()
 
 
@@ -687,8 +735,8 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        if cluster_type   == 1: doClusterAll(rmpfile)
-        elif cluster_type == 2: doClusterIncr(rmpfile)
+        if cluster_type   == 1: doClusterAll(file(rmpfile))
+        elif cluster_type == 2: doClusterIncr(file(rmpfile))
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 
     # WLAN & GPS scan for raw data collection.
