@@ -12,6 +12,13 @@ RADIUS = 6372797 #meter
 
 # FPP-WPP rawdata sync related.
 ftpcfgs = { 
+  'fpp_neu': {
+       'user' : 'fpp',
+     'passwd' : 'fpp',
+          'ip': '192.168.109.58',
+        'port': 21,
+        'path': 'fpp/data_sync/wpp',
+    'localdir': '/root/wpp/src/wlan-pos/dat/sync'},
   'local': {
        'user' : 'alexy',
      'passwd' : 'yan714257',
@@ -20,6 +27,7 @@ ftpcfgs = {
         'path': 'tmp/wpp/ftp',
     'localdir': '/home/alexy/tmp/wpp/local'},
 }
+FTPCFG=ftpcfgs['fpp_neu']
 mailcfg = {
       'from' : 'xiaotian.yan@gmail.com',
        'to'  : '13811310350@139.com',

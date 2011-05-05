@@ -1,3 +1,9 @@
+Scheduled Task
+--------------
+1.offline.updateAlgoData periodically.
+(wpp)[root@localhost wlan-pos]# crontab -l
+*/1 * * * * /opt/wpp/src/wlan-pos/tool/cron/updateAlgoData
+
 Data Specification
 ------------------
 1.raw data with 14/16 columns(fields).

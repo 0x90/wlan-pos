@@ -166,7 +166,7 @@ class WppDB(object):
         new_cid = self.cur.fetchone()[0] + 1
         return new_cid
 
-    def insertMany(self, table_name=None, indat=None):
+    def insertMany(self, table_name=None, indat=None, verb=False):
         table_inst = self.tables[table_name]
         if self.dbtype == 'oracle':
             table_field = self.tbl_field[table_name]
@@ -175,7 +175,7 @@ class WppDB(object):
             self.cur.prepare(self.sqls['SQL_INSERT'] % \
                     (table_inst, '(%s)'%(','.join(table_field)), bindpos))
             self.cur.executemany(None, indat)
-            print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
+            if verb: print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
         elif self.dbtype == 'postgresql':
             str_indat = '\n'.join([ ','.join([str(col) for col in fp]) for fp in indat ])
             file_indat = sio.StringIO(str_indat)
@@ -187,7 +187,7 @@ class WppDB(object):
                 if not e.pgcode or not e.pgerror: sys.exit(e)
                 #else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
                 raise Exception(e.pgerror)
-            print 'Add %d rows to |%s|' % (len(indat), table_inst)
+            if verb: print 'Add %d rows to |%s|' % (len(indat), table_inst)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         self.con.commit()
 

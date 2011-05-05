@@ -23,7 +23,7 @@ port_wpp_vance = '8081'
 port_fpp_neu = '18080'
 port_fpp_moto = '18080'
 
-urlpath_fpp_neu = 'fpp_ad/adapter'
+urlpath_fpp_neu = 'FPP_AD/adapter'
 urlpath_fpp_moto = 'fpp/servlet'
 urlpath_wpp = 'wlan/distribution'
 
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     else:
         ipsrc = ipsrc['eth0']
 
-    target = targets['wpp_local']
+    target = targets['fpp_neu']
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print 'Requesting %s from %s' % (url, ipsrc)
     req_data = target['req_data']

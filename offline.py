@@ -23,7 +23,7 @@ from wlan import scanWLAN_RE
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs, \
-        mailcfg, errmsg, ftpcfgs
+        mailcfg, errmsg, FTPCFG
         #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
 from db import WppDB
@@ -86,10 +86,10 @@ def doClusterIncr(fd_csv=None, wppdb=None):
         idx_time = 2
     else:
         sys.exit('\nERROR: Unsupported csv format!\n')
-    print 'CSV format: %d fields' % num_cols
+    #print 'CSV format: %d fields' % num_cols
         
     # topaps: array of splited aps strings for all fingerprints.
-    sys.stdout.write('\nSelecting MACs for clustering ... ')
+    sys.stdout.write('Selecting MACs for clustering ... ')
     topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
     toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
     joinaps = []
@@ -601,8 +601,8 @@ def updateAlgoData():
         ver_wpp = wppdb.getRawdataVersion()
         # Sync rawdata into wpp_uprecsinfo from remote FTP server.
         print 'Probing rawdata version > [%s]' % ver_wpp
-        vers_fpp,localbzs = syncFtpUprecs(ftpcfgs['local'], ver_wpp)
-        if not vers_fpp: print 'Not found!'
+        vers_fpp,localbzs = syncFtpUprecs(FTPCFG, ver_wpp)
+        if not vers_fpp: print 'Not found!'; continue
         else: print 'Found new vers: %s' % vers_fpp
         # Handle each bzip2 file.
         alerts = {'vers':[], 'details':''}
