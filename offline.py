@@ -55,9 +55,18 @@ NOTE:
 """ % time.strftime('%Y')
 
 
-def doClusterIncr(fd_csv=None):
+def doClusterIncr(fd_csv=None, wppdb=None):
     """
+    Parameters
+    ----------
     fd_csv: file descriptor of rawdata in csv format.
+    wppdb: object of db.WppDB.
+    
+    Returns
+    -------
+    n_inserts: { svrip : (n_newcids, n_newfps) }, in which n_newcids,n_newfps stand for:
+            n_newcids: New clusters added.
+            n_newfps: New FPs added.
     """
     csvdat = csv.reader(fd_csv)
     try:
@@ -102,14 +111,12 @@ def doClusterIncr(fd_csv=None):
     dbips = DB_OFFLINE
     wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
     wpp_tables['wpp_cfps'] = 'wpp_cfps'
+    n_inserts = { 'n_newcids':0, 'n_newfps':0 }
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        # TODO: move wppdb into updateAlgoData() to be outside of doClusterIncr().
-        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
         for idx, wlanmacs in enumerate(topaps):
-            print '%s %s %s' % ('-'*17, idx+1, '-'*15)
+            #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
             #     cidcntseq: all query results from db: cid,count(cid),max(seq).
             # cidcntseq_max: query results with max count(cid).
@@ -136,19 +143,20 @@ def doClusterIncr(fd_csv=None):
                     cid = cids_belong[0]
                     if cids_belong[1] == len(wlanmacs):
                         found_cluster = True
-            sys.stdout.write('Cluster searching ... ')
+            #sys.stdout.write('Cluster searching ... ')
             if not found_cluster:
-                print 'Failed!'
+                #print 'Failed!'
                 # insert into cidaps/cfps with a new clusterid.
                 new_cid = wppdb.addCluster(wlanmacs)
                 wppdb.addFps(cid=new_cid, fps=[fps])
+                n_inserts['n_newcids'] += 1
             else:
-                print 'Found: (cid: %d)' % cid
+                #print 'Found: (cid: %d)' % cid
                 # insert fingerprints into the same cluserid in table cfps.
                 wppdb.addFps(cid=cid, fps=[fps])
-            print
-        print '...Done'
-        wppdb.close()
+            n_inserts['n_newfps'] += 1
+        print 'Done'
+        return n_inserts
 
 
 def getRaw():
@@ -633,8 +641,9 @@ def updateAlgoData():
             rdata_loc = wppdb.execute(sql)
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = sio.StringIO(str_rdata_loc)
-            doClusterIncr(fd_csv)
-        # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
+            n_inserts = doClusterIncr(fd_csv, wppdb)
+            print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+        # Move rawdata without location to another table: wpp_uprecs_noloc.
         print 'Move location unavailable rawdata to wpp_uprecs_noloc'
         sqlwhere = 'lat=0 or lon=0'
         sql = wppdb.sqls['SQL_INSERT_SELECT'] % ('wpp_uprecs_noloc', '*', 'wpp_uprecsinfo WHERE %s'%sqlwhere)
@@ -788,8 +797,17 @@ def main():
 
     # Ordinary fingerprints clustering.
     if docluster:
-        if cluster_type   == 1: doClusterAll(file(rmpfile))
-        elif cluster_type == 2: doClusterIncr(file(rmpfile))
+        if cluster_type   == 1: 
+            doClusterAll(file(rmpfile))
+        elif cluster_type == 2: 
+            dbips = DB_OFFLINE
+            for svrip in dbips:
+                dbsvr = dbsvrs[svrip]
+                wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+                        tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+                n_inserts = doClusterIncr(file(rmpfile), wppdb)
+                print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+                wppdb.close()
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 
     # WLAN & GPS scan for raw data collection.

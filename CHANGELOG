@@ -229,3 +229,4 @@
     1) Add wpp_uprecs_noloc table for location unavailable rawdata
     2) Opt offline.updateAlgoData procedure
     3) Mod format for alert mail.
+    4) Mod WppDB object to be outside of offline.doClusterIncr().
