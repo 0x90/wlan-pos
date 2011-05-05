@@ -6,7 +6,8 @@ import csv
 import getopt
 import string
 import StringIO as sio
-from time import strftime
+import platform as pf
+from time import strftime, ctime
 from ftplib import FTP
 from bz2 import BZ2File
 from smtplib import SMTP
@@ -21,11 +22,37 @@ from wlan import scanWLAN_RE
 #from gps import getGPS
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs
+        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs, \
+        mailcfg, errmsg, ftpcfgs
         #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
 from db import WppDB
-from config import mailcfg, errmsg
+
+
+def usage():
+    import time
+    print """
+offline.py - Copyleft 2009-%s Yan Xiaotian, xiaotian.yan@gmail.com.
+Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
+
+usage:
+    <sudo> offline <option> <infile>
+option:
+    -a --aio [NOT avail]   :  All-in-one offline processing.
+    -c --cluster=<type id> :  Fingerprints clustering, type_id: 1-All,2-Incr.
+    -d --db=<dbfiles>      :  Specify the db files to upload.
+    -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
+    -h --help              :  Show this help.
+    -i --spid=<spid>       :  Sampling point id.
+    -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
+    -n --no-dump           :  No data dumping to file.
+    -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
+    -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
+    -u --updatedb=<mode>   :  Update algorithm data, which is generated from rawdata from FPP's FTP.
+    -v --verbose           :  Verbose mode.
+NOTE:
+    <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
+""" % time.strftime('%Y')
 
 
 def doClusterIncr(fd_csv=None):
@@ -113,12 +140,12 @@ def doClusterIncr(fd_csv=None):
             if not found_cluster:
                 print 'Failed!'
                 # insert into cidaps/cfps with a new clusterid.
-                #new_cid = wppdb.addCluster(wlanmacs)
-                #wppdb.addFps(cid=new_cid, fps=[fps])
+                new_cid = wppdb.addCluster(wlanmacs)
+                wppdb.addFps(cid=new_cid, fps=[fps])
             else:
                 print 'Found: (cid: %d)' % cid
                 # insert fingerprints into the same cluserid in table cfps.
-                #wppdb.addFps(cid=cid, fps=[fps])
+                wppdb.addFps(cid=cid, fps=[fps])
             print
         print '...Done'
         wppdb.close()
@@ -472,34 +499,9 @@ def dumpCSV(csvfile, content):
     csvout.writerows(content)
 
 
-def usage():
-    print """
-offline.py - Copyleft 2009-2010 Yan Xiaotian, xiaotian.yan@gmail.com.
-Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
-
-usage:
-    <sudo> offline <option> <infile>
-option:
-    -a --aio [NOT avail]   :  All-in-one offline processing.
-    -c --cluster=<type id> :  Fingerprints clustering, type_id: 1-All,2-Incr.
-    -d --db=<dbfiles>      :  Specify the db files to upload.
-    -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
-    -h --help              :  Show this help.
-    -i --spid=<spid>       :  Sampling point id.
-    -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
-    -n --no-dump           :  No data dumping to file.
-    -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
-    -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
-    -u --updatedb=<mode>   :  Updating algorithm data, which uses rawdata from FPP's FTP.
-    -v --verbose           :  Verbose mode.
-NOTE:
-    <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
-"""
-
-
-def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
+def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
     """
-    ftp_addr: connection string.
+    ftpcfg: connection string.
     ver_wpp:  current wpp version of rawdata.
     vers_fpp: fpp rawdata versions needed for wpp.
     localbzs: local path(s) of rawdata bzip2(s).
@@ -507,20 +509,23 @@ def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
     ftp = FTP()
     #ftp.set_debuglevel(1)
     try:
-        print ftp.connect(host=ftp_addr['ip'],port=ftp_addr['port'],timeout=10)
+        print ftp.connect(host=ftpcfg['ip'],port=ftpcfg['port'],timeout=10)
     except:
-        sys.exit("FTP Connection Failed: %s@%s:%s !" % (ftp_addr['user'],ftp_addr['ip'],ftp_addr['port']))
-    print ftp.login(user=ftp_addr['user'],passwd=ftp_addr['passwd'])
-    print ftp.cwd(ftp_addr['path'])
+        sys.exit("FTP Connection Failed: %s@%s:%s !" % (ftpcfg['user'],ftpcfg['ip'],ftpcfg['port']))
+    print ftp.login(user=ftpcfg['user'],passwd=ftpcfg['passwd'])
+    print ftp.cwd(ftpcfg['path'])
     files = ftp.nlst()
     # Naming rule of bzip2 file: FPP_RawData_<hostname>_<ver>.csv.bz2
-    bz2s_latest = [ f for f in files if f.endswith('bz2') 
-            and int(f.split('_')[-1].split('.')[0])>ver_wpp ]
-    dirlocal = '/home/alexy/tmp/wpp/local'
+    try:
+        bz2s_latest = [ f for f in files if f.endswith('bz2') 
+                and (f.split('_')[-1].split('.')[0]).isdigit()
+                and int(f.split('_')[-1].split('.')[0])>ver_wpp ]
+    except ValueError:
+        sys.exit('\nERROR: Rawdata bz2 file name should be: \nFPP_RawData_<hostname>_<ver>.csv.bz2!')
     localbzs = []
     for bz2 in bz2s_latest:
         cmd = 'RETR %s' % bz2; print cmd
-        localbz = '%s/%s' % (dirlocal, bz2)
+        localbz = '%s/%s' % (ftpcfg['localdir'], bz2)
         fd_local = open(localbz, 'wb')
         print ftp.retrbinary(cmd, fd_local.write)
         fd_local.close()
@@ -531,7 +536,7 @@ def syncFtpUprecs(ftp_addr=None, ver_wpp=None):
     return (vers_fpp,localbzs)
 
 
-def send_email(sender, username, passwd, recipient, subject, body):
+def send_email(sender, userpwd, recipient, subject, body):
     """Send an email.
     All arguments should be Unicode strings (plain ASCII works as well).
     Only the real name part of sender and recipient addresses may contain
@@ -545,7 +550,7 @@ def send_email(sender, username, passwd, recipient, subject, body):
     # provide, then fall back to UTF-8.
     header_charset = 'ISO-8859-1'
     # We must choose the body charset manually
-    for body_charset in 'US-ASCII', 'ISO-8859-1', 'UTF-8':
+    for body_charset in 'UTF-8', 'US-ASCII', 'ISO-8859-1':
         try:
             body.encode(body_charset)
         except UnicodeError: pass
@@ -568,7 +573,7 @@ def send_email(sender, username, passwd, recipient, subject, body):
     # Send the message via SMTP to localhost:25
     smtp = SMTP("smtp.gmail.com:587")
     smtp.starttls()  
-    smtp.login(username, passwd)  
+    smtp.login(userpwd[0], userpwd[1])  
     smtp.sendmail(sender, recipient, msg.as_string())
     smtp.quit()
 
@@ -586,41 +591,40 @@ def updateAlgoData():
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
         ver_wpp = wppdb.getRawdataVersion()
-        print 'current ver_uprecs: %s' % ver_wpp
         # Sync rawdata into wpp_uprecsinfo from remote FTP server.
-        from config import ftp_addrs
-        vers_fpp,localbzs = syncFtpUprecs(ftp_addrs['local'], ver_wpp)
-        print localbzs
+        print 'Probing rawdata version > [%s]' % ver_wpp
+        vers_fpp,localbzs = syncFtpUprecs(ftpcfgs['local'], ver_wpp)
+        if not vers_fpp: print 'Not found!'
+        else: print 'Found new vers: %s' % vers_fpp
         # Handle each bzip2 file.
+        alerts = {'vers':[], 'details':''}
         for bzfile in localbzs:
             # Filter out the ver_uprecs info from the name of each bzip file.
             ver_bzfile = bzfile.split('_')[-1].split('.')[0]
+            # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
+            wppdb.setRawdataVersion(ver_bzfile)
+            print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
             # Decompress bzip2.
-            fd_csv = BZ2File(bzfile)
-            csvdat = csv.reader( fd_csv )
+            sys.stdout.write('Insert rawdata preparation ... ')
+            csvdat = csv.reader( BZ2File(bzfile) )
             try:
                 indat = np.array([ line for line in csvdat ])
             except csv.Error, e:
-                sys.exit('\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
+                sys.exit('\n\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
             # Append ver_uprecs info to last col.
             vers = np.array([ [ver_bzfile] for i in xrange(len(indat)) ])
-            indat_withvers = np.append(indat, vers, axis=1).tolist()
+            indat_withvers = np.append(indat, vers, axis=1).tolist(); print 'Done'
             # Import csv into wpp_uprecsinfo.
             try:
                 wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers)
             except Exception, e:
-                print 'Insert Failed: %s !' % e
-                # Send alert email to admin.
-                # TODO: Encoding for chinese characters, reference:
-                print 'Sending alert email -> %s' % mailcfg['to']
-                subject = "WPP ERROR: insert rawdata, ver: %s" % ver_bzfile
-                body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',e) ).decode('utf-8')
-                send_email(mailcfg['from'],mailcfg['user'],mailcfg['passwd'],mailcfg['to'],subject,body)
+                _lineno = sys._getframe().f_lineno
+                _file = sys._getframe().f_code.co_filename
+                alerts['details'] += '\n[ver:%s][%s:%s]: %s' % \
+                        (ver_bzfile, _file, _lineno, str(e).replace('\n', ' '))
+                alerts['vers'].append(ver_bzfile)
+                print 'ERROR: Insert Rawdata Failed!'
                 continue
-            # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
-            # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
-            wppdb.setRawdataVersion(ver_bzfile)
-            print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
             # Incr clustering. 
             # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
             sqlwhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
@@ -630,7 +634,22 @@ def updateAlgoData():
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = sio.StringIO(str_rdata_loc)
             doClusterIncr(fd_csv)
+        # TODO: Move rawdata without location to another table: wpp_uprecs_noloc.
+        print 'Move location unavailable rawdata to wpp_uprecs_noloc'
+        sqlwhere = 'lat=0 or lon=0'
+        sql = wppdb.sqls['SQL_INSERT_SELECT'] % ('wpp_uprecs_noloc', '*', 'wpp_uprecsinfo WHERE %s'%sqlwhere)
+        wppdb.execute(sql)
+        sql = wppdb.sqls['SQL_DELETE'] % ('wpp_uprecsinfo', sqlwhere)
+        wppdb.execute(sql)
         wppdb.close()
+        if alerts['vers']:
+            # Send alert email to admin.
+            _func = sys._getframe().f_code.co_name
+            subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
+            body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',alerts['details'],pf.node(),ctime()) ).decode('utf-8')
+            print subject, body
+            print 'Sending alert email -> %s' % mailcfg['to']
+            send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
 
 
 def main():

@@ -11,23 +11,28 @@ KWIN = 1.25
 RADIUS = 6372797 #meter
 
 # FPP-WPP rawdata sync related.
-ftp_addrs = { 
-    'local': {
-        'user':'alexy',
-      'passwd':'yan714257',
-          'ip':'localhost',
-        'port':21,
-        'path':'tmp/wpp/ftp'},
+ftpcfgs = { 
+  'local': {
+       'user' : 'alexy',
+     'passwd' : 'yan714257',
+          'ip': 'localhost',
+        'port': 21,
+        'path': 'tmp/wpp/ftp',
+    'localdir': '/home/alexy/tmp/wpp/local'},
 }
 mailcfg = {
       'from' : 'xiaotian.yan@gmail.com',
        'to'  : '13811310350@139.com',
-      'user' : 'xiaotian.yan',
-    'passwd' : 'yan714257',
+    'userpwd': ('xiaotian.yan','yan714257'),
 }
-errmsg = { 
-    'db' : """TABLE: [%s], OPERATION: [%s], 
-        DETAILS: %s""",
+errmsg = { 'db' : """
+TABLE: [%s]
+OPERATION: [%s]
+DETAILS: %s
+
+--
+WPP@%s
+%s""",
 }
 # DB related configuration.
 DB_ONLINE = 'local_pg'
@@ -97,7 +102,8 @@ tbl_forms_my = {'cidaps':""" (
 wpp_tables = { 'wpp_clusteridaps':'wpp_clusteridaps',
                        'wpp_cfps':'wpp_cfps',
                  'wpp_uprecsinfo':'wpp_uprecsinfo',
-                  'wpp_uprecsver':'wpp_uprecsver' }
+                  'wpp_uprecsver':'wpp_uprecsver',
+               'wpp_uprecs_noloc':'wpp_uprecs_noloc' }
 # NOTE: tbl_fields dont contain PRIMAY key or SERIAL columns, like *id* in wpp_uprecsinfo.
 tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                       'wpp_cfps':('clusterid', 'lat', 'lon', 'height', 'rsss', 'cfps_time'),
@@ -105,15 +111,21 @@ tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                                   'mcc','mnc','lac','cellid','cellrss',
                                   'lat','lon','height','wlanidentifier','wlanmatcher',
                                   'ver_uprecs'),
+              'wpp_uprecs_noloc':('spid','servid','time','imsi','imei','useragent',
+                                  'mcc','mnc','lac','cellid','cellrss',
+                                  'lat','lon','height','wlanidentifier','wlanmatcher',
+                                  'ver_uprecs'),
                         'tsttbl':('clusterid', 'keyaps', 'seq') }
 tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
                       'wpp_cfps':('clusterid',),
                 'wpp_uprecsinfo':('ver_uprecs',),
+              'wpp_uprecs_noloc':('ver_uprecs',),
                  'wpp_uprecsver':(),
                         'tsttbl':('clusterid',)}
 tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
                       'wpp_cfps':'tbl/cfprints.tbl',
                 'wpp_uprecsinfo':'tbl/uprecs.tbl',
+              'wpp_uprecs_noloc':'tbl/uprecs_noloc.tbl',
                  'wpp_uprecsver':'tbl/uprecsver.tbl',
                         'cidaps':'tbl/cidaps.tbl',
                           'cfps':'tbl/cfprints.tbl',
@@ -184,6 +196,24 @@ tbl_forms = { 'oracle':{
                 wlanidentifier VARCHAR(1024),
                    wlanmatcher VARCHAR(255),
                     ver_uprecs INT DEFAULT 0)""",
+                'wpp_uprecs_noloc':""" (
+                          spid INT,
+                        servid INT,
+                          time VARCHAR(20),
+                          imsi VARCHAR(20),
+                          imei VARCHAR(20),
+                     useragent VARCHAR(300),
+                           mcc INT DEFAULT 0,
+                           mnc INT DEFAULT 0,
+                           lac INT DEFAULT 0,
+                        cellid INT DEFAULT 0,
+                       cellrss VARCHAR(5),
+                           lat NUMERIC(9,6) DEFAULT 0,
+                           lon NUMERIC(9,6) DEFAULT 0,
+                        height NUMERIC(5,1) DEFAULT 0,
+                wlanidentifier VARCHAR(1024),
+                   wlanmatcher VARCHAR(255),
+                    ver_uprecs INT DEFAULT 0)""",
                 'tsttbl':"""(
                      clusterid INT, 
                         keyaps VARCHAR2(71) NOT NULL,
@@ -191,8 +221,10 @@ tbl_forms = { 'oracle':{
 # SQL statements.
 sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
          'SQL_UPDATE' : "UPDATE %s SET %s = %s",
+         'SQL_DELETE' : "DELETE FROM %s WHERE %s",
          'SQL_DROPTB' : "DROP TABLE %s PURGE",
          'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
+  'SQL_INSERT_SELECT' : "INSERT INTO %s SELECT %s FROM %s",
         'SQL_TRUNCTB' : "TRUNCATE TABLE %s",
         'SQL_DROP_MY' : "DROP TABLE IF EXISTS %s",
        'SQL_DROP_IDX' : "DROP INDEX %s",

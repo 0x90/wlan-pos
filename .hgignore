@@ -31,6 +31,7 @@ tbl/*-*.tbl
 tbl/cidaps.tbl
 tbl/cfprints.tbl
 tbl/uprecs.tbl
+tbl/uprecs_noloc.tbl
 tbl/uprecsver.tbl
 cdf.mp
 cdf_*.jpg

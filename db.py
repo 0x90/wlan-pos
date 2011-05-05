@@ -71,8 +71,11 @@ class WppDB(object):
 
     def execute(self, sql):
         self.cur.execute(sql)
-        query = self.cur.fetchall()
-        return query
+        try:
+            query = self.cur.fetchall()
+            return query
+        except pg.ProgrammingError:
+            pass
 
     def getRawdataVersion(self):
         table_name = 'wpp_uprecsver'
@@ -327,7 +330,9 @@ if __name__ == "__main__":
             wpp_tables['wpp_clusteridaps']='wpp_clusteridaps_incr'
             wpp_tables['wpp_cfps']='wpp_cfps_incr'
         elif updb_opt == 'uprecs':
-            wpp_tables = {'wpp_uprecsinfo':'wpp_uprecsinfo','wpp_uprecsver':'wpp_uprecsver'}
+            wpp_tables = {'wpp_uprecsinfo':'wpp_uprecsinfo',
+                           'wpp_uprecsver':'wpp_uprecsver',
+                        'wpp_uprecs_noloc':'wpp_uprecs_noloc'}
         elif updb_opt == 'normal':
             # ONLY load two algo tables: wpp_clusteridaps, wpp_cfps.
             pass
