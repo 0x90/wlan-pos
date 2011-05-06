@@ -75,7 +75,7 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     except csv.Error, e:
         sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     # CSV format judgement.
-    print 'Incr Clustering -> %s FPs' % num_rows
+    print 'Parsing FPs for Incr clustering: [%s]' % num_rows
     if num_cols == 14:
         idx_macs = 11; idx_rsss = 12
         idx_lat = 8; idx_lon = 9; idx_h = 10
@@ -105,8 +105,7 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     print 'Done'
 
     # Clustering heuristics.
-    sys.stdout.write('Fingerprints clustering:')
-    print 
+    sys.stdout.write('Executing Incr clustering ... ')
     # Support multi DB incr-clustering.
     dbips = DB_OFFLINE
     wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
@@ -114,7 +113,7 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
-        print '%s %s %s' % ('='*15, svrip, '='*15)
+        #print '%s %s %s' % ('='*15, svrip, '='*15)
         for idx, wlanmacs in enumerate(topaps):
             #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
@@ -478,9 +477,9 @@ def doClusterAll(fd_csv=None):
     #    print 'crmp: \n%s' % crmp
 
     print 'Dumping DB tables:'
-    crmpfilename = rmpfile.split('.')
-    crmpfilename[1] = 'crmp'
-    crmpfilename = '.'.join(crmpfilename)
+    #crmpfilename = rmpfile.split('.')
+    #crmpfilename[1] = 'crmp'
+    #crmpfilename = '.'.join(crmpfilename)
 
     #timestamp = strftime('-%m%d-%H%M')
     cidaps_filename = 'tbl/cidaps.tbl'
@@ -532,10 +531,10 @@ def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
         sys.exit('\nERROR: Rawdata bz2 file name should be: \nFPP_RawData_<hostname>_<ver>.csv.bz2!')
     localbzs = []
     for bz2 in bz2s_latest:
-        cmd = 'RETR %s' % bz2; print cmd
+        cmd = 'RETR %s' % bz2
         localbz = '%s/%s' % (ftpcfg['localdir'], bz2)
         fd_local = open(localbz, 'wb')
-        print ftp.retrbinary(cmd, fd_local.write)
+        ftp.retrbinary(cmd, fd_local.write)
         fd_local.close()
         localbzs.append(localbz)
     #ftp.set_debuglevel(0)
@@ -611,9 +610,9 @@ def updateAlgoData():
             ver_bzfile = bzfile.split('_')[-1].split('.')[0]
             # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
             wppdb.setRawdataVersion(ver_bzfile)
-            print 'Update ver_uprecs -> [%s]' % wppdb.getRawdataVersion()
+            print '%s\nUpdate ver_uprecs -> [%s]' % ('-'*40, wppdb.getRawdataVersion())
             # Decompress bzip2.
-            sys.stdout.write('Insert rawdata preparation ... ')
+            sys.stdout.write('Decompress & append rawdata ... ')
             csvdat = csv.reader( BZ2File(bzfile) )
             try:
                 indat = np.array([ line for line in csvdat ])
@@ -624,7 +623,8 @@ def updateAlgoData():
             indat_withvers = np.append(indat, vers, axis=1).tolist(); print 'Done'
             # Import csv into wpp_uprecsinfo.
             try:
-                wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers)
+				sys.stdout.write('Import rawdata: ')
+                wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers, verb=True)
             except Exception, e:
                 _lineno = sys._getframe().f_lineno
                 _file = sys._getframe().f_code.co_filename
@@ -635,22 +635,23 @@ def updateAlgoData():
                 continue
             # Incr clustering. 
             # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
-            sqlwhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
+            strWhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
             cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
-            sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%sqlwhere)
+            sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%strWhere)
             rdata_loc = wppdb.execute(sql)
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = sio.StringIO(str_rdata_loc)
+            print 'FPs for Incr clustering selected & ready'
             n_inserts = doClusterIncr(fd_csv, wppdb)
-            print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+            print 'AlgoData added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
         # Move rawdata without location to another table: wpp_uprecs_noloc.
-        print 'Move location unavailable rawdata to wpp_uprecs_noloc'
-        sqlwhere = 'lat=0 or lon=0'
-        sql = wppdb.sqls['SQL_INSERT_SELECT'] % ('wpp_uprecs_noloc', '*', 'wpp_uprecsinfo WHERE %s'%sqlwhere)
+        strWhere = 'lat=0 or lon=0'
+        sql = wppdb.sqls['SQL_INSERT_SELECT'] % ('wpp_uprecs_noloc', '*', 'wpp_uprecsinfo WHERE %s'%strWhere)
         wppdb.execute(sql)
-        sql = wppdb.sqls['SQL_DELETE'] % ('wpp_uprecsinfo', sqlwhere)
+        sql = wppdb.sqls['SQL_DELETE'] % ('wpp_uprecsinfo', strWhere)
         wppdb.execute(sql)
         wppdb.close()
+        print 'Move noloc rawdata -> wpp_uprecs_noloc'
         if alerts['vers']:
             # Send alert email to admin.
             _func = sys._getframe().f_code.co_name

@@ -37,18 +37,18 @@ class WppDB(object):
         if not dsn: sys.exit('Need DSN info!')
         if not dbtype: sys.exit('Need DB type!') 
         self.dbtype = dbtype
-        if self.dbtype == 'oracle':
-            try:
-                self.con = ora.connect(dsn) #'yxt/yxt@localhost:1521/XE'
-            except ora.DatabaseError, e:
-                sys.exit('\nERROR: %s' % e)
-        elif self.dbtype == 'postgresql':
+        if self.dbtype == 'postgresql':
             try:
                 self.con = pg.connect(dsn) 
                 self.con.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             except Exception, e:
                 if not e.pgcode or not e.pgerror: sys.exit('PostgreSQL: Connection failed!\n%s' % e)
                 else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+        elif self.dbtype == 'oracle':
+            try:
+                self.con = ora.connect(dsn) 
+            except ora.DatabaseError, e:
+                sys.exit('\nERROR: %s' % e)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
         if not tbl_field or not tbl_forms or not tables:
@@ -125,10 +125,10 @@ class WppDB(object):
                     # index naming rule: i_tablename_colname.
                     idx_name = 'i_%s_%s' % (table_inst, col_name)
                     # drop indexs.
-                    if self.dbtype == 'oracle':
-                        sql_drop_idx = self.sqls['SQL_DROP_IDX'] % idx_name
-                    elif self.dbtype == 'postgresql':
+                    if self.dbtype == 'postgresql':
                         sql_drop_idx = self.sqls['SQL_DROP_IDX_IE'] % idx_name
+                    elif self.dbtype == 'oracle':
+                        sql_drop_idx = self.sqls['SQL_DROP_IDX'] % idx_name
                     else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
                     self.cur.execute(sql_drop_idx)
                     print sql_drop_idx
@@ -141,15 +141,7 @@ class WppDB(object):
         self.con.commit()
 
     def _loadFile(self, csvfile=None, table_name=None):
-        if self.dbtype == 'oracle':
-            # Import csv data.
-            csvdat = csv.reader( open(csvfile,'r') )
-            try:
-                indat = [ line for line in csvdat ]
-            except csv.Error, e:
-                sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
-            self.insertMany(table_name=table_name, indat=indat)
-        elif self.dbtype == 'postgresql':
+        if self.dbtype == 'postgresql':
             if not table_name == 'wpp_uprecsinfo': cols = None
             else: cols = self.tbl_field[table_name]
             table_inst = self.tables[table_name]
@@ -158,6 +150,14 @@ class WppDB(object):
             except Exception, e:
                 if not e.pgcode or not e.pgerror: sys.exit(e)
                 else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
+        elif self.dbtype == 'oracle':
+            # Import csv data.
+            csvdat = csv.reader( open(csvfile,'r') )
+            try:
+                indat = [ line for line in csvdat ]
+            except csv.Error, e:
+                sys.exit('\nERROR: %s, line %d: %s!\n' % (csvfile, csvdat.line_num, e))
+            self.insertMany(table_name=table_name, indat=indat)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
     def _getNewCid(self, table_inst=None):
@@ -168,15 +168,7 @@ class WppDB(object):
 
     def insertMany(self, table_name=None, indat=None, verb=False):
         table_inst = self.tables[table_name]
-        if self.dbtype == 'oracle':
-            table_field = self.tbl_field[table_name]
-            num_fields = len(table_field)
-            bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
-            self.cur.prepare(self.sqls['SQL_INSERT'] % \
-                    (table_inst, '(%s)'%(','.join(table_field)), bindpos))
-            self.cur.executemany(None, indat)
-            if verb: print 'Add %d rows to |%s|' % (self.cur.rowcount, table_inst)
-        elif self.dbtype == 'postgresql':
+        if self.dbtype == 'postgresql':
             str_indat = '\n'.join([ ','.join([str(col) for col in fp]) for fp in indat ])
             file_indat = sio.StringIO(str_indat)
             if not table_name == 'wpp_uprecsinfo': cols = None
@@ -187,7 +179,15 @@ class WppDB(object):
                 if not e.pgcode or not e.pgerror: sys.exit(e)
                 #else: sys.exit('\nERROR: %s: %s\n' % (e.pgcode, e.pgerror))
                 raise Exception(e.pgerror)
-            if verb: print 'Add %d rows to |%s|' % (len(indat), table_inst)
+            if verb: print 'Add %d rows -> |%s|' % (len(indat), table_inst)
+        elif self.dbtype == 'oracle':
+            table_field = self.tbl_field[table_name]
+            num_fields = len(table_field)
+            bindpos = '(%s)' % ','.join( ':%d'%(x+1) for x in xrange(num_fields) )
+            self.cur.prepare(self.sqls['SQL_INSERT'] % \
+                    (table_inst, '(%s)'%(','.join(table_field)), bindpos))
+            self.cur.executemany(None, indat)
+            if verb: print 'Add %d rows -> |%s|' % (self.cur.rowcount, table_inst)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         self.con.commit()
 
@@ -215,18 +215,18 @@ class WppDB(object):
         num_macs = len(macs)
         if not num_macs: sys.exit('Null macs!')
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
-        if self.dbtype == 'oracle':
-            sql1 = self.sqls['SQL_SELECT'] % \
-                ("clusterid cid, count(clusterid) cidcnt", 
-                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
-                 where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
-                (table_inst, strWhere, table_inst))
-        elif self.dbtype == 'postgresql':
+        if self.dbtype == 'postgresql':
             sql1 = self.sqls['SQL_SELECT'] % \
                 ("clusterid as cid, count(clusterid) as cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
                  where (cid=clusterid and cidcnt=%s) group by cid,cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst, num_macs))
+        elif self.dbtype == 'oracle':
+            sql1 = self.sqls['SQL_SELECT'] % \
+                ("clusterid cid, count(clusterid) cidcnt", 
+                 "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
+                 where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
+                (table_inst, strWhere, table_inst))
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
         sql = self.sqls['SQL_SELECT'] % ("cid,cidcnt,max(t.seq)", "(%s"%sql1)
         #print sql
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     #dbips = ('192.168.109.54', )
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
-        #print 'Loading data to DB svr: %s' % svrip
+        #print 'Loading data -> DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
         wppdb = WppDB(dsn=dbsvr['dsn'],dbtype=dbsvr['dbtype'],tbl_idx=tbl_idx, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms,sqls=sqls)

@@ -63,7 +63,7 @@ if __name__ == "__main__":
     else:
         ipsrc = ipsrc['eth0']
 
-    target = targets['fpp_neu']
+    target = targets['wpp_local']
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print 'Requesting %s from %s' % (url, ipsrc)
     req_data = target['req_data']
