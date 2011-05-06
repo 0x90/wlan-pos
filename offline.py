@@ -6,7 +6,6 @@ import csv
 import getopt
 import string
 import StringIO as sio
-import platform as pf
 from time import strftime, ctime
 from ftplib import FTP
 from bz2 import BZ2File
@@ -506,6 +505,41 @@ def dumpCSV(csvfile, content):
     csvout.writerows(content)
 
 
+def getIP(ifname='eth0'):
+    """
+    return: ips: {'ifname':'ipaddr'}
+    """
+    use_netifs = False
+    try:
+        import netifaces as nifs
+        use_netifs = True
+    except ImportError:
+        #pass
+        import socket as sckt
+        import fcntl
+        import struct
+    if not use_netifs:
+        s = sckt.socket(sckt.AF_INET, sckt.SOCK_DGRAM)
+        addr = sckt.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, # SIOCGIFADDR
+                                struct.pack('256s', ifname[:15]) )[20:24])
+        ips = {ifname: addr}
+    else:
+        ips = {}
+        inet_id = nifs.AF_INET
+        ifaces = nifs.interfaces()
+        ifaces.remove('lo')
+        for iface in ifaces:
+            ifaddrs = nifs.ifaddresses(iface)
+            if inet_id in ifaddrs:
+                inets = ifaddrs[inet_id]
+                if len(inets) == 1: ips[iface] = inets[0]['addr']
+                else:
+                    for idx,inet in enumerate(inets):
+                      ips[iface] = {}
+                      ips[iface][idx] = inet['addr']
+    return ips
+
+
 def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
     """
     ftpcfg: connection string.
@@ -623,7 +657,7 @@ def updateAlgoData():
             indat_withvers = np.append(indat, vers, axis=1).tolist(); print 'Done'
             # Import csv into wpp_uprecsinfo.
             try:
-				sys.stdout.write('Import rawdata: ')
+                sys.stdout.write('Import rawdata: ')
                 wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers, verb=True)
             except Exception, e:
                 _lineno = sys._getframe().f_lineno
@@ -656,7 +690,7 @@ def updateAlgoData():
             # Send alert email to admin.
             _func = sys._getframe().f_code.co_name
             subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
-            body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',alerts['details'],pf.node(),ctime()) ).decode('utf-8')
+            body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
             print subject, body
             print 'Sending alert email -> %s' % mailcfg['to']
             send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
