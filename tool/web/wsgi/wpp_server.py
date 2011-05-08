@@ -238,7 +238,7 @@ def wpp_handler(environ, start_response):
         loc = wlanpos.fixPos(INTERSET, mr, verb=False)
         #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
         # write PosRes xml.
-        lat_fail=lon_fail=0; ee_fail=5000; errinfo_fail='PosFail'; errcode_fail='104'
+        lat_fail=lon_fail=0; ee_fail=5000; errinfo_fail='AccuTooBad'; errcode_fail='102'
         errinfo='OK'; errcode='100'
         if loc:
             print '-->',loc
@@ -247,6 +247,8 @@ def wpp_handler(environ, start_response):
             lat = lat_fail
             lon = lon_fail
             ee = ee_fail
+            errinfo = errinfo_fail
+            errcode = errcode_fail
         pos_resp="""<?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
         <PosRes>

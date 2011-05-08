@@ -286,8 +286,8 @@ def fixPos_old(len_wlan, wlan, verb=False):
             #allposs_dknn = np.vstack(np.array(all_pos_lenrss, object)[idxs_clusters])
             allposs_dknn = np.array(all_pos_lenrss, object)[idxs_clusters]
             if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
-            poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in allposs_dknn ]) 
+            poserr = max( np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000
+                for p in allposs_dknn ]), 50 )
     else:
         fps_cand = fps_cand[0][:-1]
         if verb: print 'location:\n%s' % fps_cand
@@ -301,8 +301,8 @@ def fixPos_old(len_wlan, wlan, verb=False):
             if verb:
                 print 'posfix: %s' % posfix
                 print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
-            poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in all_pos_lenrss ]) / (N_fp-1)
+            poserr = max( np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in all_pos_lenrss ]) / (N_fp-1), 50 )
     ret = posfix.tolist()
     ret.append(poserr)
     if verb: print 'posresult: %s' % ret
@@ -479,8 +479,8 @@ def fixPos(len_wlan, wlan, verb=False):
             #allposs_dknn = np.vstack(np.array(all_pos_lenrss, object)[idxs_clusters])
             allposs_dknn = np.array(all_pos_lenrss, object)[idxs_clusters]
             if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
-            poserr = np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in allposs_dknn ]) 
+            poserr = max( np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in allposs_dknn ]), 50 )
     else: 
         fps_cand = fps_cand[0][:-2]
         if verb: print 'location:\n%s' % fps_cand
@@ -494,8 +494,8 @@ def fixPos(len_wlan, wlan, verb=False):
             if verb: 
                 print 'posfix: %s' % posfix
                 print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
-            poserr = np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in all_pos_lenrss ]) / (N_fp-1)
+            poserr = max( np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+                for p in all_pos_lenrss ]) / (N_fp-1), 50 )
     ret = posfix.tolist()
     ret.append(poserr)
     if verb: print 'posresult: %s' % ret

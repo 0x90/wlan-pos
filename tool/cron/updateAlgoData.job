@@ -1,1 +1,1 @@
-0 */2 * * * /opt/wpp/src/wlan-pos/tool/cron/updateAlgoData.sh
+0 1 * * * /opt/wpp/src/wlan-pos/tool/cron/updateAlgoData.sh
