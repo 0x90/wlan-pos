@@ -22,7 +22,7 @@ from wlan import scanWLAN_RE
 from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs, \
-        mailcfg, errmsg, FTPCFG
+        mailcfg, msgs, FTPCFG
         #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
 from db import WppDB
@@ -644,7 +644,7 @@ def updateAlgoData():
             ver_bzfile = bzfile.split('_')[-1].split('.')[0]
             # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
             wppdb.setRawdataVersion(ver_bzfile)
-            print '%s\nUpdate ver_uprecs -> [%s]' % ('-'*40, wppdb.getRawdataVersion())
+            print '%s\nUpdate ver_uprecs -> [%s]' % ('-'*40, ver_bzfile)
             # Decompress bzip2.
             sys.stdout.write('Decompress & append rawdata ... ')
             csvdat = csv.reader( BZ2File(bzfile) )
@@ -687,14 +687,19 @@ def updateAlgoData():
         wppdb.execute(sql)
         wppdb.close()
         print 'Move noloc rawdata -> wpp_uprecs_noloc'
+        _func = sys._getframe().f_code.co_name
         if alerts['vers']:
             # Send alert email to admin.
-            _func = sys._getframe().f_code.co_name
             subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
-            body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
-            print subject, body
-            print 'Sending alert email -> %s' % mailcfg['to']
-            send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
+            body = ( msgs['db'] % ('wpp_uprecsinfo', 'insert', alerts['details'], 
+                                    getIP()['eth0'], ctime()) ).decode('utf-8')
+        else
+            subject = "[WPP][%s] FPs: %s" % (_func, n_inserts['n_newfps'])
+            body = ( msgs['upAlgoData'] % (n_inserts['n_newcids'], n_inserts['n_newfps'], 
+                                            getIP()['eth0'], ctime()) ).decode('utf-8')
+        print 'Sending email -> %s' % mailcfg['to']
+        print subject, body
+        send_email(mailcfg['from'], mailcfg['userpwd'], mailcfg['to'], subject, body)
 
 
 def main():
