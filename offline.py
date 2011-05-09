@@ -673,6 +673,7 @@ def updateAlgoData():
             cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
             sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%strWhere)
             rdata_loc = wppdb.execute(sql)
+            if not rdata_loc: continue    # NO FPs has location info.
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = sio.StringIO(str_rdata_loc)
             print 'FPs for Incr clustering selected & ready'

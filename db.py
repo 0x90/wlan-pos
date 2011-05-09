@@ -75,7 +75,7 @@ class WppDB(object):
             query = self.cur.fetchall()
             return query
         except pg.ProgrammingError:
-            pass
+            return None
 
     def getRawdataVersion(self):
         table_name = 'wpp_uprecsver'

@@ -230,3 +230,5 @@
     2) Opt offline.updateAlgoData procedure
     3) Mod format for alert mail.
     4) Mod WppDB object to be outside of offline.doClusterIncr().
+2011-05-09
+    1) Fix bug when NO FP of certain version of uprecs has loc info(rdata_loc is None).
