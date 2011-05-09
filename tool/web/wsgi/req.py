@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     target = targets['wpp_local']
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
-    print 'Requesting %s from %s' % (url, ipsrc)
+    print '\nRequesting %s from %s\n' % (url, ipsrc)
     req_data = target['req_data']
     print req_data
 
