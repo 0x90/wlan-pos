@@ -35,17 +35,10 @@ mailcfg = {
        'to'  : '13811310350@139.com',
     'userpwd': ('xiaotian.yan','yan714257'),
 }
-msgs = { 'db' : """
+errmsg = { 'db' : """
 TABLE: [%s]
 OPERATION: [%s]
 DETAILS: %s
-
---
-WPP@%s
-%s""",
-        'upAlgoData':"""
-Add Cids: %s
-Add FPs: %s
 
 --
 WPP@%s
