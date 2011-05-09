@@ -18,6 +18,7 @@ ftpcfgs = {
           'ip': '192.168.109.58',
         'port': 21,
         'path': 'fpp/data_sync/wpp',
+     'timeout': 20,
     'localdir': '/root/wpp/src/wlan-pos/dat/sync'},
   'local': {
        'user' : 'alexy',
@@ -25,6 +26,7 @@ ftpcfgs = {
           'ip': 'localhost',
         'port': 21,
         'path': 'tmp/wpp/ftp',
+     'timeout': 10,
     'localdir': '/home/alexy/tmp/wpp/local'},
 }
 FTPCFG=ftpcfgs['fpp_neu']

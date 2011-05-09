@@ -550,7 +550,7 @@ def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
     ftp = FTP()
     #ftp.set_debuglevel(1)
     try:
-        print ftp.connect(host=ftpcfg['ip'],port=ftpcfg['port'],timeout=10)
+        print ftp.connect(host=ftpcfg['ip'],port=ftpcfg['port'],timeout=ftpcfg['timeout'])
     except:
         sys.exit("FTP Connection Failed: %s@%s:%s !" % (ftpcfg['user'],ftpcfg['ip'],ftpcfg['port']))
     print ftp.login(user=ftpcfg['user'],passwd=ftpcfg['passwd'])
