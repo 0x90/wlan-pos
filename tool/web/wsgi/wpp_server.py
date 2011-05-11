@@ -241,11 +241,12 @@ def wpp_handler(environ, start_response):
         if loc:
             print '-->',loc
             lat, lon, ee = loc
-            errinfo='OK'; errcode='100'
+            errinfo='OK' 
+            errcode='100'
         else:
             lat = 39.9055
             lon = 116.3914
-            ee = 0
+            ee = 1000
             errinfo = 'AccuTooBad'
             errcode = '102'
         pos_resp="""<?xml version="1.0" encoding="UTF-8"?>
