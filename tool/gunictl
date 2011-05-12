@@ -6,11 +6,12 @@ PATH_WPPTOOL=`dirname $0`
 PATH_WPPWSGI=$PATH_WPPTOOL/web/wsgi
 LOGDIR=$PATH_WPPWSGI/log
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
-PIDFILE=/tmp/gunicorn.pid
-WORKER_MEINHELD="egg:meinheld#gunicorn_worker"
-WORKER_GEVENT="egg:gunicorn#gevent"
-APPMODULE=wpp_server:wpp_handler
-servport=8080
+PFILE=/tmp/gunicorn.pid
+W_MH="egg:meinheld#gunicorn_worker"
+W_GE="egg:gunicorn#gevent"
+APP=wpp_server:wpp_handler
+port=8080
+TOUT=10
 
 start_gunic() {
     #nworkers=`python -c 'import os; \
@@ -23,25 +24,26 @@ start_gunic() {
     echo "workers: $nworkers"
 
     datetime=`date +%Y%m%d-%H%M%S`
-    GUNICORN_LOGFILE=log/gunicorn_$datetime.log
-    WPP_LOGFILE=log/wpp.log
+    GU_LOG=log/gunicorn_$datetime.log
+    #WPP_LOG=log/wpp.log
+    WPP_LOG=/dev/null
     cd $PATH_WPPWSGI
-    touch $GUNICORN_LOGFILE
+    touch $GU_LOG
     # check if the size of logfile.
-    if [ -f $WPP_LOGFILE ]; then
-        nline=`wc -l $WPP_LOGFILE |awk '{print $1}'`
+    if [ -f $WPP_LOG ]; then
+        nline=`wc -l $WPP_LOG |awk '{print $1}'`
         #echo $nline
         if [ $nline -gt 500000 ]; then 
-            mv -f ${WPP_LOGFILE} ${WPP_LOGFILE}_$datetime 
-            tar cjvf ${WPP_LOGFILE}_$datetime.tbz2 ${WPP_LOGFILE}_$datetime
-            rm -f ${WPP_LOGFILE}_$datetime
+            mv -f ${WPP_LOG} ${WPP_LOG}_$datetime 
+            tar cjvf ${WPP_LOG}_$datetime.tbz2 ${WPP_LOG}_$datetime
+            rm -f ${WPP_LOG}_$datetime
         fi
     fi
-    CMD="gunicorn -b :$servport -w $nworkers $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
-    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_MEINHELD $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
-    #CMD="gunicorn -b :$servport -w $nworkers -k $WORKER_GEVENT $APPMODULE --log-file $GUNICORN_LOGFILE -p $PIDFILE"
-    echo -e "\n\n##### LOG START @ $datetime #####\n" >> $WPP_LOGFILE
-    nohup  $CMD >> $WPP_LOGFILE 2>&1 &
+    CMD="gunicorn -b :$port -w $nworkers $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
+    #CMD="gunicorn -b :$port -w $nworkers -k $W_MH $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
+    #CMD="gunicorn -b :$port -w $nworkers -k $W_GE $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
+    echo -e "\n\n##### LOG START @ $datetime #####\n" >> $WPP_LOG
+    nohup  $CMD >> $WPP_LOG 2>&1 &
 }
 
 count_workers(){
@@ -58,7 +60,7 @@ case "$1" in
         pskill gunicorn
         ;;
     reload)
-        kill -HUP `cat $PIDFILE`
+        kill -HUP `cat $PFILE`
         ;;
     addw)
         addw_num=$2
@@ -66,7 +68,7 @@ case "$1" in
         echo -ne "Adding from $(count_workers) "
         for i in $(seq $addw_num)
         do
-            kill -TTIN `cat $PIDFILE`
+            kill -TTIN `cat $PFILE`
             echo -n "."
             sleep 1
         done
@@ -80,7 +82,7 @@ case "$1" in
 		echo -ne "Decreasing from $(count_workers) "
 		for i in $(seq $delw_num)
 		do
-			kill -TTOU `cat $PIDFILE`
+			kill -TTOU `cat $PFILE`
 			echo -n "."
 			sleep 1
 		done
