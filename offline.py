@@ -639,12 +639,13 @@ def updateAlgoData():
         else: print 'Found new vers: %s' % vers_fpp
         # Handle each bzip2 file.
         alerts = {'vers':[], 'details':''}
+        tab_rd = 'wpp_uprecsinfo'
         for bzfile in localbzs:
             # Filter out the ver_uprecs info from the name of each bzip file.
             ver_bzfile = bzfile.split('_')[-1].split('.')[0]
             # Update ver_uprecs in wpp_uprecsver to ver_bzfile.
             wppdb.setRawdataVersion(ver_bzfile)
-            print '%s\nUpdate ver_uprecs -> [%s]' % ('-'*40, wppdb.getRawdataVersion())
+            print '%s\nUpdate ver_uprecs -> [%s]' % ('-'*40, ver_bzfile)
             # Decompress bzip2.
             sys.stdout.write('Decompress & append rawdata ... ')
             csvdat = csv.reader( BZ2File(bzfile) )
@@ -658,7 +659,7 @@ def updateAlgoData():
             # Import csv into wpp_uprecsinfo.
             try:
                 sys.stdout.write('Import rawdata: ')
-                wppdb.insertMany(table_name='wpp_uprecsinfo', indat=indat_withvers, verb=True)
+                wppdb.insertMany(table_name=tab_rd, indat=indat_withvers, verb=True)
             except Exception, e:
                 _lineno = sys._getframe().f_lineno
                 _file = sys._getframe().f_code.co_filename
@@ -670,8 +671,8 @@ def updateAlgoData():
             # Incr clustering. 
             # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
             strWhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
-            cols_select = ','.join(wppdb.tbl_field['wpp_uprecsinfo'][:-1])
-            sql = wppdb.sqls['SQL_SELECT'] % (cols_select, 'wpp_uprecsinfo %s'%strWhere)
+            cols_select = ','.join(wppdb.tbl_field[tab_rd][:-1])
+            sql = wppdb.sqls['SQL_SELECT'] % ( cols_select, '%s %s'%(tab_rd,strWhere) )
             rdata_loc = wppdb.execute(sql)
             if not rdata_loc: continue    # NO FPs has location info.
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
@@ -680,18 +681,19 @@ def updateAlgoData():
             n_inserts = doClusterIncr(fd_csv, wppdb)
             print 'AlgoData added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
         # Move rawdata without location to another table: wpp_uprecs_noloc.
+        tab_rd_noloc = 'wpp_uprecs_noloc'
         strWhere = 'lat=0 or lon=0'
-        sql = wppdb.sqls['SQL_INSERT_SELECT'] % ('wpp_uprecs_noloc', '*', 'wpp_uprecsinfo WHERE %s'%strWhere)
+        sql = wppdb.sqls['SQL_INSERT_SELECT'] % ( tab_rd_noloc, '*', '%s WHERE %s'%(tab_rd,strWhere) )
         wppdb.execute(sql)
-        sql = wppdb.sqls['SQL_DELETE'] % ('wpp_uprecsinfo', strWhere)
+        sql = wppdb.sqls['SQL_DELETE'] % (tab_rd, strWhere)
         wppdb.execute(sql)
         wppdb.close()
-        print 'Move noloc rawdata -> wpp_uprecs_noloc'
+        print 'Move noloc rawdata -> |%s|' % tab_rd_noloc
         if alerts['vers']:
             # Send alert email to admin.
             _func = sys._getframe().f_code.co_name
             subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
-            body = ( errmsg['db'] % ('wpp_uprecsinfo','insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
+            body = ( errmsg['db'] % (tab_rd,'insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
             print subject, body
             print 'Sending alert email -> %s' % mailcfg['to']
             send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
