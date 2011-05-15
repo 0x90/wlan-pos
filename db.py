@@ -7,6 +7,8 @@ import StringIO as sio
 import numpy as np
 #import cx_Oracle as ora
 import psycopg2 as pg
+import sqlalchemy.pool as pool
+pg = pool.manage(pg)
 
 from config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
         tbl_field, tbl_forms, tbl_idx, tbl_files, \

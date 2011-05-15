@@ -232,3 +232,6 @@
     4) Mod WppDB object to be outside of offline.doClusterIncr().
 2011-05-09
     1) Fix bug when NO FP of certain version of uprecs has loc info(rdata_loc is None).
+2011-05-15
+    1) Add DB connection pooling for db module with sqlalchemy.
+    2) Update bug list.
