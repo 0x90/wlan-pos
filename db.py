@@ -347,9 +347,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(0)
 
-    #dbips = ('local_pg', )
     dbips = DB_UPLOAD
-    #dbips = ('192.168.109.54', )
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         #print 'Loading data -> DB svr: %s' % svrip

@@ -45,9 +45,10 @@ WPP@%s
 %s""",
 }
 # DB related configuration.
-DB_ONLINE = 'local_pg'
-DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
-DB_UPLOAD = ( 'local_pg', )
+#DB_ONLINE = 'local_pg'
+DB_ONLINE = '192.168.109.54'
+DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
+DB_UPLOAD = ( '192.168.109.54', )
 dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
