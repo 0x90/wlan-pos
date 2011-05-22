@@ -12,11 +12,8 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-#try:
-#    from elementtree import ElementTree as et
-#except ImportError:
-#    from xml.etree import ElementTree as et
-from xml.dom import minidom
+#from xml.dom.minidom import parseString
+from lxml.etree import fromstring, ElementTree
 from wsgiref import simple_server
 import traceback as tb
 import numpy as np
@@ -209,8 +206,7 @@ def wpp_handler(environ, start_response):
     if content_length:
         #print '-->', time.strftime('%Y%m%d-%H%M%S')
         t = dt.datetime.now()
-        print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
-        print 'content_length: ', content_length
+        print 'start time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         stream = LimitedStream(inp, int(content_length))
         datin = stream.read()
         if not datin: sys.exit(99)
@@ -222,13 +218,18 @@ def wpp_handler(environ, start_response):
         else: datin = datin[1] # del xml-doc declaration.
         print datin
         print '-'*30
-        xmldoc = minidom.parseString(datin)
-        macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
-        rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value.split('|')
+        # xml.dom.minidom solution.
+        #xmldoc = parseString(datin)
+        #macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
+        #rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value.split('|')
+        #xmldoc.unlink() # release dom obj.
+        # lxml solution.
+        xmldoc = fromstring(datin)
+        xmltree = ElementTree(xmldoc)
+        macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmltree.iter()][-2:] ]
+        print 'parse time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         macs = np.array(macs)
         rsss = np.array(rsss)
-        #print 'macs: %s\nrsss: %s' % (macs,rsss)
-        xmldoc.unlink() # release dom obj.
         XHTML_IMT = "application/xhtml+xml"
         # fix postion.
         num_visAPs = len(macs)
@@ -261,7 +262,7 @@ def wpp_handler(environ, start_response):
         print pos_resp
         #print '-->', time.strftime('%Y%m%d-%H%M%S')
         t = dt.datetime.now()
-        print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+        print 'end time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         print '='*30
         return [ pos_resp ]
     else:
