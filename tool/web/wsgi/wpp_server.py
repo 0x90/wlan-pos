@@ -6,7 +6,7 @@ import sys
 import os
 import cgi
 #import time
-import datetime as dt
+#import datetime as dt
 # import the helper functions we need to get and render tracebacks
 try:
     from cStringIO import StringIO
@@ -181,8 +181,8 @@ def application(environ, start_response):
     If nothing matches call the `not_found` function.
     """
     # test code for speed.
-    t = dt.datetime.now()
-    print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+    #t = dt.datetime.now()
+    #print 'time(s-ms) --> %s-%s' % (t.second, t.microsecond)
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
         match = re.search(regex, path)
@@ -200,13 +200,11 @@ def wpp_handler(environ, start_response):
     #    subject = cgi.escape(args[0])
     #else:
     #    subject = 'distribution'
-    #print 'Requesting wlan/%s serivce ...' % subject
     inp = environ.get('wsgi.input','')
     content_length = environ.get('CONTENT_LENGTH', 10)
     if content_length:
-        #print '-->', time.strftime('%Y%m%d-%H%M%S')
-        t = dt.datetime.now()
-        print 'start time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+        #t = dt.datetime.now()
+        #print 'start time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         stream = LimitedStream(inp, int(content_length))
         datin = stream.read()
         if not datin: sys.exit(99)
@@ -217,7 +215,6 @@ def wpp_handler(environ, start_response):
             else: datin = datin[1] 
         else: datin = datin[1] # del xml-doc declaration.
         print datin
-        print '-'*30
         # xml.dom.minidom solution.
         #xmldoc = parseString(datin)
         #macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
@@ -227,7 +224,8 @@ def wpp_handler(environ, start_response):
         xmldoc = fromstring(datin)
         xmltree = ElementTree(xmldoc)
         macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmltree.iter()][-2:] ]
-        print 'parse time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+        #t = dt.datetime.now()
+        #print 'parse time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         macs = np.array(macs)
         rsss = np.array(rsss)
         XHTML_IMT = "application/xhtml+xml"
@@ -240,7 +238,6 @@ def wpp_handler(environ, start_response):
         #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
         # write PosRes xml.
         if loc:
-            print '-->',loc
             lat, lon, ee = loc
             errinfo='OK' 
             errcode='100'
@@ -260,9 +257,8 @@ def wpp_handler(environ, start_response):
         contlen = len(pos_resp)
         start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(contlen))])
         print pos_resp
-        #print '-->', time.strftime('%Y%m%d-%H%M%S')
-        t = dt.datetime.now()
-        print 'end time(s-ms) --> %s-%s' % (t.second, t.microsecond)
+        #t = dt.datetime.now()
+        #print 'end time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         print '='*30
         return [ pos_resp ]
     else:

@@ -25,8 +25,8 @@ start_gunic() {
 
     datetime=`date +%Y%m%d-%H%M%S`
     GU_LOG=log/gunicorn_$datetime.log
-    #WPP_LOG=log/wpp.log
-    WPP_LOG=/dev/null
+    WPP_LOG=log/wpp.log
+    #WPP_LOG=/dev/null
     cd $PATH_WPPWSGI
     touch $GU_LOG
     # check if the size of logfile.
