@@ -12,8 +12,8 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-#from xml.dom.minidom import parseString
-from lxml.etree import fromstring, ElementTree
+#from xml.dom.minidom import parseString as xmlparser
+from lxml.etree import fromstring as xmlparser
 from wsgiref import simple_server
 import traceback as tb
 import numpy as np
@@ -215,15 +215,14 @@ def wpp_handler(environ, start_response):
             else: datin = datin[1] 
         else: datin = datin[1] # del xml-doc declaration.
         print datin
+        xmldoc = xmlparser(datin)
         # xml.dom.minidom solution.
-        #xmldoc = parseString(datin)
         #macs = xmldoc.getElementsByTagName('WLANIdentifier')[0].attributes['val'].value.split('|')
         #rsss = xmldoc.getElementsByTagName('WLANMatcher')[0].attributes['val'].value.split('|')
         #xmldoc.unlink() # release dom obj.
         # lxml solution.
-        xmldoc = fromstring(datin)
-        xmltree = ElementTree(xmldoc)
-        macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmltree.iter()][-2:] ]
+        #macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmldoc.iter()][-2:] ]
+        macs, rsss = [ child.attrib['val'].split('|') for child in xmldoc.getchildren()[-2:] ]
         #t = dt.datetime.now()
         #print 'parse time(s-ms) --> %s-%s' % (t.second, t.microsecond)
         macs = np.array(macs)
