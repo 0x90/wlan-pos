@@ -3,7 +3,7 @@
 # $0 [options]
 
 PATH_WPPTOOL=`dirname $0`
-PATH_WPPWSGI=$PATH_WPPTOOL/web/wsgi
+PATH_WPPWSGI=$PATH_WPPTOOL/web
 LOGDIR=$PATH_WPPWSGI/log
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
 PFILE=/tmp/gunicorn.pid

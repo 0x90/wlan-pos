@@ -2,9 +2,6 @@
 import sys
 import os
 import urllib2, urllib
-path_repo = os.path.split(os.path.abspath(__file__))[0] + '/../../../'
-sys.path.append(path_repo)
-sys.path.append(path_repo+'tool')
 
 #data = {'name' : 'yxt', 'password' : 'pwd'}
 req_wpp_fail = """<?xml version="1.0"?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="123" /><ServID val="456" /><Time val="20110130-114424" /><UserInfo imei="355302043446609" imsi="460001933113172" UserAgent="htc_asia_wwe/htc_bravo" /><CellInfo mcc="460" mnc="00" lac="4577" cid="3088" rss="-63" /><WLANIdentifier val="00:15:70:9f:62:6a" /><WLANMatcher val="-40" /></PosReq>"""
@@ -80,8 +77,8 @@ targets = {
 }
 
 if __name__ == "__main__":
-    from evaloc import getIPaddr
-    ipsrc = getIPaddr()
+    from offline import getIP
+    ipsrc = getIP()
     if 'wlan0' in ipsrc:
         ipsrc = ipsrc['wlan0']
     else:

@@ -18,12 +18,9 @@ from wsgiref import simple_server
 import traceback as tb
 import numpy as np
 
-path_repo = os.path.split(os.path.abspath(__file__))[0] + '/../../../'
-sys.path.append(path_repo)
-sys.path.append(path_repo + 'tool')
 import online as wlanpos
 import config as cfg
-from evaloc import getIPaddr
+from offline import getIP
 
 
 # quick start with flask
@@ -331,7 +328,7 @@ if __name__ == "__main__":
 
     
     # Get IP address.
-    ipaddr = getIPaddr()
+    ipaddr = getIP()
     if 'wlan0' in ipaddr:
         ipaddr = ipaddr['wlan0']
     else:
