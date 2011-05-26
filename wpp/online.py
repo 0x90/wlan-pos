@@ -11,10 +11,10 @@ import numpy as np
 #import MySQLdb
 
 #from db import WppDB, tbl_field, tbl_forms
-from wlan import scanWLAN_OS#, scanWLAN_RE
-from geo import dist_km
-from db import WppDB
-from config import db_config_my, wpp_tables_my, sqls, dbsvrs, \
+from wpp.util.wlan import scanWLAN_OS#, scanWLAN_RE
+from wpp.util.geo import dist_km
+from wpp.db import WppDB
+from wpp.config import db_config_my, wpp_tables_my, sqls, dbsvrs, \
         wpp_tables, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         KNN, CLUSTERKEYSIZE, WLAN_FAKE, KWIN, DB_ONLINE
 
@@ -559,6 +559,7 @@ def main():
     else: sys.exit('Invalid algoid: %s!' % algoid)
     if not posresult: sys.exit(99)
     print 'final posfix/poserr: \n%s' % posresult
+    print sys.path
 
 
 if __name__ == "__main__":
