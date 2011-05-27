@@ -18,9 +18,9 @@ from wsgiref import simple_server
 import traceback as tb
 import numpy as np
 
-import online as wlanpos
-import config as cfg
-from offline import getIP
+from wpp.online import fixPos
+from wpp.config  import CLUSTERKEYSIZE
+from wpp.offline import getIP
 
 
 # quick start with flask
@@ -227,10 +227,10 @@ def wpp_handler(environ, start_response):
         XHTML_IMT = "application/xhtml+xml"
         # fix postion.
         num_visAPs = len(macs)
-        INTERSET = min(cfg.CLUSTERKEYSIZE, num_visAPs)
+        INTERSET = min(CLUSTERKEYSIZE, num_visAPs)
         idxs_max = np.argsort(rsss)[:INTERSET]
         mr = np.vstack((macs, rsss))[:,idxs_max]
-        loc = wlanpos.fixPos(INTERSET, mr, verb=False)
+        loc = fixPos(INTERSET, mr, verb=False)
         #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
         # write PosRes xml.
         if loc:

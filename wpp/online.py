@@ -2,10 +2,9 @@
 from __future__ import division
 import sys
 import getopt
-#import string
 import errno
 from pprint import pprint,PrettyPrinter
-import copy as cp
+from copy import deepcopy
 
 import numpy as np
 #import MySQLdb
@@ -197,7 +196,7 @@ def fixPos_old(len_wlan, wlan, verb=False):
         all_pos_lenrss.extend(pos_lenrss)
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
         if interpart_offline and interpart_online:
-            wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
+            wl = deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
             idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
             wl = wl[:,idxs_inters]
         else: wl = wlan
@@ -390,7 +389,7 @@ def fixPos(len_wlan, wlan, verb=False):
         # Rearrange key MACs/RSSs in 'keyrsss' according to intersection set 'keyaps'.
         if interpart_offline:
             if interpart_online:
-                wl = cp.deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
+                wl = deepcopy(wlan) # mmacs->wl[0]; mrsss->wl[1]
                 idxs_inters = [ idx for idx,mac in enumerate(wlan[0]) if mac in keyaps ]
                 wl = wl[:,idxs_inters]
             else: wl = wlan
@@ -559,7 +558,6 @@ def main():
     else: sys.exit('Invalid algoid: %s!' % algoid)
     if not posresult: sys.exit(99)
     print 'final posfix/poserr: \n%s' % posresult
-    print sys.path
 
 
 if __name__ == "__main__":

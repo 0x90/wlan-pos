@@ -5,7 +5,10 @@ import sys
 import csv
 import getopt
 import string
-import StringIO as sio
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 from time import strftime, ctime
 from ftplib import FTP
 from bz2 import BZ2File
@@ -17,15 +20,15 @@ from email.Utils import parseaddr, formataddr
 import numpy as np
 from pprint import pprint,PrettyPrinter
 
-from wlan import scanWLAN_RE
+from wpp.util.wlan import scanWLAN_RE
 #from gps import getGPS
-from config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
+from wpp.config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
         wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs, \
         mailcfg, errmsg, FTPCFG
         #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
 #from kml import genKML
-from db import WppDB
+from wpp.db import WppDB
 
 
 def usage():
@@ -676,7 +679,7 @@ def updateAlgoData():
             rdata_loc = wppdb.execute(sql)
             if not rdata_loc: continue    # NO FPs has location info.
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
-            fd_csv = sio.StringIO(str_rdata_loc)
+            fd_csv = StringIO(str_rdata_loc)
             print 'FPs for Incr clustering selected & ready'
             n_inserts = doClusterIncr(fd_csv, wppdb)
             print 'AlgoData added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])

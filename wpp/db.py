@@ -3,14 +3,17 @@ import sys
 import os
 import csv
 import pprint
-import StringIO as sio
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 import numpy as np
 #import cx_Oracle as ora
 import psycopg2 as pg
 import sqlalchemy.pool as pool
 pg = pool.manage(pg)
 
-from config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
+from wpp.config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
         tbl_field, tbl_forms, tbl_idx, tbl_files, \
         dsn_local_ora, dsn_vance_ora, dsn_local_pg, dsn_vance_pg_mic, dbtype_ora, dbtype_pg
 
@@ -172,7 +175,7 @@ class WppDB(object):
         table_inst = self.tables[table_name]
         if self.dbtype == 'postgresql':
             str_indat = '\n'.join([ ','.join([str(col) for col in fp]) for fp in indat ])
-            file_indat = sio.StringIO(str_indat)
+            file_indat = StringIO(str_indat)
             if not table_name == 'wpp_uprecsinfo': cols = None
             else: cols = self.tbl_field[table_name]
             try:

@@ -1,6 +1,13 @@
 #!/usr/bin/env python
-import struct,array,errno,fcntl,socket,time
-import re,sys#,os
+import struct
+import array
+import errno
+import fcntl
+import socket
+import time
+import re
+import sys
+#import os
 from subprocess import Popen, PIPE
 
 

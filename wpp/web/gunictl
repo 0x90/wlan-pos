@@ -2,9 +2,8 @@
 # script for gunicorn control.
 # $0 [options]
 
-PATH_WPPTOOL=`dirname $0`
-PATH_WPPWSGI=$PATH_WPPTOOL/web
-LOGDIR=$PATH_WPPWSGI/log
+PATH_WPPWEB=`dirname $0`
+LOGDIR=$PATH_WPPWEB/log
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
 PFILE=/tmp/gunicorn.pid
 W_MH="egg:meinheld#gunicorn_worker"
@@ -27,7 +26,7 @@ start_gunic() {
     GU_LOG=log/gunicorn_$datetime.log
     WPP_LOG=log/wpp.log
     #WPP_LOG=/dev/null
-    cd $PATH_WPPWSGI
+    cd $PATH_WPPWEB
     touch $GU_LOG
     # check if the size of logfile.
     if [ -f $WPP_LOG ]; then

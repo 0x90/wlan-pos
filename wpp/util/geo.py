@@ -2,8 +2,8 @@
 # A set of functions for performing various geographic calculations.
 import math
 import numpy as np
-#import scipy as sp
-import config
+
+from wpp.config import RADIUS
 
 eq_rad    = 6378.137 #eq radius in km
 polar_rad = 6356.752 #polar radius in km
@@ -98,8 +98,8 @@ if __name__ == '__main__':
     lat1, lon1, lat2, lon2 = 39.88726,116.3442,39.89711,116.3500
     lat3, lon3, lat4, lon4 = 39.902157500000001, 116.3508545,39.89967,116.35247
 
-    print 'dist_unit: ', dist_unit(lat1, lon1, lat2, lon2)*(config.RADIUS)
+    print 'dist_unit: ', dist_unit(lat1, lon1, lat2, lon2)*(RADIUS)
     print '  dist_km: ', dist_km(lon1, lat1, lon2, lat2)*1000
 
-    print 'dist_unit: ', dist_unit(lat3, lon3, lat4, lon4)*(config.RADIUS)
+    print 'dist_unit: ', dist_unit(lat3, lon3, lat4, lon4)*(RADIUS)
     print '  dist_km: ', dist_km(lon3, lat3, lon4, lat4)*1000
