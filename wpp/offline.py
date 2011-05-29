@@ -62,7 +62,7 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     Parameters
     ----------
     fd_csv: file descriptor of rawdata in csv format.
-    wppdb: object of db.WppDB.
+    wppdb: object of wpp.db.WppDB.
     
     Returns
     -------
@@ -78,14 +78,14 @@ def doClusterIncr(fd_csv=None, wppdb=None):
         sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     # CSV format judgement.
     print 'Parsing FPs for Incr clustering: [%s]' % num_rows
-    if num_cols == 14:
-        idx_macs = 11; idx_rsss = 12
-        idx_lat = 8; idx_lon = 9; idx_h = 10
-        idx_time = 13
-    elif num_cols == 16:
+    if num_cols == 16:
         idx_macs = 14; idx_rsss = 15
         idx_lat = 11; idx_lon = 12; idx_h = 13
         idx_time = 2
+    elif num_cols == 14:
+        idx_macs = 11; idx_rsss = 12
+        idx_lat = 8; idx_lon = 9; idx_h = 10
+        idx_time = 13
     else:
         sys.exit('\nERROR: Unsupported csv format!\n')
     #print 'CSV format: %d fields' % num_cols
@@ -484,8 +484,8 @@ def doClusterAll(fd_csv=None):
     #crmpfilename = '.'.join(crmpfilename)
 
     #timestamp = strftime('-%m%d-%H%M')
-    cidaps_filename = 'tbl/cidaps.tbl'
-    cfps_filename = 'tbl/cfprints.tbl'
+    cidaps_filename = 'test/tbl/cidaps.tbl'
+    cfps_filename = 'test/tbl/cfprints.tbl'
 
     #np.savetxt(crmpfilename, crmp, fmt='%s',delimiter=',')
     #print '\nDumping clustered fingerprints to: %s ... Done' % crmpfilename

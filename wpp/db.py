@@ -97,52 +97,60 @@ class WppDB(object):
         self.cur.execute(sql)
         self.con.commit()
 
-    def loadTables(self, tbl_files=None):
-        if not self.tbl_files: 
-            if not tbl_files:
-                sys.exit('\nERROR: %s: Need a csv file!\n' % csvfile)
-            else: self.tbl_files = tbl_files
-        else: pass
+    def updateIndexes(self, doflush=False):
+        if self.tbl_idx:
+            for table_name in self.tables:
+                table_inst = self.tables[table_name]
+                for col_name in self.tbl_idx[table_name]:
+                    if not col_name: continue
+                    # Index naming rule: i_tablename_colname.
+                    idx_name = 'i_%s_%s' % (table_inst, col_name)
+                    # Drop indexs.
+                    if doflush: 
+                        sql_drop_idx = self.sqls['SQL_DROP_IDX'] % idx_name 
+                        self.cur.execute(sql_drop_idx)
+                        print sql_drop_idx
+                    # Create indexs.
+                    sql_make_idx = self.sqls['SQL_CREATEIDX'] % (idx_name,table_inst,col_name)
+                    self.cur.execute(sql_make_idx)
+                    print sql_make_idx
+        else: print 'No Index defined!'
 
+    def initTables(self, doDrop=False):
+        for table_name in self.tables:
+            table_inst = self.tables[table_name]
+            if doDrop:
+                self.cur.execute(self.sqls['SQL_DROPTB_IE'] % table_inst)
+                self.cur.execute(self.sqls['SQL_CREATETB'] % \
+                        (table_inst, self.tbl_forms[table_name]))
+                print 'DROP & CREATE TABLE: %s' % table_inst
+            else:
+                print 'TRUNCATE TABLE: %s' % table_inst
+                self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
+
+    def loadTableFiles(self, tbl_files=None):
         for table_name in self.tables:
             table_inst = self.tables[table_name]
             csvfile = self.tbl_files[table_name]
             if not os.path.isfile(csvfile):
                 sys.exit('\n%s is NOT a file!' % (csvfile))
-            #
-            #print 'TRUNCATE TABLE: %s' % table_inst
-            #self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
-            #
-            #print 'DROP TABLE: %s' % table_inst
-            #self.cur.execute(self.sqls['SQL_DROPTB'] % table_inst)
-            print 'CREATE TABLE: %s' % table_inst
-            self.cur.execute(self.sqls['SQL_CREATETB'] % \
-                    (table_inst, self.tbl_forms[table_name]))
-            # Load the csv file.
+            # Load the csv data into WPP tables.
             self._loadFile(csvfile=csvfile, table_name=table_name)
             # Update the number of records.
             self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
             print 'Total [%s] rows in |%s|' % (self.cur.fetchone()[0], table_inst)
-            # Update indexs.
-            if self.tbl_idx:
-                for col_name in self.tbl_idx[table_name]:
-                    if not col_name: continue
-                    # index naming rule: i_tablename_colname.
-                    idx_name = 'i_%s_%s' % (table_inst, col_name)
-                    # drop indexs.
-                    if self.dbtype == 'postgresql':
-                        sql_drop_idx = self.sqls['SQL_DROP_IDX_IE'] % idx_name
-                    elif self.dbtype == 'oracle':
-                        sql_drop_idx = self.sqls['SQL_DROP_IDX'] % idx_name
-                    else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
-                    self.cur.execute(sql_drop_idx)
-                    print sql_drop_idx
-                    # create indexs.
-                    sql_make_idx = self.sqls['SQL_CREATEIDX'] % (idx_name,table_inst,col_name)
-                    self.cur.execute(sql_make_idx)
-                    print sql_make_idx
-            print '-'*40
 
+    def loadClusteredData(self, tbl_files=None):
+        if not self.tbl_files: 
+            if not tbl_files:
+                sys.exit('\nERROR: %s: Need a csv file!\n' % csvfile)
+            else: self.tbl_files = tbl_files
+        # Create WPP tables.
+        self.initTables(doDrop=True)
+        # Load csv clustered data into DB tables.
+        self.loadTableFiles()
+        # Update indexs.
+        self.updateIndexes(doflush=False)
         self.con.commit()
 
     def _loadFile(self, csvfile=None, table_name=None):
@@ -357,5 +365,5 @@ if __name__ == "__main__":
         print '%s %s %s' % ('='*15, svrip, '='*15)
         wppdb = WppDB(dsn=dbsvr['dsn'],dbtype=dbsvr['dbtype'],tbl_idx=tbl_idx, 
                 tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms,sqls=sqls)
-        wppdb.loadTables(tbl_files)
+        wppdb.loadClusteredData(tbl_files)
         wppdb.close()

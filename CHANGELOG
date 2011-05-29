@@ -235,3 +235,6 @@
 2011-05-15
     1) Add DB connection pooling for db module with sqlalchemy.
     2) Update bug list.
+2011-05-29
+    1) Mod project filesystem structure for package & module management.
+    2) Refactor WppDB class methods for robust offline & db operations, like: db.loadClusteredData() & offline.loadRawdata() which contains 1)db.initTables();2)offline.doClusterIncr();3)db.updateIndexes()

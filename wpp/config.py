@@ -48,7 +48,8 @@ WPP@%s
 DB_ONLINE = 'local_pg'
 #DB_ONLINE = '192.168.109.54'
 DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
-DB_UPLOAD = ( '192.168.109.54', )
+#DB_UPLOAD = ( '192.168.109.54', )
+DB_UPLOAD = ( 'local_pg', )
 dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
@@ -133,14 +134,14 @@ tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_na
               'wpp_uprecs_noloc':('ver_uprecs',),
                  'wpp_uprecsver':(),
                         'tsttbl':('clusterid',)}
-tbl_files = { 'wpp_clusteridaps':'tbl/cidaps.tbl', 
-                      'wpp_cfps':'tbl/cfprints.tbl',
-                'wpp_uprecsinfo':'tbl/uprecs.tbl',
-              'wpp_uprecs_noloc':'tbl/uprecs_noloc.tbl',
-                 'wpp_uprecsver':'tbl/uprecsver.tbl',
-                        'cidaps':'tbl/cidaps.tbl',
-                          'cfps':'tbl/cfprints.tbl',
-                        'tsttbl':'tbl/tsttbl.tbl' }
+tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl', 
+                      'wpp_cfps':'test/tbl/cfprints.tbl',
+                'wpp_uprecsinfo':'test/tbl/uprecs.tbl',
+              'wpp_uprecs_noloc':'test/tbl/uprecs_noloc.tbl',
+                 'wpp_uprecsver':'test/tbl/uprecsver.tbl',
+                        'cidaps':'test/tbl/cidaps.tbl',
+                          'cfps':'test/tbl/cfprints.tbl',
+                        'tsttbl':'test/tbl/tsttbl.tbl' }
 tbl_forms = { 'oracle':{
                 'wpp_clusteridaps':""" (  
                      clusterid INT NOT NULL, 
@@ -234,6 +235,7 @@ sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
          'SQL_UPDATE' : "UPDATE %s SET %s = %s",
          'SQL_DELETE' : "DELETE FROM %s WHERE %s",
          'SQL_DROPTB' : "DROP TABLE %s PURGE",
+      'SQL_DROPTB_IE' : "DROP TABLE IF EXISTS %s",
          'SQL_INSERT' : "INSERT INTO %s %s VALUES %s",
   'SQL_INSERT_SELECT' : "INSERT INTO %s SELECT %s FROM %s",
         'SQL_TRUNCTB' : "TRUNCATE TABLE %s",

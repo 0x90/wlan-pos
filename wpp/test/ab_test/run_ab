@@ -33,7 +33,7 @@ target=$3
 
 abdir=`dirname $0`
 timestamp=`date +%Y%m%d-%H%M%S`
-logdir=log_ab
+logdir=$HOME/tmp/log_ab
 [ -d $logdir ] || mkdir -p $logdir
 
 if [ $target -eq 1 ]; then # wpp_py
