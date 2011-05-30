@@ -238,3 +238,8 @@
 2011-05-29
     1) Mod project filesystem structure for package & module management.
     2) Refactor WppDB class methods for robust offline & db operations, like: db.loadClusteredData() & offline.loadRawdata() which contains 1)db.initTables();2)offline.doClusterIncr();3)db.updateIndexes()
+2011-05-30
+    1) Add offline.loadRawdata() for importing raw csv file into DB tables, including algo related tables.
+	2) Fix bug in db._getNewCid() when the wpp_clusteridaps table is empty.
+	3) Mod exec order of db.updateIndexes() to just follow db.initTables() for speedup.
+	4) Add command line progressbar support for offline.doClusterIncr().

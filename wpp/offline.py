@@ -9,7 +9,7 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-from time import strftime, ctime
+from time import strftime, ctime, sleep
 from ftplib import FTP
 from bz2 import BZ2File
 from smtplib import SMTP
@@ -19,6 +19,7 @@ from email.Utils import parseaddr, formataddr
 
 import numpy as np
 from pprint import pprint,PrettyPrinter
+from progressbar import ProgressBar, Percentage, Bar, RotatingMarker#, ETA
 
 from wpp.util.wlan import scanWLAN_RE
 #from gps import getGPS
@@ -32,7 +33,6 @@ from wpp.db import WppDB
 
 
 def usage():
-    import time
     print """
 offline.py - Copyleft 2009-%s Yan Xiaotian, xiaotian.yan@gmail.com.
 Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
@@ -48,16 +48,17 @@ option:
     -i --spid=<spid>       :  Sampling point id.
     -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
     -n --no-dump           :  No data dumping to file.
+    -r --rawdata=<rawfile> :  Load rawdata into WppDB, including algo related tables. 
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
-    -u --updatedb=<mode>   :  Update algorithm data, which is generated from rawdata from FPP's FTP.
+    -u --updatedb=<mode>   :  Update algo data with synced rawdata from remote FTP.
     -v --verbose           :  Verbose mode.
 NOTE:
     <rawfile> needed by -t/--to-rmp option must NOT have empty line(s)!
-""" % time.strftime('%Y')
+""" % strftime('%Y')
 
 
-def doClusterIncr(fd_csv=None, wppdb=None):
+def doClusterIncr(fd_csv=None, wppdb=None, verb=False):
     """
     Parameters
     ----------
@@ -107,7 +108,7 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     print 'Done'
 
     # Clustering heuristics.
-    sys.stdout.write('Executing Incr clustering ... ')
+    #print 'Executing Incr clustering: '
     # Support multi DB incr-clustering.
     dbips = DB_OFFLINE
     wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
@@ -116,6 +117,9 @@ def doClusterIncr(fd_csv=None, wppdb=None):
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         #print '%s %s %s' % ('='*15, svrip, '='*15)
+        widgets = [ 'Incr-Clustering: ', Percentage(), ' ', Bar(marker=RotatingMarker()) ]
+        #pbar = ProgressBar().start()
+        pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
         for idx, wlanmacs in enumerate(topaps):
             #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
@@ -156,7 +160,10 @@ def doClusterIncr(fd_csv=None, wppdb=None):
                 # insert fingerprints into the same cluserid in table cfps.
                 wppdb.addFps(cid=cid, fps=[fps])
             n_inserts['n_newfps'] += 1
-        print 'Done'
+            #pbar.update( int((idx/(num_rows-1))*100) )
+            pbar.update(10*idx+1)
+            #sleep(0.01)
+        pbar.finish()
         return n_inserts
 
 
@@ -627,7 +634,7 @@ def updateAlgoData():
     Update data directly used by Algo in DB(wpp_clusterid, wpp_cfps).
     1) Retrieve latest incremental rawdata(csv) from remote FTP server(hosted by FPP).
     2) Decompress bzip2, import CSV into wpp_uprecsinfo with its ver_uprecs, Update ver_uprecs in wpp_uprecsver.
-    4) Incr clustering inserted rawdata for direct algo use.
+    3) Incr clustering inserted rawdata for direct algo use.
     """
     dbips = DB_OFFLINE
     for svrip in dbips:
@@ -701,11 +708,32 @@ def updateAlgoData():
             print 'Sending alert email -> %s' % mailcfg['to']
             send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
 
+def loadRawdata(rawfile=None):
+    """
+    Init *algo* tables with rawdata csv(16 columns) -- SLOW if csv is big, 
+        try offline.doClusterAll(rawdata) -> db.loadClusteredData() instead.
+    1) db.initTables(): init db tables.
+    2) db.updateIndexes(): update tables indexes.
+    3) offline.doClusterIncr(): incremental clustering.
+    """
+    dbips = DB_OFFLINE
+    for svrip in dbips:
+        dbsvr = dbsvrs[svrip]
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
+                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+    # Create WPP tables.
+    wppdb.initTables(doDrop=True)
+    # Update indexs.
+    wppdb.updateIndexes(doflush=False)
+    # Load csv clustered data into DB tables.
+    n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb, verb=True)
+    print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:ns:t:u:v",
-            ["aio","cluster","fake","help","spid=","kml=","no-dump",
+        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:nr:s:t:u:v",
+            ["aio","cluster","fake","help","spid=","kml=","no-dump","rawdata",
              "raw-scan=","to-rmp=","updatedb","verbose"])
     except getopt.GetoptError:
         usage()
@@ -725,6 +753,13 @@ def main():
             else:
                 print '\nspid: %s should be an INTEGER!' % str(a)
                 usage(); sys.exit(99)
+        elif o in ("-r", "--rawdata"):
+            if not os.path.isfile(a):
+                print 'Rawdata file NOT exist: %s' % a
+                sys.exit(99)
+            else: 
+                doLoadRawdata = True
+                rawfile = a
         elif o in ("-s", "--raw-scan"):
             if a.isdigit(): times = string.atoi(a)
             else: 
@@ -781,26 +816,8 @@ def main():
             print 'Parameter NOT supported: %s' % o
             usage(); sys.exit(99)
 
-    # Raw data to fingerprint convertion.
-    if tormp:
-        fingerprint = []
-        fingerprint = genFPs(rawfile)
-        if not fingerprint:
-            print 'Error: Fingerprint generation FAILED: %s' % rawfile
-            sys.exit(99)
-        if nodump is False:
-            if not rawfile == None: 
-                date = strftime('%Y-%m%d')
-                rmpfilename = DATPATH + date + RMPSUFFIX
-                dumpCSV(rmpfilename, fingerprint)
-                print '-'*65
-                sys.exit(0)
-            else:
-                usage(); sys.exit(99)
-        else:
-            if verbose: pp.pprint(fingerprint)
-            else: print fingerprint
-            sys.exit(0)
+    if doLoadRawdata:
+        loadRawdata(rawfile)
 
     # Update Algorithm related data.
     if updatedb:
@@ -832,10 +849,6 @@ def main():
         #conn.commit()
         #conn.close()
 
-    # KML generation.
-    if dokml:
-        genKMLfile(cfpsfile)
-
     # Ordinary fingerprints clustering.
     if docluster:
         if cluster_type   == 1: 
@@ -850,6 +863,31 @@ def main():
                 print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
                 wppdb.close()
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
+
+    # KML generation.
+    if dokml:
+        genKMLfile(cfpsfile)
+
+    # Raw data to fingerprint convertion.
+    if tormp:
+        fingerprint = []
+        fingerprint = genFPs(rawfile)
+        if not fingerprint:
+            print 'Error: Fingerprint generation FAILED: %s' % rawfile
+            sys.exit(99)
+        if nodump is False:
+            if not rawfile == None: 
+                date = strftime('%Y-%m%d')
+                rmpfilename = DATPATH + date + RMPSUFFIX
+                dumpCSV(rmpfilename, fingerprint)
+                print '-'*65
+                sys.exit(0)
+            else:
+                usage(); sys.exit(99)
+        else:
+            if verbose: pp.pprint(fingerprint)
+            else: print fingerprint
+            sys.exit(0)
 
     # WLAN & GPS scan for raw data collection.
     if not times == 0:

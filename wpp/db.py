@@ -123,7 +123,7 @@ class WppDB(object):
                 self.cur.execute(self.sqls['SQL_DROPTB_IE'] % table_inst)
                 self.cur.execute(self.sqls['SQL_CREATETB'] % \
                         (table_inst, self.tbl_forms[table_name]))
-                print 'DROP & CREATE TABLE: %s' % table_inst
+                print 'DROP & CREATE TABLE: |%s|' % table_inst
             else:
                 print 'TRUNCATE TABLE: %s' % table_inst
                 self.cur.execute(self.sqls['SQL_TRUNCTB'] % table_inst)
@@ -147,11 +147,10 @@ class WppDB(object):
             else: self.tbl_files = tbl_files
         # Create WPP tables.
         self.initTables(doDrop=True)
-        # Load csv clustered data into DB tables.
-        self.loadTableFiles()
         # Update indexs.
         self.updateIndexes(doflush=False)
-        self.con.commit()
+        # Load csv clustered data into DB tables.
+        self.loadTableFiles()
 
     def _loadFile(self, csvfile=None, table_name=None):
         if self.dbtype == 'postgresql':
@@ -174,9 +173,9 @@ class WppDB(object):
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
     def _getNewCid(self, table_inst=None):
-        sql = sqls['SQL_SELECT'] % ('max(clusterid)', table_inst)
-        self.cur.execute(sql)
-        new_cid = self.cur.fetchone()[0] + 1
+        self.cur.execute( sqls['SQL_SELECT'] % ('max(clusterid)', table_inst) )
+        query = self.cur.fetchone()[0]
+        new_cid = (query+1 if query else 1) # query=None when the table is empty.
         return new_cid
 
     def insertMany(self, table_name=None, indat=None, verb=False):
