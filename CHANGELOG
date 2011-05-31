@@ -243,3 +243,6 @@
 	2) Fix bug in db._getNewCid() when the wpp_clusteridaps table is empty.
 	3) Mod exec order of db.updateIndexes() to just follow db.initTables() for speedup.
 	4) Add command line progressbar support for offline.doClusterIncr().
+2011-05-31
+    1) Abandon old algo that use all the cluster data to do intersection.
+    2) Speedup system performance by slimming module imports.

@@ -3,32 +3,18 @@ from __future__ import division
 import os
 import sys
 import csv
-import getopt
-import string
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
 from time import strftime, ctime, sleep
-from ftplib import FTP
-from bz2 import BZ2File
-from smtplib import SMTP
-from email.MIMEText import MIMEText
-from email.Header import Header
-from email.Utils import parseaddr, formataddr
 
 import numpy as np
 from pprint import pprint,PrettyPrinter
-from progressbar import ProgressBar, Percentage, Bar, RotatingMarker#, ETA
+from progressbar import ProgressBar, Percentage, Bar, RotatingMarker
 
-from wpp.util.wlan import scanWLAN_RE
-#from gps import getGPS
-from wpp.config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, icon_types, \
-        wpp_tables, DB_OFFLINE, tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dbtype_ora, dbtype_pg, sqls, dbsvrs, \
-        mailcfg, errmsg, FTPCFG
-        #db_config_my, wpp_tables_my, tbl_forms_my, tbl_field_my
-#from kml import genKML
+from wpp.config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, \
+        DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG
 from wpp.db import WppDB
 
 
@@ -49,6 +35,7 @@ option:
     -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
     -n --no-dump           :  No data dumping to file.
     -r --rawdata=<rawfile> :  Load rawdata into WppDB, including algo related tables. 
+                              1) db.initTables() & db.updateIndexes(); 2)doClusterIncr()
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
     -u --updatedb=<mode>   :  Update algo data with synced rawdata from remote FTP.
@@ -111,8 +98,6 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=False):
     #print 'Executing Incr clustering: '
     # Support multi DB incr-clustering.
     dbips = DB_OFFLINE
-    wpp_tables['wpp_clusteridaps'] = 'wpp_clusteridaps'
-    wpp_tables['wpp_cfps'] = 'wpp_cfps'
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
@@ -172,6 +157,8 @@ def getRaw():
     Collecting scanning results for WLAN & GPS.
     *return: rawdata=[ time, lat, lon, mac1|mac2, rss1|rss2 ]
     """
+    from wpp.util.wlan import scanWLAN_RE
+    from wpp.util.gps import getGPS
     #FIXME:exception handling
     if fake: rawdata = [ 39.9229416667, 116.472673167 ]
     else: rawdata = getGPS(); 
@@ -216,8 +203,8 @@ def genFPs(rawfile):
     maclist=[]; mac_interset=[]
     try:
         for rawdata in rawin:
-            spid = string.atoi(rawdata[0])
-            time = string.atoi(rawdata[1])
+            spid = int(rawdata[0])
+            time = int(rawdata[1])
             latlist.append(string.atof(rawdata[2]))
             lonlist.append(string.atof(rawdata[3]))
             mac_raw.append(rawdata[4])
@@ -255,7 +242,7 @@ def genFPs(rawfile):
     for mac in mac_interset:
         dictlist_inters[mac] = []
         for dict in dictlist:
-            dictlist_inters[mac].append(string.atoi(dict[mac]))
+            dictlist_inters[mac].append(int(dict[mac]))
     print 'lat_mean: %f\tlon_mean: %f' % (lat_mean, lon_mean)
     #print 'dictlist_inters: \n%s' % (dictlist_inters)
 
@@ -291,6 +278,8 @@ def genKMLfile(cfpsfile):
     format of cfps table file:
     cluster id, spid, lat, lon, keyrsss
     """
+    from wpp.util.kml import genKML
+    from wpp.config import icon_types
     cfpsin = csv.reader( open(cfpsfile,'r') )
     cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
     cfps = [ [[ c[2], c[3], c[1], 'cluster:%s, spid:%s'%(c[0],c[1]) ]] for c in cfps ]
@@ -557,6 +546,7 @@ def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
     vers_fpp: fpp rawdata versions needed for wpp.
     localbzs: local path(s) of rawdata bzip2(s).
     """
+    from ftplib import FTP
     ftp = FTP()
     #ftp.set_debuglevel(1)
     try:
@@ -597,6 +587,10 @@ def send_email(sender, userpwd, recipient, subject, body):
     The charset of the email will be the first one out of US-ASCII, ISO-8859-1
     and UTF-8 that can represent all the characters occurring in the email.
     """
+    from smtplib import SMTP
+    from email.MIMEText import MIMEText
+    from email.Header import Header
+    from email.Utils import parseaddr, formataddr
     # Header class is smart enough to try US-ASCII, then the charset we
     # provide, then fall back to UTF-8.
     header_charset = 'ISO-8859-1'
@@ -636,11 +630,11 @@ def updateAlgoData():
     2) Decompress bzip2, import CSV into wpp_uprecsinfo with its ver_uprecs, Update ver_uprecs in wpp_uprecsver.
     3) Incr clustering inserted rawdata for direct algo use.
     """
+    from bz2 import BZ2File
     dbips = DB_OFFLINE
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
-        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
         ver_wpp = wppdb.getRawdataVersion()
         # Sync rawdata into wpp_uprecsinfo from remote FTP server.
         print 'Probing rawdata version > [%s]' % ver_wpp
@@ -719,8 +713,7 @@ def loadRawdata(rawfile=None):
     dbips = DB_OFFLINE
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
-        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     # Create WPP tables.
     wppdb.initTables(doDrop=True)
     # Update indexs.
@@ -731,6 +724,7 @@ def loadRawdata(rawfile=None):
 
 
 def main():
+    import getopt
     try:
         opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:nr:s:t:u:v",
             ["aio","cluster","fake","help","spid=","kml=","no-dump","rawdata",
@@ -742,14 +736,14 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    spid=0; times=0; tormp=False; updatedb=False
+    spid=0; times=0; tormp=False; updatedb=False; doLoadRawdata=False
     rawfile=None; tfail=0; docluster=False; dokml=False
     global verbose,pp,nodump,fake,updbmode
     verbose=False; pp=None; nodump=False; fake=False; updbmode=1
 
     for o,a in opts:
         if o in ("-i", "--spid"):
-            if a.isdigit(): spid = string.atoi(a)
+            if a.isdigit(): spid = int(a)
             else:
                 print '\nspid: %s should be an INTEGER!' % str(a)
                 usage(); sys.exit(99)
@@ -761,7 +755,7 @@ def main():
                 doLoadRawdata = True
                 rawfile = a
         elif o in ("-s", "--raw-scan"):
-            if a.isdigit(): times = string.atoi(a)
+            if a.isdigit(): times = int(a)
             else: 
                 print '\nError: "-s/--raw-scan" should be followed by an INTEGER!'
                 usage(); sys.exit(99)
@@ -778,7 +772,7 @@ def main():
                 usage(); sys.exit(99)
             else:
                 # 1-All; 2-Incr.
-                cluster_type = string.atoi(a)
+                cluster_type = int(a)
                 docluster = True
                 rmpfile = sys.argv[3]
                 if not os.path.isfile(rmpfile):
@@ -797,7 +791,7 @@ def main():
             fake = True
         elif o in ("-u", "--updatedb"):
             if a.isdigit(): 
-                updbmode = string.atoi(a)
+                updbmode = int(a)
                 if not (1 <= updbmode <= 2):
                     print '\nError: updatedb mode: (%d) NOT supported yet!' % updbmode
                     usage(); sys.exit(99)
@@ -822,32 +816,6 @@ def main():
     # Update Algorithm related data.
     if updatedb:
         updateAlgoData()
-        #import MySQLdb
-        #try:
-        #    conn = MySQLdb.connect(host = db_config_my['hostname'], 
-        #                           user = db_config_my['username'], 
-        #                         passwd = db_config_my['password'], 
-        #                             db = db_config_my['dbname'], 
-        #                       compress = 1)
-        #                    #cursorclass = MySQLdb.cursors.DictCursor)
-        #except MySQLdb.Error,e:
-        #    print "\nCan NOT connect %s@server: %s!" % (username, hostname)
-        #    print "Error(%d): %s" % (e.args[0], e.args[1])
-        #    sys.exit(99)
-        #try:
-        #    # Returns values identified by field name(or field order if no arg).
-        #    cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-        #    for table in wpp_tables_my:
-        #        print 'table: %s' % table
-        #        cursor.execute(sqls['SQL_DROP_MY'] % table)
-        #        cursor.execute(sqls['SQL_CREATETB_MY'] % (table, tbl_forms_my[table]))
-        #        cursor.execute(sqls['SQL_CSVIN_MY'] % (tbl_files[table], table, tbl_field_my[table]))
-        #    cursor.close()
-        #except MySQLdb.Error,e:
-        #    print "Error(%d): %s" % (e.args[0], e.args[1])
-        #    sys.exit(99)
-        #conn.commit()
-        #conn.close()
 
     # Ordinary fingerprints clustering.
     if docluster:
@@ -857,8 +825,7 @@ def main():
             dbips = DB_OFFLINE
             for svrip in dbips:
                 dbsvr = dbsvrs[svrip]
-                wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'], tbl_idx=tbl_idx, sqls=sqls, 
-                        tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms)
+                wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
                 n_inserts = doClusterIncr(file(rmpfile), wppdb)
                 print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
                 wppdb.close()

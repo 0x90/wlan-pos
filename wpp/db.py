@@ -2,7 +2,6 @@
 import sys
 import os
 import csv
-import pprint
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -14,8 +13,7 @@ import sqlalchemy.pool as pool
 pg = pool.manage(pg)
 
 from wpp.config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
-        tbl_field, tbl_forms, tbl_idx, tbl_files, \
-        dsn_local_ora, dsn_vance_ora, dsn_local_pg, dsn_vance_pg_mic, dbtype_ora, dbtype_pg
+        tbl_field, tbl_forms, tbl_idx, tbl_files
 
 
 def usage():
@@ -37,8 +35,8 @@ example:
 
 
 class WppDB(object):
-    def __init__(self,dsn=None,tables=wpp_tables,tbl_field=None,tbl_forms=None,sqls=None,
-            tbl_files=None,tbl_idx=None,dbtype=None):
+    def __init__(self,dsn=None,tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms,sqls=sqls,
+            tbl_files=tbl_files,tbl_idx=tbl_idx,dbtype=None):
         if not dsn: sys.exit('Need DSN info!')
         if not dbtype: sys.exit('Need DB type!') 
         self.dbtype = dbtype
@@ -328,8 +326,6 @@ class WppDB(object):
 
 
 if __name__ == "__main__":
-    pp = pprint.PrettyPrinter(indent=2)
-
     if not len(sys.argv) == 2: 
         usage() 
         sys.exit(0)
@@ -362,7 +358,6 @@ if __name__ == "__main__":
         dbsvr = dbsvrs[svrip]
         #print 'Loading data -> DB svr: %s' % svrip
         print '%s %s %s' % ('='*15, svrip, '='*15)
-        wppdb = WppDB(dsn=dbsvr['dsn'],dbtype=dbsvr['dbtype'],tbl_idx=tbl_idx, 
-                tables=wpp_tables,tbl_field=tbl_field,tbl_forms=tbl_forms,sqls=sqls)
+        wppdb = WppDB(dsn=dbsvr['dsn'],dbtype=dbsvr['dbtype'],tables=wpp_tables)
         wppdb.loadClusteredData(tbl_files)
         wppdb.close()
