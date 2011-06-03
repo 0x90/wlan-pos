@@ -19,7 +19,7 @@ ftpcfgs = {
         'port': 21,
         'path': 'fpp/data_sync/wpp',
      'timeout': 20,
-    'localdir': '/root/wpp/src/wlan-pos/dat/sync'},
+    'localdir': '/root/wpp/src/wpp/dat/sync'},
   'local': {
        'user' : 'alexy',
      'passwd' : 'yan714257',
