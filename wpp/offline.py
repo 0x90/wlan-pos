@@ -45,12 +45,13 @@ NOTE:
 """ % strftime('%Y')
 
 
-def doClusterIncr(fd_csv=None, wppdb=None, verb=False):
+def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     """
     Parameters
     ----------
     fd_csv: file descriptor of rawdata in csv format.
     wppdb: object of wpp.db.WppDB.
+    verb: show detailed incr-cluster progressbar if TRUE.
     
     Returns
     -------
@@ -99,12 +100,11 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=False):
     # Support multi DB incr-clustering.
     dbips = DB_OFFLINE
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
+	if verb: widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         #print '%s %s %s' % ('='*15, svrip, '='*15)
-        widgets = [ 'Incr-Clustering: ', Percentage(), ' ', Bar(marker=RotatingMarker()) ]
-        #pbar = ProgressBar().start()
-        pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
+        if verb: pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
         for idx, wlanmacs in enumerate(topaps):
             #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
             fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
@@ -145,10 +145,8 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=False):
                 # insert fingerprints into the same cluserid in table cfps.
                 wppdb.addFps(cid=cid, fps=[fps])
             n_inserts['n_newfps'] += 1
-            #pbar.update( int((idx/(num_rows-1))*100) )
-            pbar.update(10*idx+1)
-            #sleep(0.01)
-        pbar.finish()
+            if verb: pbar.update(10*idx+1)
+        if verb: pbar.finish()
         return n_inserts
 
 
@@ -682,7 +680,7 @@ def updateAlgoData():
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = StringIO(str_rdata_loc)
             print 'FPs for Incr clustering selected & ready'
-            n_inserts = doClusterIncr(fd_csv, wppdb)
+            n_inserts = doClusterIncr(fd_csv=fd_csv, wppdb=wppdb, verb=False)
             print 'AlgoData added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
         # Move rawdata without location to another table: wpp_uprecs_noloc.
         tab_rd_noloc = 'wpp_uprecs_noloc'
@@ -719,7 +717,7 @@ def loadRawdata(rawfile=None):
     # Update indexs.
     wppdb.updateIndexes(doflush=False)
     # Load csv clustered data into DB tables.
-    n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb, verb=True)
+    n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
     print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
 
 
@@ -826,7 +824,7 @@ def main():
             for svrip in dbips:
                 dbsvr = dbsvrs[svrip]
                 wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
-                n_inserts = doClusterIncr(file(rmpfile), wppdb)
+                n_inserts = doClusterIncr(fd_csv=file(rmpfile), wppdb=wppdb)
                 print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
                 wppdb.close()
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
