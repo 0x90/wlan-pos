@@ -3,13 +3,19 @@
 # $0 [options]
 
 PATH_WPPWEB=`dirname $0`
-LOGDIR=$PATH_WPPWEB/log
-[ -d $LOGDIR ] || mkdir -p $LOGDIR
+LOGDIR=log
+LOGPATH=$PATH_WPPWEB/$LOGDIR
+[ -d $LOGPATH ] || mkdir -p $LOGPATH
+WPPLOGFILE=wpp.log
+
 PFILE=/tmp/gunicorn.pid
+
 W_MH="egg:meinheld#gunicorn_worker"
 W_GE="egg:gunicorn#gevent"
+
 APP=wpp_server:wpp_handler
 port=8080
+
 TOUT=10
 
 start_gunic() {
@@ -24,20 +30,22 @@ start_gunic() {
 
     datetime=`date +%Y%m%d-%H%M%S`
     GU_LOG=log/gunicorn_$datetime.log
-    WPP_LOG=log/wpp.log
-    #WPP_LOG=/dev/null
     cd $PATH_WPPWEB
     touch $GU_LOG
-    # check if the size of logfile.
+
+    #WPP_LOG=/dev/null
+    WPP_LOG=$LOGDIR/$WPPLOGFILE
+
+    # Check the size of logfile.
     if [ -f $WPP_LOG ]; then
         nline=`wc -l $WPP_LOG |awk '{print $1}'`
-        #echo $nline
-        if [ $nline -gt 500000 ]; then 
-            mv -f ${WPP_LOG} ${WPP_LOG}_$datetime 
-            tar cjvf ${WPP_LOG}_$datetime.tbz2 ${WPP_LOG}_$datetime
-            rm -f ${WPP_LOG}_$datetime
+        if [ $nline -ge 500000 ]; then 
+            cd $LOGDIR
+            mv -f ${WPPLOGFILE} ${WPPLOGFILE}_$datetime 
+            bzip2 ${WPPLOGFILE}_$datetime 
         fi
     fi
+
     CMD="gunicorn -b :$port -w $nworkers $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
     #CMD="gunicorn -b :$port -w $nworkers -k $W_MH $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
     #CMD="gunicorn -b :$port -w $nworkers -k $W_GE $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
@@ -61,6 +69,10 @@ case "$1" in
     reload)
         kill -HUP `cat $PFILE`
         ;;
+    restart)
+        pskill gunicorn
+        start_gunic
+        ;; 
     addw)
         addw_num=$2
         [ $addw_num -ge 1 ] || exit 99
