@@ -7,6 +7,8 @@ LOGDIR=log
 LOGPATH=$PATH_WPPWEB/$LOGDIR
 [ -d $LOGPATH ] || mkdir -p $LOGPATH
 WPPLOGFILE=wpp.log
+WPP_LOG=/dev/null
+#WPP_LOG=$LOGDIR/$WPPLOGFILE
 
 PFILE=/tmp/gunicorn.pid
 
@@ -32,9 +34,6 @@ start_gunic() {
     GU_LOG=log/gunicorn_$datetime.log
     cd $PATH_WPPWEB
     touch $GU_LOG
-
-    #WPP_LOG=/dev/null
-    WPP_LOG=$LOGDIR/$WPPLOGFILE
 
     # Check the size of logfile.
     if [ -f $WPP_LOG ]; then

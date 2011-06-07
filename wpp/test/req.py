@@ -91,6 +91,7 @@ if __name__ == "__main__":
 
     #req = urllib2.Request(url=url_server, data=urllib.urlencode(data))
     req = urllib2.Request(url=url, data=req_data)
+    #req = urllib2.Request(url=url) # GET
     req.add_header('User-Agent', "WPP web service request simulator")
     resp = urllib2.urlopen(req)
     print '-'*40

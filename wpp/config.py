@@ -10,6 +10,15 @@ KNN = 4
 KWIN = 1.25
 RADIUS = 6372797 #meter
 
+POS_RESP="""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE PosRes SYSTEM "PosRes.dtd">
+<PosRes>
+        <Result ErrCode="%s" ErrDesc="%s"/>
+        <Coord lat="%.6f" lon="%.6f" h="0.0"/>
+        <ErrRange val="%.2f"/>
+</PosRes>"""
+XHTML_IMT = "application/xhtml+xml"
+
 # FPP-WPP rawdata sync related.
 ftpcfgs = { 
   'fpp_neu': {
@@ -45,8 +54,8 @@ WPP@%s
 %s""",
 }
 # DB related configuration.
-#DB_ONLINE = 'local_pg'
-DB_ONLINE = '192.168.109.54'
+DB_ONLINE = 'local_pg'
+#DB_ONLINE = '192.168.109.54'
 #DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
 DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
 #DB_UPLOAD = ( 'local_pg', )
