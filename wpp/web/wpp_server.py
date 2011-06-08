@@ -9,6 +9,7 @@ from numpy import array, argsort, vstack
 #except ImportError:
 #    from StringIO import StringIO
 #import datetime as dt
+#import re
 
 from wpp.online import fixPos
 from wpp.config  import CLUSTERKEYSIZE, POS_RESP, XHTML_IMT
@@ -112,7 +113,6 @@ def application(environ, start_response):
 
     If nothing matches call the `not_found` function.
     """
-    import re
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
         match = re.search(regex, path)

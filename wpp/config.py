@@ -54,8 +54,8 @@ WPP@%s
 %s""",
 }
 # DB related configuration.
-DB_ONLINE = 'local_pg'
-#DB_ONLINE = '192.168.109.54'
+#DB_ONLINE = 'local_pg'
+DB_ONLINE = '192.168.109.54'
 #DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
 DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
 #DB_UPLOAD = ( 'local_pg', )
