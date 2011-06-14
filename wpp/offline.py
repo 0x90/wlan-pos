@@ -97,57 +97,53 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
 
     # Clustering heuristics.
     #print 'Executing Incr clustering: '
-    # Support multi DB incr-clustering.
-    dbips = DB_OFFLINE
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
-    if verb: widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
-    for svrip in dbips:
-        dbsvr = dbsvrs[svrip]
-        #print '%s %s %s' % ('='*15, svrip, '='*15)
-        if verb: pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
-        for idx, wlanmacs in enumerate(topaps):
-            #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
-            fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
-            #     cidcntseq: all query results from db: cid,count(cid),max(seq).
-            # cidcntseq_max: query results with max count(cid).
-            cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
-            found_cluster = False
-            if cidcntseq:
-                # find out the most queried cluster /w the same AP count:
-                # cid count = max seq
-                cidcntseq = np.array(cidcntseq)
-                cidcnt = cidcntseq[:,1]
-                #print cidcntseq
-                idxs_sortdesc = np.argsort(cidcnt).tolist()
-                idxs_sortdesc.reverse()
-                #print idxs_sortdesc
-                cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
-                cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
-                #print cidcntseq_max
-                idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
-                #print idx_belong
-                if sum(idx_belong):
-                    # cids_belong: [clusterid, number of keyaps]
-                    cids_belong = cidcntseq_max[idx_belong,[0,2]]
-                    #print cids_belong
-                    cid = cids_belong[0]
-                    if cids_belong[1] == len(wlanmacs):
-                        found_cluster = True
-            #sys.stdout.write('Cluster searching ... ')
-            if not found_cluster:
-                #print 'Failed!'
-                # insert into cidaps/cfps with a new clusterid.
-                new_cid = wppdb.addCluster(wlanmacs)
-                wppdb.addFps(cid=new_cid, fps=[fps])
-                n_inserts['n_newcids'] += 1
-            else:
-                #print 'Found: (cid: %d)' % cid
-                # insert fingerprints into the same cluserid in table cfps.
-                wppdb.addFps(cid=cid, fps=[fps])
-            n_inserts['n_newfps'] += 1
-            if verb: pbar.update(10*idx+1)
-        if verb: pbar.finish()
-        return n_inserts
+    if verb: 
+        widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
+        pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
+    for idx, wlanmacs in enumerate(topaps):
+        #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
+        fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
+        #     cidcntseq: all query results from db: cid,count(cid),max(seq).
+        # cidcntseq_max: query results with max count(cid).
+        cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
+        found_cluster = False
+        if cidcntseq:
+            # find out the most queried cluster /w the same AP count:
+            # cid count = max seq
+            cidcntseq = np.array(cidcntseq)
+            cidcnt = cidcntseq[:,1]
+            #print cidcntseq
+            idxs_sortdesc = np.argsort(cidcnt).tolist()
+            idxs_sortdesc.reverse()
+            #print idxs_sortdesc
+            cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+            cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+            #print cidcntseq_max
+            idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+            #print idx_belong
+            if sum(idx_belong):
+                # cids_belong: [clusterid, number of keyaps]
+                cids_belong = cidcntseq_max[idx_belong,[0,2]]
+                #print cids_belong
+                cid = cids_belong[0]
+                if cids_belong[1] == len(wlanmacs):
+                    found_cluster = True
+        #sys.stdout.write('Cluster searching ... ')
+        if not found_cluster:
+            #print 'Failed!'
+            # insert into cidaps/cfps with a new clusterid.
+            new_cid = wppdb.addCluster(wlanmacs)
+            wppdb.addFps(cid=new_cid, fps=[fps])
+            n_inserts['n_newcids'] += 1
+        else:
+            #print 'Found: (cid: %d)' % cid
+            # insert fingerprints into the same cluserid in table cfps.
+            wppdb.addFps(cid=cid, fps=[fps])
+        n_inserts['n_newfps'] += 1
+        if verb: pbar.update(10*idx+1)
+    if verb: pbar.finish()
+    return n_inserts
 
 
 def getRaw():
@@ -712,13 +708,14 @@ def loadRawdata(rawfile=None):
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
-    # Create WPP tables.
-    wppdb.initTables(doDrop=True)
-    # Update indexs.
-    wppdb.updateIndexes(doflush=False)
-    # Load csv clustered data into DB tables.
-    n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
-    print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+        # Create WPP tables.
+        wppdb.initTables(doDrop=True)
+        # Update indexs.
+        wppdb.updateIndexes(doflush=False)
+        # Load csv clustered data into DB tables.
+        n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
+        print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+        wppdb.close()
 
 
 def main():
