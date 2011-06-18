@@ -33,9 +33,11 @@ option:
     -h --help              :  Show this help.
     -i --spid=<spid>       :  Sampling point id.
     -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
+    -m --mode=<mode id>    :  Indicate the processing mode: 1-all; 2-incr.
     -n --no-dump           :  No data dumping to file.
     -r --rawdata=<rawfile> :  Load rawdata into WppDB, including algo related tables. 
-                              1) db.initTables() & db.updateIndexes(); 2)doClusterIncr()
+                              1) db.initTables(); db.updateIndexes(); 2)doClusterIncr(),
+                              under certain mode(specify with -m, default=all).
     -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
     -u --updatedb=<mode>   :  Update algo data with synced rawdata from remote FTP.
@@ -696,8 +698,11 @@ def updateAlgoData():
             print 'Sending alert email -> %s' % mailcfg['to']
             send_email(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
 
-def loadRawdata(rawfile=None):
+def loadRawdata(rawfile=None, updbmode=1):
     """
+    rawfile: rawdata csv file.
+    updbmode: update db mode: 1-all, 2-incr.
+
     Init *algo* tables with rawdata csv(16 columns) -- SLOW if csv is big, 
         try offline.doClusterAll(rawdata) -> db.loadClusteredData() instead.
     1) db.initTables(): init db tables.
@@ -705,13 +710,16 @@ def loadRawdata(rawfile=None):
     3) offline.doClusterIncr(): incremental clustering.
     """
     dbips = DB_OFFLINE
+    doflush = True
     for svrip in dbips:
         dbsvr = dbsvrs[svrip]
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
-        # Create WPP tables.
-        wppdb.initTables(doDrop=True)
+        if updbmode == 1:
+            # Create WPP tables.
+            wppdb.initTables(doDrop=True)
+            doflush = False
         # Update indexs.
-        wppdb.updateIndexes(doflush=False)
+        wppdb.updateIndexes(doflush)
         # Load csv clustered data into DB tables.
         n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
         print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
@@ -721,9 +729,9 @@ def loadRawdata(rawfile=None):
 def main():
     import getopt
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:nr:s:t:u:v",
-            ["aio","cluster","fake","help","spid=","kml=","no-dump","rawdata",
-             "raw-scan=","to-rmp=","updatedb","verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:m:nr:s:t:uv",
+            ["aio","cluster","fake","help","spid=","kml=","mode=","no-dump",
+             "rawdata","raw-scan=","to-rmp=","updatedb","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -732,15 +740,24 @@ def main():
 
     # global vars init.
     spid=0; times=0; tormp=False; updatedb=False; doLoadRawdata=False
-    rawfile=None; tfail=0; docluster=False; dokml=False
-    global verbose,pp,nodump,fake,updbmode
-    verbose=False; pp=None; nodump=False; fake=False; updbmode=1
+    rawfile=None; tfail=0; docluster=False; dokml=False; updbmode=1
+    global verbose,pp,nodump,fake
+    verbose=False; pp=None; nodump=False; fake=False
 
     for o,a in opts:
         if o in ("-i", "--spid"):
             if a.isdigit(): spid = int(a)
             else:
                 print '\nspid: %s should be an INTEGER!' % str(a)
+                usage(); sys.exit(99)
+        elif o in ("-m", "--mode"):
+            if a.isdigit(): 
+                updbmode = int(a)
+                if not (1 <= updbmode <= 2):
+                    print '\nError: updatedb mode: (%d) NOT supported yet!' % updbmode
+                    usage(); sys.exit(99)
+            else:
+                print '\nmode: %s should be an INTEGER!' % str(a)
                 usage(); sys.exit(99)
         elif o in ("-r", "--rawdata"):
             if not os.path.isfile(a):
@@ -785,16 +802,7 @@ def main():
         elif o in ("-f", "--fake"):
             fake = True
         elif o in ("-u", "--updatedb"):
-            if a.isdigit(): 
-                updbmode = int(a)
-                if not (1 <= updbmode <= 2):
-                    print '\nError: updatedb mode: (%d) NOT supported yet!' % updbmode
-                    usage(); sys.exit(99)
-                else:
-                    updatedb = True
-            else: 
-                print '\nError: "-d/--db" should be followed by an INTEGER!'
-                usage(); sys.exit(99)
+            updatedb = True
         #elif o in ("-a", "--aio"):
         elif o in ("-v", "--verbose"):
             verbose = True
@@ -806,7 +814,7 @@ def main():
             usage(); sys.exit(99)
 
     if doLoadRawdata:
-        loadRawdata(rawfile)
+        loadRawdata(rawfile, updbmode)
 
     # Update Algorithm related data.
     if updatedb:
