@@ -26,8 +26,8 @@ start_gunic() {
     #    nps=(nps*2 if (nps<=5) else (nps+1)); \
     #    print nps'`
     nps=`cat /proc/cpuinfo  |grep processor |wc -l`
-    #[ $nps -lt 5 ] && nworkers=`echo "$nps*2" |bc` || nworkers=`echo "$nps+1" |bc`
-    nworkers=`echo "$nps*2" |bc`
+    [ $nps -lt 5 ] && nworkers=`echo "$nps*3" |bc` || nworkers=`echo "$nps*2" |bc`
+    #nworkers=`echo "$nps*2" |bc`
     echo "workers: $nworkers"
 
     datetime=`date +%Y%m%d-%H%M%S`
