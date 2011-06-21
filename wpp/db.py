@@ -85,13 +85,16 @@ class WppDB(object):
         table_inst = self.tables[table_name]
         sql = self.sqls['SQL_SELECT'] % ('ver_uprecs', table_inst)
         self.cur.execute(sql)
-        ver_rdata = self.cur.fetchone()[0]
-        return ver_rdata
+        try:
+            ver_rdata = self.cur.fetchone()[0]
+            return ver_rdata
+        except pg.ProgrammingError:
+            return None
 
     def setRawdataVersion(self, ver_new):
         table_name = 'wpp_uprecsver'
         table_inst = self.tables[table_name]
-        sql = self.sqls['SQL_UPDATE'] % (table_inst, 'ver_uprecs', ver_new)
+        sql = self.sqls['SQL_UPDATE'] % (table_inst, 'ver_uprecs', str(ver_new))
         self.cur.execute(sql)
         self.con.commit()
 

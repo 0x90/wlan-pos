@@ -723,6 +723,8 @@ def loadRawdata(rawfile=None, updbmode=1):
         # Load csv clustered data into DB tables.
         n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
         print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
+        # Init ver_uprecs in |wpp_uprecsver| if it's empty.
+        if not wppdb.getRawdataVersion(): wppdb.setRawdataVersion('0')
         wppdb.close()
 
 
