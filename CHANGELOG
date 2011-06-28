@@ -246,3 +246,5 @@
 2011-05-31
     1) Abandon old algo that use all the cluster data to do intersection.
     2) Speedup system performance by slimming module imports.
+2011-06-28
+    1) Fix db.getRawdataVersion() when |wpp_uprecsver| is null for offline.loadRawdata().

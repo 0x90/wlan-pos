@@ -77,24 +77,27 @@ class WppDB(object):
         try:
             query = self.cur.fetchall()
             return query
-        except pg.ProgrammingError:
+        except:
             return None
+
+    def _getRowCount(self, table_inst):
+        self.cur.execute( self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst) )
+        return self.cur.fetchone()[0]
 
     def getRawdataVersion(self):
         table_name = 'wpp_uprecsver'
         table_inst = self.tables[table_name]
-        sql = self.sqls['SQL_SELECT'] % ('ver_uprecs', table_inst)
-        self.cur.execute(sql)
-        try:
-            ver_rdata = self.cur.fetchone()[0]
-            return ver_rdata
-        except pg.ProgrammingError:
-            return None
+        if self._getRowCount(table_inst):
+            self.cur.execute( self.sqls['SQL_SELECT'] % ('ver_uprecs', table_inst) )
+            return self.cur.fetchone()[0]
+        else: return None
 
     def setRawdataVersion(self, ver_new):
         table_name = 'wpp_uprecsver'
         table_inst = self.tables[table_name]
-        sql = self.sqls['SQL_UPDATE'] % (table_inst, 'ver_uprecs', str(ver_new))
+        if self._getRowCount(table_inst):
+            sql = self.sqls['SQL_UPDATE'] % (table_inst, 'ver_uprecs', str(ver_new))
+        else: sql = self.sqls['SQL_INSERT'] % (table_inst, '', '(%s)'%ver_new)
         self.cur.execute(sql)
         self.con.commit()
 
@@ -138,8 +141,7 @@ class WppDB(object):
             # Load the csv data into WPP tables.
             self._loadFile(csvfile=csvfile, table_name=table_name)
             # Update the number of records.
-            self.cur.execute(self.sqls['SQL_SELECT'] % ('COUNT(*)', table_inst))
-            print 'Total [%s] rows in |%s|' % (self.cur.fetchone()[0], table_inst)
+            print 'Total [%s] rows in |%s|' % (self._getRowCount(table_inst), table_inst)
 
     def loadClusteredData(self, tbl_files=None):
         if not self.tbl_files: 
@@ -174,7 +176,7 @@ class WppDB(object):
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
     def _getNewCid(self, table_inst=None):
-        self.cur.execute( sqls['SQL_SELECT'] % ('max(clusterid)', table_inst) )
+        self.cur.execute( self.sqls['SQL_SELECT'] % ('max(clusterid)', table_inst) )
         query = self.cur.fetchone()[0]
         new_cid = (query+1 if query else 1) # query=None when the table is empty.
         return new_cid
@@ -230,13 +232,13 @@ class WppDB(object):
         strWhere = "%s%s%s" % ("keyaps='", "' or keyaps='".join(macs), "'")
         if self.dbtype == 'postgresql':
             sql1 = self.sqls['SQL_SELECT'] % \
-                ("clusterid as cid, count(clusterid) as cidcnt", 
+                ("clusterid as cid, COUNT(clusterid) as cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
                  where (cid=clusterid and cidcnt=%s) group by cid,cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst, num_macs))
         elif self.dbtype == 'oracle':
             sql1 = self.sqls['SQL_SELECT'] % \
-                ("clusterid cid, count(clusterid) cidcnt", 
+                ("clusterid cid, COUNT(clusterid) cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
                  where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst))
@@ -318,7 +320,7 @@ class WppDB(object):
                 (table_inst, strWhere)
         elif self.dbtype == 'oracle':
             sql1 = self.sqls['SQL_SELECT'] % \
-                ("clusterid cid, count(clusterid) cidcnt", 
+                ("clusterid cid, COUNT(clusterid) cidcnt", 
                  "%s where (%s) group by clusterid order by cidcnt desc) a, %s t \
                  where (a.cid=t.clusterid and a.cidcnt=%s) group by a.cid,a.cidcnt order by cidcnt desc" % \
                 (table_inst, strWhere, table_inst))
