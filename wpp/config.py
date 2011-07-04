@@ -21,7 +21,15 @@ XHTML_IMT = "application/xhtml+xml"
 
 # FPP-WPP rawdata sync related.
 ftpcfgs = { 
-  'fpp_neu': {
+  'fpp_neu_ln': {
+       'user' : 'fpp',
+     'passwd' : '123fpp!@#',
+          'ip': '10.64.74.33',
+        'port': 21,
+        'path': 'fpp/data_sync/wpp',
+     'timeout': 20,
+    'localdir': '/opt/projs/cmri/wpp/src/wpp/dat/sync'},
+'fpp_neu_cmri': {
        'user' : 'fpp',
      'passwd' : 'fpp',
           'ip': '192.168.109.58',
@@ -38,7 +46,7 @@ ftpcfgs = {
      'timeout': 10,
     'localdir': '/home/alexy/tmp/wpp/local'},
 }
-FTPCFG=ftpcfgs['fpp_neu']
+FTPCFG=ftpcfgs['fpp_neu_cmri']
 mailcfg = {
       'from' : 'xiaotian.yan@gmail.com',
        'to'  : '13811310350@139.com',
