@@ -102,7 +102,7 @@ def hello(environ, start_response):
 def not_found(environ, start_response):
     """Called if no URL matches."""
     start_response('404 Empty WPP request msg!', [('Content-Type', 'text/plain')])
-    return ['Empty WPP request msg!']
+    return ['Empty WPP request msg!\n']
 
 def application(environ, start_response):
     """
@@ -131,37 +131,35 @@ def wpp_handler(environ, start_response):
     if 'CONTENT_LENGTH' in environ:
         #datin = LimitedStream(environ['wsgi.input'], int(environ['CONTENT_LENGTH'])).read()
         datin = environ['wsgi.input'].read()
-        if not datin: sys.exit(99)
-        datin = datin.split('dtd">')
-        if len(datin) == 1: # del xml-doc declaration.
-            datin = datin[0].split('?>')
-            if len(datin) == 1: datin = datin[0]
-            else: datin = datin[1] 
-        else: datin = datin[1] # del xml-doc declaration.
-        print datin
-        xmldoc = xmlparser(datin)
-        #macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmldoc.iter()][-2:] ]
-        macs, rsss = [ child.attrib['val'].split('|') for child in xmldoc.getchildren()[-2:] ]
-        macs = array(macs); rsss = array(rsss)
-        # fix postion.
-        INTERSET = min(CLUSTERKEYSIZE, len(macs))
-        idxs_max = argsort(rsss)[:INTERSET]
-        mr = vstack((macs, rsss))[:,idxs_max]
-        loc = fixPos(INTERSET, mr)
-        #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
-        if loc:
-            lat, lon, ee = loc
-            errinfo='OK'; errcode='100'
-        else:
-            lat = 39.9055; lon = 116.3914; ee = 1000
-            errinfo = 'AccuTooBad'; errcode = '102'
-        pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
-        start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(pos_resp)) )])
-        print pos_resp
-        print '='*30
-        return [ pos_resp ]
-    else:
-        return not_found(environ, start_response)
+        if datin: 
+            datin = datin.split('dtd">')
+            if len(datin) == 1: # del xml-doc declaration.
+                datin = datin[0].split('?>')
+                if len(datin) == 1: datin = datin[0]
+                else: datin = datin[1] 
+            else: datin = datin[1] # del xml-doc declaration.
+            print datin
+            xmldoc = xmlparser(datin)
+            #macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmldoc.iter()][-2:] ]
+            macs, rsss = [ child.attrib['val'].split('|') for child in xmldoc.getchildren()[-2:] ]
+            macs = array(macs); rsss = array(rsss)
+            # fix postion.
+            INTERSET = min(CLUSTERKEYSIZE, len(macs))
+            idxs_max = argsort(rsss)[:INTERSET]
+            mr = vstack((macs, rsss))[:,idxs_max]
+            loc = fixPos(INTERSET, mr)
+            #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
+            if loc:
+                lat, lon, ee = loc
+                errinfo='OK'; errcode='100'
+            else:
+                lat = 39.9055; lon = 116.3914; ee = 1000
+                errinfo = 'AccuTooBad'; errcode = '102'
+            pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
+            start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(pos_resp)) )])
+            print pos_resp; print '='*30
+            return [ pos_resp ]
+    return not_found(environ, start_response)
 
 # map urls to functions
 urls = [
