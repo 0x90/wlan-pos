@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import os
 import csv
 import time
 import urllib2 as ul
@@ -103,11 +104,11 @@ def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
 
 def collectCellArea():
     cell_area = {}
-    csvfile = '/home/alexy/wpp/dat/fpp_rawdata/cells_latlon.csv'
+    homedir = os.environ['HOME']
+    csvfile = '%s/wpp/wpp/util/cells_latlon.csv' % homedir
     cells = open(csvfile,'r').readlines()
-    conn = db.connect('/home/alexy/dev/src/wpp/dat/cell_area.db')
+    conn = db.connect('%s/wpp/wpp/util/cell_area.db'% homedir)
     cur = conn.cursor()
-    #cur.execute('create table cell_area (cellid char(15) not null, areacode char(15) not null, areaname char(50))')
     for cell in cells:
         #print cell
         cid,lat,lon = cell.strip().split(',')
