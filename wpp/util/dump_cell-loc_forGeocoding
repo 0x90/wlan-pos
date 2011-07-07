@@ -1,0 +1,3 @@
+#!/bin/bash
+csvfile=$1
+awk -F, '{if($10!="")print $10","$12","$13}' $csvfile  |sed '/^$/d' |uniq > cells_latlon.csv
