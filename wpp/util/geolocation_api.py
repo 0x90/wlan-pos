@@ -64,12 +64,14 @@ def connect_error(f):
             try:
                 result = f(*arg, **ka)
                 break
-            except ul.URLError, e:
+            except (sckt.error, ul.URLError), e:
                 if hasattr(e, 'code'):
                     print(colors['red'] % ('HTTP Error: (%s): %s' % (e.code, e.msg)))
                 elif hasattr(e, 'reason'):
                     print(colors['red'] % ('URL Error: %s!' % e.reason))
                 else: print e
+            except Exception, e:
+                print e
             print colors['blue'] % '... Retrying ...'
         return result
     return wrapper
@@ -89,7 +91,6 @@ def setConn():
     proxyserver = "http://proxy.cmcc:8080"
     proxy = {'http': proxyserver}
     #sckt.setdefaulttimeout(50)
-
     opener = ul.build_opener( ul.ProxyHandler(proxy) )
     ul.install_opener( opener )
 
@@ -103,6 +104,7 @@ def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
     return data
 
 def collectCellArea():
+    query_cnt = 0 # Google Map API regular user limitation: no more than 2500 queries/day
     cell_area = {}
     homedir = os.environ['HOME']
     csvfile = '%s/wpp/wpp/util/cells_latlon.csv' % homedir
@@ -110,23 +112,30 @@ def collectCellArea():
     conn = db.connect('%s/wpp/wpp/util/cell_area.db'% homedir)
     cur = conn.cursor()
     for cell in cells:
-        #print cell
+        print cell
         cid,lat,lon = cell.strip().split(',')
         cur.execute('SELECT areacode from cell_area WHERE cellid LIKE %s' % cid)
         areacodes = cur.fetchall()
         if not areacodes:
             latlon = (lat, lon)
             geodata = googleGeocoding(latlon)
-            area_name = [ x['long_name'] for x in geodata['results'][1]['address_components'][::-1][1:] ]
-            area_district = area_name[-1]
-            if not area_district in area_codes: continue
-            area_code = area_codes[area_district]
-            if area_code in [x[0] for x in areacodes]: continue
-            area_name = '|'.join(area_name)
-            sql = 'INSERT INTO cell_area VALUES ("%s","%s","%s")' % (cid, area_code, area_name)
-            cur.execute(sql)
-            conn.commit()
-            print sql
+            if geodata['status'] == u'OK':
+                query_cnt += 1; print 'query count: %s' % query_cnt
+                area_name = [ x['address_components'][::-1][1:] for x in geodata['results'] if x['types'][0]=='sublocality' ][0]
+                area_name = [ x['long_name'] for x in area_name ]
+                area_district = area_name[-1]
+                if not area_district in area_codes: # TODO: Handle those queries with unknown district names.
+                    print 'district: %s not in area_codes!' % area_district
+                    pp.pprint(geodata['results'])
+                    sys.exit(0)
+                area_code = area_codes[area_district]
+                if area_code in [x[0] for x in areacodes]: continue
+                area_name = '|'.join(area_name)
+                rec = '"%s","%s","%s"' % (cid, area_code, area_name)
+                cur.execute('INSERT INTO cell_area VALUES (%s)' % rec)
+                conn.commit()
+                print 'insert %s' % rec
+            else: sys.exit(colors['red'] % ('ERROR: %s !!!' % geodata['status']))
         else: continue
         cur.execute('select count(*) from cell_area')
         print 'Count: %s' % cur.fetchone()[0]
@@ -164,7 +173,7 @@ if __name__ == "__main__":
               'Miyun': '110228',
             'Yanqing': '110229', }
 
-    #setConn()
+    setConn()
     
     collectCellArea()
 
