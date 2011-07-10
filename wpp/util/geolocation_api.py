@@ -106,14 +106,12 @@ def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
 def collectCellArea():
     query_cnt = 0 # Google Map API regular user limitation: no more than 2500 queries/day
     cell_area = {}
-    homedir = os.environ['HOME']
-    csvfile = '%s/wpp/wpp/util/cells_latlon.csv' % homedir
-    cells = open(csvfile,'r').readlines()
-    conn = db.connect('%s/wpp/wpp/util/cell_area.db'% homedir)
-    cur = conn.cursor()
-    for cell in cells:
-        print cell
-        cid,lat,lon = cell.strip().split(',')
+    homedir = os.environ['HOME']; csvfile = '%s/wpp/wpp/util/cells_latlon.csv' % homedir
+    conn = db.connect('%s/wpp/wpp/util/cell_area.db'% homedir); cur = conn.cursor()
+    cells_loc = open(csvfile,'r').readlines()
+    for cell in cells_loc:
+        cid,lat,lon = [ x.strip('\"') for x in cell.strip().split(',') ]
+        print '%s, %s, %s' % (cid, lat, lon)
         cur.execute('SELECT areacode from cell_area WHERE cellid LIKE %s' % cid)
         areacodes = cur.fetchall()
         if not areacodes:
@@ -121,13 +119,13 @@ def collectCellArea():
             geodata = googleGeocoding(latlon)
             if geodata['status'] == u'OK':
                 query_cnt += 1; print 'query count: %s' % query_cnt
-                area_name = [ x['address_components'][::-1][1:] for x in geodata['results'] if x['types'][0]=='sublocality' ][0]
-                area_name = [ x['long_name'] for x in area_name ]
+                area_names = [ x['address_components'][::-1][1:] 
+                        for x in geodata['results'] if x['types'][0]=='sublocality' ][0]
+                area_name = [ x['long_name'] for x in area_names ]
                 area_district = area_name[-1]
                 if not area_district in area_codes: # TODO: Handle those queries with unknown district names.
                     print 'district: %s not in area_codes!' % area_district
-                    pp.pprint(geodata['results'])
-                    sys.exit(0)
+                    pp.pprint(geodata['results']); sys.exit(0)
                 area_code = area_codes[area_district]
                 if area_code in [x[0] for x in areacodes]: continue
                 area_name = '|'.join(area_name)
@@ -138,8 +136,7 @@ def collectCellArea():
             else: sys.exit(colors['red'] % ('ERROR: %s !!!' % geodata['status']))
         else: continue
         cur.execute('select count(*) from cell_area')
-        print 'Count: %s' % cur.fetchone()[0]
-        print '-'*40
+        print 'Count: %s' % cur.fetchone()[0]; print '-'*40
     conn.close()
 
 
