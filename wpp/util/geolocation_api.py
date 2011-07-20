@@ -117,7 +117,6 @@ def googleLocation(macs=None, rsss=None, lac=None, cid=None, cellrss=None):
     req_content = genLocReq(macs=macs, rsss=rsss, lac=lac, cid=cid, cellrss=cellrss)
     req_url = "http://www.google.com/loc/json"
     if not req_content: sys.exit('Error: EMPTY request content!')
-    print req_content
     sckt.setdefaulttimeout(5)
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
@@ -173,7 +172,7 @@ def collectCellArea():
                     pp.pprint(geodata['results']); sys.exit(0)
                 area_code = area_codes[area_district]
                 if area_code in [x[0] for x in areacodes]: continue
-                area_name = '|'.join(area_name)
+                area_name = '+'.join(area_name)
                 rec = '"%s","%s","%s","%s"' % (cid, area_code, area_name, lac)
                 cur.execute('INSERT INTO cell_area VALUES (%s)' % rec)
                 conn.commit()

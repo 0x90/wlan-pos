@@ -88,7 +88,7 @@ if __name__ == "__main__":
     else:
         ipsrc = ipsrc['eth0']
 
-    target = targets['fpp_local']
+    target = targets['wpp_local']
     #target['urlpath'] = target['urlpath'].lower() # compatible with local fpp urlpath.
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print '\nRequesting %s from %s\n' % (url, ipsrc)

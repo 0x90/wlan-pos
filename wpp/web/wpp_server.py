@@ -141,20 +141,21 @@ def wpp_handler(environ, start_response):
                 else: datin = datin[1] 
             else: datin = datin[1] # del xml-doc declaration.
             print datin
-            xmldoc = xmlparser(datin)
-            #macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmldoc.iter()][-2:] ]
-            macs, rsss = [ child.attrib['val'].split('|') for child in xmldoc.getchildren()[-2:] ]
+            xmlnodes = xmlparser(datin).getchildren()
+            macs = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANIdentifier' ][0]
+            rsss = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANMatcher' ][0]
             # fix postion.
             INTERSET = min(CLUSTERKEYSIZE, len(macs))
             idxs_max = argsort(rsss)[:INTERSET]
             mr = vstack((macs, rsss))[:,idxs_max]
-            loc = fixPos(INTERSET, mr); loc = [] # test google location
+            loc = fixPos(INTERSET, mr); #loc = [] # test google location
             errinfo='OK'; errcode='100'
             if loc: lat, lon, ee = loc
             else:
                 # TODO: google location and rawdata incr-clustering.
                 print 'Requesting google location ...'
-                loc_google = googleLocation(macs, rsss)
+                cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ][0]
+                loc_google = googleLocation(macs=macs, rsss=rsss, lac=cell['lac'], cid=cell['cid'], cellrss=cell['rss'])
                 if loc_google: lat, lon, ee = loc_google
                 else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102'
             pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
