@@ -12,7 +12,9 @@ from numpy import array, argsort, vstack
 #import re
 
 from wpp.online import fixPos
-from wpp.config  import CLUSTERKEYSIZE, POS_RESP, XHTML_IMT
+from wpp.config import CLUSTERKEYSIZE, POS_RESP, XHTML_IMT
+from wpp.util.geolocation_api import googleLocation
+#from wpp.offline import doClusterIncr
 
 
 class LimitedStream(object):
@@ -142,19 +144,19 @@ def wpp_handler(environ, start_response):
             xmldoc = xmlparser(datin)
             #macs, rsss = [ v['val'].split('|') for v in [t.attrib for t in xmldoc.iter()][-2:] ]
             macs, rsss = [ child.attrib['val'].split('|') for child in xmldoc.getchildren()[-2:] ]
-            macs = array(macs); rsss = array(rsss)
             # fix postion.
             INTERSET = min(CLUSTERKEYSIZE, len(macs))
             idxs_max = argsort(rsss)[:INTERSET]
             mr = vstack((macs, rsss))[:,idxs_max]
-            loc = fixPos(INTERSET, mr)
-            #loc = [39.895167306122453, 116.34509951020408, 24.660629537376867]
-            if loc:
-                lat, lon, ee = loc
-                errinfo='OK'; errcode='100'
+            loc = fixPos(INTERSET, mr); loc = [] # test google location
+            errinfo='OK'; errcode='100'
+            if loc: lat, lon, ee = loc
             else:
-                lat = 39.9055; lon = 116.3914; ee = 1000
-                errinfo = 'AccuTooBad'; errcode = '102'
+                # TODO: google location and rawdata incr-clustering.
+                print 'Requesting google location ...'
+                loc_google = googleLocation(macs, rsss)
+                if loc_google: lat, lon, ee = loc_google
+                else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102'
             pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
             start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(pos_resp)) )])
             print pos_resp; print '='*30

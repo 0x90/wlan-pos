@@ -9,47 +9,77 @@ import numpy as np
 import pprint as pp
 import simplejson as json
 import sqlite3 as db
+import functools
 from wpp.config import termtxtcolors as colors
  
 
-def makeReq(wlans=None, cells=None, atoken=None):
+def genLocReq(macs=None, rsss=None, lac=None, cid=None, cellrss=None, atoken=None):
     """
-    wlans: Old, [ [ mac1, mac2, ...], [rss1, rss2, ...] ]
-    wlans: New, [ wifi1, wifi2, ...]
-        wifiX: {"mac_address":"aa", "signal_strength":yy, ...}
-    cells: [ cell1, cell2, ... ]
-        cellX: {"cell_id":xxx, "location_area_code":yyy, ...}
+    Request format:
+    {
+      "version": "1.1.0",
+      "host": "maps.google.com",
+      "access_token": "2:k7j3G6LaL6u_lafw:4iXOeOpTh1glSXe",
+      "home_mobile_country_code": 310,
+      "home_mobile_network_code": 410,
+      "radio_type": "gsm",
+      "carrier": "Vodafone",
+      "request_address": true,
+      "address_language": "en_GB",
+      "location": {
+        "latitude": 51.0,
+        "longitude": -0.1
+      },
+      "cell_towers": [
+        {
+          "cell_id": 42,
+          "location_area_code": 415,
+          "mobile_country_code": 310,
+          "mobile_network_code": 410,
+          "age": 0,
+          "signal_strength": -60,
+          "timing_advance": 5555
+        }, ],
+      "wifi_towers": [
+        {
+          "mac_address": "01-23-45-67-89-ab",
+          "signal_strength": 8,
+          "age": 0
+        },
+      ]
+    }
+    Response format:
+    {
+      "location": {
+        "latitude": 51.0,
+        "longitude": -0.1,
+        "altitude": 30.1,
+        "accuracy": 1200.4,
+        "altitude_accuracy": 10.6,
+        "address": {
+          "street_number": "100",
+          "street": "Amphibian Walkway",
+          "postal_code": "94043",
+          "city": "Mountain View",
+          "county": "Mountain View County",
+          "region": "California",
+          "country": "United States of America",
+          "country_code": "US"
+        }
+      },
+      "access_token": "2:k7j3G6LaL6u_lafw:4iXOeOpTh1glSXe"
+    }
     """
-    # Old.
-    # FIXME: refactor with simplejson.dumps(dict)
-    #if wlans:
-    #    macs = wlans[0]; rsss = wlans[1]; wifis = []
-    #    for x in xrange(len(macs)):
-    #        wifi = '{"mac_address":"%s", "signal_strength":%s}' % (macs[x], rsss[x])
-    #        wifis.append(wifi)
-    #    wifis = ','.join(wifis)
-    #else:
-    #    wifis = ""
-    #req_content = """
-    #{
-    #"version":"1.1.0",
-    #"access_token":"%s",
-    #"wifi_towers":
-    #[
-    #%s
-    #]
-    #}
-    #""" % (atoken, wifis)
-
-    # New.
     req_content = {}
-    if (type(cells) is list) and ( len(cells) ):
-        req_content['cell_towers'] = cells
+    if lac and cid:
+        req_content['cell_towers'] = [ { 'cell_id': cid, 'location_area_code': lac} ]
+        if cellrss: req_content['cell_towers'][0]['signal_strength'] = cellrss
         req_content['mobile_country_code'] = 460
         req_content['mobile_network_code'] = 0
 
-    if (type(wlans) is list) and ( len(wlans) ):
-        req_content['wifi_towers'] = wlans
+    if (type(macs) is list) and ( len(macs) ):
+        wifi_towers = [ {'mac_address': mac, 'signal_strength': rsss[i]} for i,mac in enumerate(macs) ]
+        req_content['wifi_towers'] = wifi_towers
 
     req_content['version'] = '1.1.0'
     if atoken: req_content['access_token'] = atoken
@@ -73,18 +103,31 @@ def connect_error(f):
             except Exception, e:
                 print e
             print colors['blue'] % '... Retrying ...'
+            #if isinstance(retry, int):
+            #    if retry <= 0: break
+            #    else: retry -= 1
         return result
     return wrapper
 
 @connect_error
-def getGL(req_content=None):
+def googleLocation(macs=None, rsss=None, lac=None, cid=None, cellrss=None):
     # Note: Currently urllib2 does not support fetching of https locations through a proxy. 
     # However, this can be enabled by extending urllib2 as shown in the recipe:
     # http://code.activestate.com/recipes/456195.
+    req_content = genLocReq(macs=macs, rsss=rsss, lac=lac, cid=cid, cellrss=cellrss)
     req_url = "http://www.google.com/loc/json"
     if not req_content: sys.exit('Error: EMPTY request content!')
+    print req_content
+    sckt.setdefaulttimeout(5)
     resp = ul.urlopen(req_url, req_content)
-    return dict( eval(resp.read()) )
+    ret_content = dict( eval(resp.read()) )
+    if not len(ret_content) or (ret_content['location']['accuracy'] >= 1000): 
+        print colors['red'] % 'Google location failed!'
+        return []
+    else:
+        return [ ret_content['location']['latitude'], 
+                 ret_content['location']['longitude'], 
+                 ret_content['location']['accuracy'] ]
 
 
 def setConn():
@@ -93,6 +136,7 @@ def setConn():
     #sckt.setdefaulttimeout(50)
     opener = ul.build_opener( ul.ProxyHandler(proxy) )
     ul.install_opener( opener )
+
 
 @connect_error
 def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
@@ -144,8 +188,8 @@ def collectCellArea():
 if __name__ == "__main__":
     try:
         import psyco
-        psyco.bind(makeReq)
-        #psyco.bind(getGL)
+        psyco.bind(genLocReq)
+        #psyco.bind(googleLocation)
         psyco.bind(setConn)
         #psyco.bind(googleGeocoding)
     except ImportError:
@@ -200,9 +244,9 @@ if __name__ == "__main__":
         cell['location_area_code'] = laccid[0]
         cell['cell_id'] = laccid[1]
         cells = [ cell ]
-        req_content = makeReq(cells=cells, atoken=atoken)
+        req_content = genLocReq(cells=cells, atoken=atoken)
         print '%d: %s' % (i+1, json.loads(req_content)['cell_towers'])
-        ret_content = getGL(req_content)
+        ret_content = googleLocation(req_content)
         if not len(ret_content): 
             print colors['red'] % 'Google location failed!'
             continue

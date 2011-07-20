@@ -64,6 +64,11 @@ targets = {
                 'port':port_wpp_vance, 
              'urlpath':urlpath_wpp,
             'req_data':req_wpp},
+       'fpp_local':{
+                  'ip':ip_wpp_local, 
+                'port':port_fpp_neu, 
+             'urlpath':urlpath_fpp_neu,
+            'req_data':req_fpp},
        'fpp_neu':{
                   'ip':ip_fpp_neu, 
                 'port':port_fpp_neu, 
@@ -83,7 +88,8 @@ if __name__ == "__main__":
     else:
         ipsrc = ipsrc['eth0']
 
-    target = targets['wpp_local']
+    target = targets['fpp_local']
+    #target['urlpath'] = target['urlpath'].lower() # compatible with local fpp urlpath.
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print '\nRequesting %s from %s\n' % (url, ipsrc)
     req_data = target['req_data']
