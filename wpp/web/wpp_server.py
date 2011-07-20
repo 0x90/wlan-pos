@@ -142,9 +142,10 @@ def wpp_handler(environ, start_response):
             else: datin = datin[1] # del xml-doc declaration.
             print datin
             xmlnodes = xmlparser(datin).getchildren()
-            macs = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANIdentifier' ][0]
-            rsss = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANMatcher' ][0]
+            macs = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANIdentifier' ]
+            rsss = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANMatcher' ]
             if macs and rsss:
+                macs = macs[0]; rsss = rsss[0]
                 INTERSET = min(CLUSTERKEYSIZE, len(macs))
                 idxs_max = argsort(rsss)[:INTERSET]
                 mr = vstack((macs, rsss))[:,idxs_max]
