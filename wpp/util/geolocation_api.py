@@ -12,7 +12,7 @@ import sqlite3 as db
 from wpp.config import termtxtcolors as colors
  
 
-def genLocReq(macs=None, rsss=None, cellinfo=None, atoken=None):
+def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
     """
     Request format:
     {
@@ -79,7 +79,7 @@ def genLocReq(macs=None, rsss=None, cellinfo=None, atoken=None):
     req_content['mobile_country_code'] = cellinfo['mcc'] if ('mcc' in cellinfo_keys) else 460 
     req_content['mobile_network_code'] = cellinfo['mnc'] if ('mnc' in cellinfo_keys) else 0
     if (type(macs) is list) and len(macs):
-        wifi_towers = [ {'mac_address': mac, 'signal_strength': rsss[i]} for i,mac in enumerate(macs) ]
+        wifi_towers = [ {'mac_address':mac, 'signal_strength':rsss[i]} for i,mac in enumerate(macs) ]
         req_content['wifi_towers'] = wifi_towers
     req_content['version'] = '1.1.0'
     if atoken: req_content['access_token'] = atoken
@@ -119,7 +119,7 @@ def googleLocation(macs=None, rsss=None, cellinfo=None):
     sckt.setdefaulttimeout(5)
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
-    if not len(ret_content) or (ret_content['location']['accuracy'] >= 1000): 
+    if not len(ret_content) or (ret_content['location']['accuracy'] >= 1500): 
         print colors['red'] % 'Google location failed!'
         return []
     else:
