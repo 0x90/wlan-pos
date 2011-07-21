@@ -148,17 +148,17 @@ def wpp_handler(environ, start_response):
                 macs = macs[0]; rsss = rsss[0]
                 INTERSET = min(CLUSTERKEYSIZE, len(macs))
                 idxs_max = argsort(rsss)[:INTERSET]
-                mr = vstack((macs, rsss))[:,idxs_max]
-                loc = fixPos(INTERSET, mr)
+                macsrsss = vstack((macs, rsss))[:,idxs_max]
+                loc = fixPos(INTERSET, macsrsss)
             else: loc = []
             errinfo='OK'; errcode='100'
             if loc: lat, lon, ee = loc
             else:
-                # TODO: google location and rawdata incr-clustering.
-                print 'Requesting google location ...'
-                cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ][0]
-                loc_google = googleLocation(macs=macs, rsss=rsss, lac=cell['lac'], cid=cell['cid'], cellrss=cell['rss'])
-                if loc_google: lat, lon, ee = loc_google
+                cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ]
+                if cell: 
+                    loc_google = googleLocation(macs=macs, rsss=rsss, cell[0]) 
+                    if loc_google: lat, lon, ee = loc_google
+                    else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102' 
                 else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102'
             pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
             start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(pos_resp)) )])

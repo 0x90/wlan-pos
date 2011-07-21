@@ -9,11 +9,10 @@ import numpy as np
 import pprint as pp
 import simplejson as json
 import sqlite3 as db
-import functools
 from wpp.config import termtxtcolors as colors
  
 
-def genLocReq(macs=None, rsss=None, lac=None, cid=None, cellrss=None, atoken=None):
+def genLocReq(macs=None, rsss=None, cellinfo=None, atoken=None):
     """
     Request format:
     {
@@ -70,21 +69,21 @@ def genLocReq(macs=None, rsss=None, lac=None, cid=None, cellrss=None, atoken=Non
       "access_token": "2:k7j3G6LaL6u_lafw:4iXOeOpTh1glSXe"
     }
     """
-    req_content = {}
-    if lac and cid:
-        req_content['cell_towers'] = [ { 'cell_id': cid, 'location_area_code': lac} ]
-        if cellrss: req_content['cell_towers'][0]['signal_strength'] = cellrss
-        req_content['mobile_country_code'] = 460
-        req_content['mobile_network_code'] = 0
-
-    if (type(macs) is list) and ( len(macs) ):
+    req_content = {}; cellinfo_keys = cellinfo.keys()
+    if 'lac' in cellinfo_keys and 'cid' in cellinfo_keys:
+        lac = cellinfo['lac']; cid = cellinfo['cid']; 
+        req_content['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac} ]
+        if 'rss' in cellinfo_keys: 
+            cellrss = cellinfo['rss'] #TODO:cellrss value tobe compatible with google api.
+            req_content['cell_towers'][0]['signal_strength'] = cellrss
+    req_content['mobile_country_code'] = cellinfo['mcc'] if ('mcc' in cellinfo_keys) else 460 
+    req_content['mobile_network_code'] = cellinfo['mnc'] if ('mnc' in cellinfo_keys) else 0
+    if (type(macs) is list) and len(macs):
         wifi_towers = [ {'mac_address': mac, 'signal_strength': rsss[i]} for i,mac in enumerate(macs) ]
         req_content['wifi_towers'] = wifi_towers
-
     req_content['version'] = '1.1.0'
     if atoken: req_content['access_token'] = atoken
     req_content = json.dumps(req_content)
-        
     return req_content
 
 
@@ -110,11 +109,11 @@ def connect_error(f):
     return wrapper
 
 @connect_error
-def googleLocation(macs=None, rsss=None, lac=None, cid=None, cellrss=None):
+def googleLocation(macs=None, rsss=None, cellinfo=None):
     # Note: Currently urllib2 does not support fetching of https locations through a proxy. 
     # However, this can be enabled by extending urllib2 as shown in the recipe:
     # http://code.activestate.com/recipes/456195.
-    req_content = genLocReq(macs=macs, rsss=rsss, lac=lac, cid=cid, cellrss=cellrss)
+    req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
     if not req_content: sys.exit('Error: EMPTY request content!')
     sckt.setdefaulttimeout(5)
