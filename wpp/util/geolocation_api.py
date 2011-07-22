@@ -107,6 +107,7 @@ def connect_error(f):
             #if isinstance(retry, int):
             #    if retry <= 0: break
             #    else: retry -= 1
+            time.sleep(1)
         return result
     return wrapper
 
@@ -114,7 +115,7 @@ def connect_error(f):
 def googleLocation(macs=None, rsss=None, cellinfo=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
-    sckt.setdefaulttimeout(5)#; setConn()
+    sckt.setdefaulttimeout(4)#; setProxy()
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
     gl_loc = ret_content['location']
@@ -122,7 +123,7 @@ def googleLocation(macs=None, rsss=None, cellinfo=None):
     else: return [ gl_loc['latitude'], gl_loc['longitude'], gl_loc['accuracy'] ]
 
 
-def setConn():
+def setProxy():
     proxyserver = "http://proxy.cmcc:8080"
     proxy = {'http': proxyserver}
     #sckt.setdefaulttimeout(50)
@@ -182,7 +183,7 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(genLocReq)
         #psyco.bind(googleLocation)
-        psyco.bind(setConn)
+        psyco.bind(setProxy)
         #psyco.bind(googleGeocoding)
     except ImportError:
         pass
@@ -207,7 +208,7 @@ if __name__ == "__main__":
               'Miyun': '110228',
             'Yanqing': '110229', }
 
-    setConn()
+    #setProxy()
     
     collectCellArea()
 

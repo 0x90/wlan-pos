@@ -250,3 +250,6 @@
     1) Fix db.getRawdataVersion() when |wpp_uprecsver| is null for offline.loadRawdata().
 2011-07-18
     1) Mod util.geolocation_api.collectCellArea() to add lac info for identifying certain unique cell, schema of sqlite table cell_area: lac|cellid|areacode|areaname.
+2011-07-22
+    1) Refactor logg system to support gunicorn multi-process rotate file central logging.
+    2) Mod connect_error decorator to sleep in every loop.
