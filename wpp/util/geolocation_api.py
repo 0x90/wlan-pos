@@ -9,6 +9,8 @@ import numpy as np
 import pprint as pp
 import simplejson as json
 import sqlite3 as db
+#import logging
+#wpplog = logging.getLogger('wpp')
 from wpp.config import termtxtcolors as colors
  
 
@@ -110,22 +112,14 @@ def connect_error(f):
 
 @connect_error
 def googleLocation(macs=None, rsss=None, cellinfo=None):
-    # Note: Currently urllib2 does not support fetching of https locations through a proxy. 
-    # However, this can be enabled by extending urllib2 as shown in the recipe:
-    # http://code.activestate.com/recipes/456195.
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
-    if not req_content: sys.exit('Error: EMPTY request content!')
-    sckt.setdefaulttimeout(5)
+    sckt.setdefaulttimeout(5)#; setConn()
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
-    if not len(ret_content) or (ret_content['location']['accuracy'] >= 1500): 
-        print colors['red'] % 'Google location failed!'
-        return []
-    else:
-        return [ ret_content['location']['latitude'], 
-                 ret_content['location']['longitude'], 
-                 ret_content['location']['accuracy'] ]
+    gl_loc = ret_content['location']
+    if not len(ret_content) or (gl_loc['accuracy'] > 2000): return []
+    else: return [ gl_loc['latitude'], gl_loc['longitude'], gl_loc['accuracy'] ]
 
 
 def setConn():
@@ -213,7 +207,7 @@ if __name__ == "__main__":
               'Miyun': '110228',
             'Yanqing': '110229', }
 
-    #setConn()
+    setConn()
     
     collectCellArea()
 

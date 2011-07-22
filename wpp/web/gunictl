@@ -36,19 +36,19 @@ start_gunic() {
     touch $GU_LOG
 
     # Check the size of logfile.
-    if [ -f $WPP_LOG ]; then
-        nline=`wc -l $WPP_LOG |awk '{print $1}'`
-        if [ $nline -ge 500000 ]; then 
-            cd $LOGDIR
-            mv -f ${WPPLOGFILE} ${WPPLOGFILE}_$datetime 
-            bzip2 ${WPPLOGFILE}_$datetime 
-        fi
-    fi
+    #if [ -f $WPP_LOG ]; then
+    #    nline=`wc -l $WPP_LOG |awk '{print $1}'`
+    #    if [ $nline -ge 500000 ]; then 
+    #        cd $LOGDIR
+    #        mv -f ${WPPLOGFILE} ${WPPLOGFILE}_$datetime 
+    #        bzip2 ${WPPLOGFILE}_$datetime 
+    #    fi
+    #fi
 
     CMD="gunicorn -b :$port -w $nworkers $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
     #CMD="gunicorn -b :$port -w $nworkers -k $W_MH $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
     #CMD="gunicorn -b :$port -w $nworkers -k $W_GE $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
-    echo -e "\n\n##### LOG START @ $datetime #####\n" >> $WPP_LOG
+    #echo -e "\n\n##### LOG START @ $datetime #####\n" #>> $WPP_LOG
     nohup  $CMD >> $WPP_LOG 2>&1 &
 }
 

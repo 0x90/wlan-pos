@@ -1,7 +1,25 @@
 #!/usr/bin/env python
 # "Getting Started with WSGI" - Armin Ronacher, 2007, 
 # http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi.
-import sys
+from logging import getLogger, INFO, Formatter
+from logging.handlers import SysLogHandler
+wpplog = getLogger('wpp')
+wpplog.setLevel(INFO)
+formatter = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
+# syslog.
+#handler = SysLogHandler(address='/dev/log')
+# rotate file log.
+from cloghandler import ConcurrentRotatingFileHandler
+# for python wpp_handler.py.
+#import os, sys
+#logfile = os.path.dirname(sys.argv[0]) + "/log/wpp.log"
+# for gunicorn startup.
+logfile = "/home/alexy/wpp/wpp/web/log/wpp.log" #TODO: dynamic path.
+handler = ConcurrentRotatingFileHandler(logfile, "a", 5000*1024, 10) # Rotate after 5M, keep 5 old copies.
+#
+handler.setFormatter(formatter)
+wpplog.addHandler(handler)
+
 from lxml.etree import fromstring as xmlparser
 from numpy import array, argsort, vstack
 #try:
@@ -140,7 +158,6 @@ def wpp_handler(environ, start_response):
                 if len(datin) == 1: datin = datin[0]
                 else: datin = datin[1] 
             else: datin = datin[1] # del xml-doc declaration.
-            print datin
             xmlnodes = xmlparser(datin).getchildren()
             macs = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANIdentifier' ]
             rsss = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANMatcher' ]
@@ -152,18 +169,18 @@ def wpp_handler(environ, start_response):
                 loc = fixPos(INTERSET, macsrsss)
             else: loc = []
             errinfo='OK'; errcode='100'
-            if loc: lat, lon, ee = loc
+            if loc: lat,lon,ee = loc; wpplog.info(datin)
             else:
                 cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ]
+                lat=39.9055; lon=116.3914; ee=1000; errinfo='AccuTooBad'; errcode='102'
                 if cell: 
-                    loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
-                    if loc_google: lat, lon, ee = loc_google
-                    else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102' 
-                else: lat = 39.9055; lon = 116.3914; ee = 1000; errinfo = 'AccuTooBad'; errcode = '102'
-            pos_resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
-            start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(pos_resp)) )])
-            print pos_resp; print '='*30
-            return [ pos_resp ]
+                    loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]); wpplog.info(datin)
+                    if loc_google: lat,lon,ee = loc_google; errinfo='OK'; errcode='100'
+                    else: wpplog.error('Google location FAILED!')
+            resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
+            start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(resp)) )])
+            wpplog.info('%s\n%s' % (resp,'='*30))
+            return [ resp ]
     return not_found(environ, start_response)
 
 # map urls to functions
