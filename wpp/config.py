@@ -102,37 +102,38 @@ dbsvrs = {'192.168.19.132':{
             'dbtype':dbtype_pg,
            },
         }
-db_config_my = {
-            'hostname' : 'localhost',
-            'username' : 'pos',
-            'password' : 'pos',
-              'dbname' : 'wlanpos' }
-# SQL table related data structs.
-wpp_tables_my = { 'cidaps' : 'cidaps', 
-                    'cfps' : 'cfps'}
-#wpp_tables_my = ( 'cidaps', 'cfps' )
-tbl_field_my = { 'cidaps':'(cid, keyaps, seq)',
-                   'cfps':'(cid, lat, lon, height, rsss, cfps_time)' }
-tbl_forms_my = {'cidaps':""" (
-                     cid SMALLINT NOT NULL, 
-                  keyaps VARCHAR(1024),
-                     seq SMALLINT,
-                   INDEX icid (cid)
-                )""", 
-                'cfps':""" (
-                     cid SMALLINT NOT NULL,
-                     lat DOUBLE(9,6),
-                     lon DOUBLE(9,6),
-                  height DOUBLE(5,1),
-                    rsss VARCHAR(255),
-               cfps_time VARCHAR(20),
-                   INDEX icid (cid)
-                )""" }
+#db_config_my = {
+#            'hostname' : 'localhost',
+#            'username' : 'pos',
+#            'password' : 'pos',
+#              'dbname' : 'wlanpos' }
+## SQL table related data structs.
+#wpp_tables_my = { 'cidaps' : 'cidaps', 
+#                    'cfps' : 'cfps'}
+##wpp_tables_my = ( 'cidaps', 'cfps' )
+#tbl_field_my = { 'cidaps':'(cid, keyaps, seq)',
+#                   'cfps':'(cid, lat, lon, height, rsss, cfps_time)' }
+#tbl_forms_my = {'cidaps':""" (
+#                     cid SMALLINT NOT NULL, 
+#                  keyaps VARCHAR(1024),
+#                     seq SMALLINT,
+#                   INDEX icid (cid)
+#                )""", 
+#                'cfps':""" (
+#                     cid SMALLINT NOT NULL,
+#                     lat DOUBLE(9,6),
+#                     lon DOUBLE(9,6),
+#                  height DOUBLE(5,1),
+#                    rsss VARCHAR(255),
+#               cfps_time VARCHAR(20),
+#                   INDEX icid (cid)
+#                )""" }
 # { table_name: table_instance }
 wpp_tables = { 'wpp_clusteridaps':'wpp_clusteridaps',
                        'wpp_cfps':'wpp_cfps',
                  'wpp_uprecsinfo':'wpp_uprecsinfo',
                   'wpp_uprecsver':'wpp_uprecsver',
+                     'wpp_celloc':'wpp_celloc',
                'wpp_uprecs_noloc':'wpp_uprecs_noloc' }
 # NOTE: tbl_fields dont contain PRIMAY key or SERIAL columns, like *id* in wpp_uprecsinfo.
 tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
@@ -145,11 +146,13 @@ tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                                   'mcc','mnc','lac','cellid','cellrss',
                                   'lat','lon','height','wlanidentifier','wlanmatcher',
                                   'ver_uprecs'),
+                    'wpp_celloc':('laccid', 'lat', 'lon', 'h', 'ee'),
                         'tsttbl':('clusterid', 'keyaps', 'seq') }
 tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
                       'wpp_cfps':('clusterid',),
                 'wpp_uprecsinfo':('ver_uprecs',),
               'wpp_uprecs_noloc':('ver_uprecs',),
+                    'wpp_celloc':('laccid',),
                  'wpp_uprecsver':(),
                         'tsttbl':('clusterid',)}
 tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl', 
@@ -159,6 +162,7 @@ tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl',
                  'wpp_uprecsver':'test/tbl/uprecsver.tbl',
                         'cidaps':'test/tbl/cidaps.tbl',
                           'cfps':'test/tbl/cfprints.tbl',
+                    'wpp_celloc':'test/tbl/celloc.tbl',
                         'tsttbl':'test/tbl/tsttbl.tbl' }
 tbl_forms = { 'oracle':{
                 'wpp_clusteridaps':""" (  
@@ -206,6 +210,12 @@ tbl_forms = { 'oracle':{
                         height NUMERIC(5,1) DEFAULT 0,
                           rsss VARCHAR(100) NOT NULL,
                      cfps_time VARCHAR(20))""",
+                'wpp_celloc':""" (
+                        laccid VARCHAR(30) NOT NULL,
+                           lat NUMERIC(9,6) NOT NULL DEFAULT 0,
+                           lon NUMERIC(9,6) NOT NULL DEFAULT 0,
+                             h NUMERIC(5,1) DEFAULT 0,
+                            ee NUMERIC(5,1) DEFAULT 0""",
                 'wpp_uprecsver':""" (
                     ver_uprecs INT DEFAULT 0)""",
                 'wpp_uprecsinfo':""" (

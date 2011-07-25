@@ -71,25 +71,21 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
       "access_token": "2:k7j3G6LaL6u_lafw:4iXOeOpTh1glSXe"
     }
     """
-    req_content = {}; cellinfo_keys = cellinfo.keys()
+    req = {}; cellinfo_keys = cellinfo.keys()
     if 'lac' in cellinfo_keys and 'cid' in cellinfo_keys:
-        lac = cellinfo['lac']; cid = cellinfo['cid']; 
-        req_content['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac} ]
-        if 'rss' in cellinfo_keys: 
-            cellrss = cellinfo['rss'] #TODO:cellrss value tobe compatible with google api.
-            req_content['cell_towers'][0]['signal_strength'] = cellrss
-    req_content['mobile_country_code'] = cellinfo['mcc'] if ('mcc' in cellinfo_keys) else 460 
-    req_content['mobile_network_code'] = cellinfo['mnc'] if ('mnc' in cellinfo_keys) else 0
-    if (type(macs) is list) and len(macs):
-        wifi_towers = [ {'mac_address':mac, 'signal_strength':rsss[i]} for i,mac in enumerate(macs) ]
-        req_content['wifi_towers'] = wifi_towers
-    req_content['version'] = '1.1.0'
-    if atoken: req_content['access_token'] = atoken
-    req_content = json.dumps(req_content)
-    return req_content
+        lac = cellinfo['lac']; cid = cellinfo['cid']
+        req['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac} ]
+        if 'rss' in cellinfo_keys: req['cell_towers'][0]['signal_strength'] = cellinfo['rss']
+    req['mobile_country_code'] = cellinfo['mcc'] if ('mcc' in cellinfo_keys) else 460 
+    req['mobile_network_code'] = cellinfo['mnc'] if ('mnc' in cellinfo_keys) else 0
+    if len(macs): req['wifi_towers'] = [{'mac_address':m, 'signal_strength':rsss[i]} for i,m in enumerate(macs)]
+    req['version'] = '1.1.0'
+    if atoken: req['access_token'] = atoken
+    req_json = json.dumps(req)
+    return req_json
 
 
-def connect_error(f):
+def connect_retry(f):
     def wrapper(*arg, **ka):
         while True:
             try:
@@ -111,16 +107,16 @@ def connect_error(f):
         return result
     return wrapper
 
-@connect_error
+@connect_retry
 def googleLocation(macs=None, rsss=None, cellinfo=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
-    sckt.setdefaulttimeout(4)#; setProxy()
+    sckt.setdefaulttimeout(3)#; setProxy()
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
-    gl_loc = ret_content['location']
-    if not len(ret_content) or (gl_loc['accuracy'] > 2000): return []
-    else: return [ gl_loc['latitude'], gl_loc['longitude'], gl_loc['accuracy'] ]
+    gloc = ret_content['location']; gh = gloc['altitude'] if ('altitude' in gloc) else 0
+    if not len(ret_content) or (gloc['accuracy'] > 2000): return []
+    else: return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 
 
 def setProxy():
@@ -131,7 +127,7 @@ def setProxy():
     ul.install_opener( opener )
 
 
-@connect_error
+@connect_retry
 def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
     """return reverse geocoding result of google api."""
     googleurl = 'http://maps.google.com/maps/api/geocode'
@@ -206,9 +202,13 @@ if __name__ == "__main__":
             'Huairou': '110116',
              'Pinggu': '110117',
               'Miyun': '110228',
-            'Yanqing': '110229', }
+            'Yanqing': '110229',
+              'Mawei': '350105',
+            'Changle': '350182',
+              'Gulou': '350102',
+              'Binhu': '320211', }
 
-    #setProxy()
+    setProxy()
     
     collectCellArea()
 

@@ -2,13 +2,21 @@
 from __future__ import division
 from pprint import pprint, PrettyPrinter
 from copy import deepcopy
-
+from lxml.etree import fromstring as xmlparser
 import numpy as np
-#import MySQLdb
-
-from wpp.util.geo import dist_km
+from numpy import (array, argsort, vstack, searchsorted, reciprocal, average,
+        sum as np_sum, abs as np_abs, sort as np_sort, all as np_all, any as np_any)
+import logging
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+wpplog = logging.getLogger('wpp')
 from wpp.db import WppDB
-from wpp.config import dbsvrs, KNN, CLUSTERKEYSIZE, KWIN, DB_ONLINE
+from wpp.config import dbsvrs, KNN, CLUSTERKEYSIZE, KWIN, DB_ONLINE, POS_RESP
+from wpp.util.geo import dist_km
+from wpp.util.geolocation_api import googleLocation
+from wpp.offline import doClusterIncr
 
 
 def usage():
@@ -68,9 +76,9 @@ def getWLAN(fake=0):
 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
     # All integers in rss field returned by scanWLAN_OS() 
-    # are implicitly converted to strings during np.array(scannedwlan).
-    scannedwlan = np.array(scannedwlan).T
-    idxs_max = np.argsort(scannedwlan[1])[:INTERSET]
+    # are implicitly converted to strings during array(scannedwlan).
+    scannedwlan = array(scannedwlan).T
+    idxs_max = argsort(scannedwlan[1])[:INTERSET]
     # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
     scannedwlan = scannedwlan[:,idxs_max]
     print scannedwlan
@@ -78,7 +86,52 @@ def getWLAN(fake=0):
     return (INTERSET, scannedwlan)
 
 
-def fixPos(len_wlan, wlan, verb=False):
+def fixPos(posreq=None):
+    xmlnodes = xmlparser(posreq).getchildren()
+    f = lambda x : [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == x ] 
+    macs = f('WLANIdentifier'); rsss = f('WLANMatcher'); need_google = False
+    dbsvr = dbsvrs[DB_ONLINE]; wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
+    if macs and rsss:
+        macs = macs[0]; rsss = rsss[0]
+        INTERSET = min(CLUSTERKEYSIZE, len(macs)); idxs_max = argsort(rsss)[:INTERSET]
+        macsrsss = vstack((macs, rsss))[:,idxs_max]
+        wlanloc = fixPosWLAN(INTERSET, macsrsss, wppdb)
+        if not wlanloc: need_google = True
+    else: wlanloc = []
+    if not wlanloc: 
+        cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ]
+        if cell:
+            laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
+            celloc = wppdb.execute("select lat,lon,ee from wpp_celloc where laccid='%s'" % laccid)
+            if celloc: celloc=celloc[0]
+            else: need_google=True; wpplog.error('Cell location FAILED!')
+    errinfo='OK'; errcode='100'
+    loc = wlanloc or celloc
+    if loc: lat,lon,ee = loc
+    if need_google: # Try Google location, when wifi location failed && wifi info exists.
+        lat=39.9055; lon=116.3914; ee=1000; errinfo='AccuTooBad'; errcode='102'
+        if cell:
+            loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
+            if loc_google:
+                lat1,lon1,h,ee1 = loc_google 
+                if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
+                # wifi location import. TODO: make google loc import task async.
+                if macs and rsss:
+                    t = [ node.attrib['val'] for node in xmlnodes if node.tag=='Time' ]; t = t[0] if t else ''
+                    fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
+                    n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
+                    if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')
+                    else: wpplog.error('Failed to added FP from Google')
+                # Cell location import.
+                wppdb.addCellLocation(laccid=laccid, loc=loc_google)
+                wpplog.info('Added 1 Cell FP from Google')
+            else: wpplog.error('Google location FAILED!')
+    wppdb.close()
+    posresp= POS_RESP % (errcode, errinfo, lat, lon, ee)
+    return posresp
+
+
+def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
     """
     Returns the online fixed user location in lat/lon format.
     
@@ -102,20 +155,16 @@ def fixPos(len_wlan, wlan, verb=False):
     interpart_offline = False; interpart_online = False
     if verb: pp = PrettyPrinter(indent=2)
 
-    dbip = DB_ONLINE
-    dbsvr = dbsvrs[dbip]
-    wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     # db query result: [ maxNI, keys:[ [keyaps:[], keycfps:(())], ... ] ].
     # maxNI=0 if no cluster found.
     maxNI,keys = wppdb.getBestClusters(macs=wlan[0])
-    wppdb.close()
     #maxNI,keys = [2, [
     #    [['00:21:91:1D:C0:D4', '00:19:E0:E1:76:A4', '00:25:86:4D:B4:C4'], 
     #        [[5634, 5634, 39.898019, 116.367113, '-83|-85|-89']] ],
     #    [['00:21:91:1D:C0:D4', '00:25:86:4D:B4:C4'],
     #        [[6161, 6161, 39.898307, 116.367233, '-90|-90']] ] ]]
     if maxNI == 0: # no intersection found
-        print 'NO cluster found! Fingerprinting TERMINATED!'
+        wpplog.error('NO cluster found! Fingerprinting TERMINATED!')
         return []
     elif maxNI < CLUSTERKEYSIZE:
         # size of intersection set < offline key AP set size:4, 
@@ -146,9 +195,9 @@ def fixPos(len_wlan, wlan, verb=False):
         if len(keys)==1 and len(keycfps)==1:
             fps_cand = [ list(keycfps[0]) ]
             break
-        pos_lenrss = (np.array(keycfps)[:,1:3].astype(float)).tolist()
+        pos_lenrss = (array(keycfps)[:,1:3].astype(float)).tolist()
         keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
-        keyrsss = np.array([ [float(rss) for rss in spid] for spid in keyrsss ])
+        keyrsss = array([ [float(rss) for rss in spid] for spid in keyrsss ])
         for idx,pos in enumerate(pos_lenrss):
             pos_lenrss[idx].append(len(keyrsss[idx]))
         all_pos_lenrss.extend(pos_lenrss)
@@ -164,7 +213,7 @@ def fixPos(len_wlan, wlan, verb=False):
         keyrsss = keyrsss.take(idxs_taken, axis=1)
         mrsss = wl[1].astype(int)
         # Euclidean dist solving and sorting.
-        sum_rss = np.sum( (mrsss-keyrsss)**2, axis=1 )
+        sum_rss = np_sum( (mrsss-keyrsss)**2, axis=1 )
         fps_cand.extend( keycfps )
         sums_cand.extend( sum_rss )
         if verb:
@@ -176,18 +225,18 @@ def fixPos(len_wlan, wlan, verb=False):
         # KNN
         # lst_set_sums_cand: list format for set of sums_cand.
         # bound_dist: distance boundary for K-min distances.
-        lst_set_sums_cand =  np.array(list(set(sums_cand)))
-        idx_bound_dist = np.argsort(lst_set_sums_cand)[:KNN][-1]
+        lst_set_sums_cand =  array(list(set(sums_cand)))
+        idx_bound_dist = argsort(lst_set_sums_cand)[:KNN][-1]
         bound_dist = lst_set_sums_cand[idx_bound_dist]
-        idx_sums_sort = np.argsort(sums_cand)
+        idx_sums_sort = argsort(sums_cand)
 
-        sums_cand = np.array(sums_cand)
-        fps_cand = np.array(fps_cand)
+        sums_cand = array(sums_cand)
+        fps_cand = array(fps_cand)
 
         sums_cand_sort = sums_cand[idx_sums_sort]
-        idx_bound_fp = np.searchsorted(sums_cand_sort, bound_dist, 'right')
+        idx_bound_fp = searchsorted(sums_cand_sort, bound_dist, 'right')
         idx_sums_sort_bound = idx_sums_sort[:idx_bound_fp]
-        #idxs_kmin = np.argsort(min_sums)[:KNN]
+        #idxs_kmin = argsort(min_sums)[:KNN]
         sorted_sums = sums_cand[idx_sums_sort_bound]
         sorted_fps = fps_cand[idx_sums_sort_bound]
         if verb:
@@ -199,10 +248,10 @@ def fixPos(len_wlan, wlan, verb=False):
             if sorted_sums[1]:
                 boundry = KWIN
                 # What the hell are the following two lines doing here!
-                #idx_zero_bound = np.searchsorted(sorted_sums, 0, side='right')
+                #idx_zero_bound = searchsorted(sorted_sums, 0, side='right')
                 #sorted_sums[:idx_zero_bound] = boundry / (idx_zero_bound + .5)
             else: boundry = 0
-        idx_dkmin = np.searchsorted(sorted_sums, boundry, side='right')
+        idx_dkmin = searchsorted(sorted_sums, boundry, side='right')
         dknn_sums = sorted_sums[:idx_dkmin].tolist()
         dknn_fps = sorted_fps[:idx_dkmin]
         if verb: print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_fps)
@@ -210,15 +259,15 @@ def fixPos(len_wlan, wlan, verb=False):
         num_dknn_fps = len(dknn_fps)
         if  num_dknn_fps > 1:
             coors = dknn_fps[:,1:3].astype(float)
-            num_keyaps = np.array([ rsss.count('|')+1 for rsss in dknn_fps[:,-2] ])
+            num_keyaps = array([ rsss.count('|')+1 for rsss in dknn_fps[:,-2] ])
             # ww: weights of dknn weights.
-            ww = np.abs(num_keyaps - len_wlan).tolist()
+            ww = np_abs(num_keyaps - len_wlan).tolist()
             #print ww
-            if not np.all(ww):
-                if np.any(ww):
-                    ww_sort = np.sort(ww)
+            if not np_all(ww):
+                if np_any(ww):
+                    ww_sort = np_sort(ww)
                     #print 'ww_sort:' , ww_sort
-                    idx_dknn_sums_sort = np.searchsorted(ww_sort, 0, 'right')
+                    idx_dknn_sums_sort = searchsorted(ww_sort, 0, 'right')
                     #print 'idx_dknn_sums_sort', idx_dknn_sums_sort
                     ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
                     w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
@@ -227,11 +276,11 @@ def fixPos(len_wlan, wlan, verb=False):
                 for idx,sum in enumerate(ww):
                     if not sum: ww[idx] = w_zero
             #print 'ww:', ww
-            ws = np.array(ww) + dknn_sums
-            weights = np.reciprocal(ws)
+            ws = array(ww) + dknn_sums
+            weights = reciprocal(ws)
             if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
-            posfix = np.average(coors, axis=0, weights=weights)
-        else: posfix = np.array(dknn_fps[0][1:3]).astype(float)
+            posfix = average(coors, axis=0, weights=weights)
+        else: posfix = array(dknn_fps[0][1:3]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
         idxs_clusters = idx_sums_sort_bound[:idx_dkmin]
         if len(idxs_clusters) == 1: 
@@ -241,15 +290,15 @@ def fixPos(len_wlan, wlan, verb=False):
             if verb:
                 print 'idxs_clusters: %s' % idxs_clusters
                 print 'all_pos_lenrss:'; pp.pprint(all_pos_lenrss)
-            #allposs_dknn = np.vstack(np.array(all_pos_lenrss, object)[idxs_clusters])
-            allposs_dknn = np.array(all_pos_lenrss, object)[idxs_clusters]
+            #allposs_dknn = vstack(array(all_pos_lenrss, object)[idxs_clusters])
+            allposs_dknn = array(all_pos_lenrss, object)[idxs_clusters]
             if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
-            poserr = max( np.average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+            poserr = max( average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]), 50 )
     else: 
         fps_cand = fps_cand[0][:-2]
         if verb: print 'location:\n%s' % fps_cand
-        posfix = np.array(fps_cand[1:3]).astype(float)
+        posfix = array(fps_cand[1:3]).astype(float)
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
         if N_fp == 1: 
@@ -259,7 +308,7 @@ def fixPos(len_wlan, wlan, verb=False):
             if verb: 
                 print 'posfix: %s' % posfix
                 print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
-            poserr = max( np.sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
+            poserr = max( np_sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in all_pos_lenrss ]) / (N_fp-1), 50 )
     ret = posfix.tolist()
     ret.append(poserr)
@@ -308,7 +357,7 @@ def main():
     len_visAPs, wifis = getWLAN(wlanfake)
 
     # Fix current position.
-    posresult = fixPos(len_visAPs, wifis, verbose)
+    posresult = fixPosWLAN(len_visAPs, wifis, verbose)
     if not posresult: sys.exit(99)
     print 'final posfix/poserr: \n%s' % posresult
 
@@ -320,6 +369,7 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(scanWLAN_OS)
         psyco.bind(getWLAN)
+        psyco.bind(fixPosWLAN)
         psyco.bind(fixPos)
         #psyco.full()
         #psyco.log()

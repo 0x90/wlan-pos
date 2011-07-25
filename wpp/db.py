@@ -77,7 +77,7 @@ class WppDB(object):
         try:
             query = self.cur.fetchall()
             return query
-        except:
+        except (pg.ProgrammingError, Exception), e:
             return None
 
     def _getRowCount(self, table_inst):
@@ -180,6 +180,12 @@ class WppDB(object):
         query = self.cur.fetchone()[0]
         new_cid = (query+1 if query else 1) # query=None when the table is empty.
         return new_cid
+
+    def addCellLocation(self, laccid=None, loc=[]):
+        table_name = 'wpp_celloc'
+        lat, lon, h, ee = loc
+        indat = [[ laccid, lat, lon, h, ee ]]
+        self.insertMany(table_name=table_name, indat=indat)
 
     def insertMany(self, table_name=None, indat=None, verb=False):
         table_inst = self.tables[table_name]

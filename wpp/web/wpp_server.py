@@ -11,28 +11,27 @@ formatter = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
 # rotate file log.
 from cloghandler import ConcurrentRotatingFileHandler
 # for python wpp_handler.py.
-#import os, sys
-#logfile = os.path.dirname(sys.argv[0]) + "/log/wpp.log"
-# for gunicorn startup.
-logfile = "/home/alexy/wpp/wpp/web/log/wpp.log" #TODO: dynamic path.
+import os, sys
+logdir = '%s/tmp/log' % os.environ['HOME']
+logfile = '%s/wpp.log' % logdir #TODO: dynamic path instead of ugly static path.
+if not os.path.isfile(logfile):
+    if not os.path.isdir(logdir):
+        try:
+            os.mkdir(logdir, 0755)
+        except OSError, errmsg:
+            print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
+            sys.exit(99)
+    open(logfile, 'w').close()
 handler = ConcurrentRotatingFileHandler(logfile, "a", 5000*1024, 10) # Rotate after 5M, keep 5 old copies.
 #
 handler.setFormatter(formatter)
 wpplog.addHandler(handler)
 
-from lxml.etree import fromstring as xmlparser
-from numpy import array, argsort, vstack
-#try:
-#    from cStringIO import StringIO
-#except ImportError:
-#    from StringIO import StringIO
 #import datetime as dt
 #import re
 
 from wpp.online import fixPos
-from wpp.config import CLUSTERKEYSIZE, POS_RESP, XHTML_IMT
-from wpp.util.geolocation_api import googleLocation
-#from wpp.offline import doClusterIncr
+from wpp.config import XHTML_IMT
 
 
 class LimitedStream(object):
@@ -66,25 +65,6 @@ class LimitedStream(object):
             result = self.buffer + self._read_limited(size - len(self.buffer))
             self.buffer = ''
         return result
-
-    #def readline(self, size=None):
-    #    while '\n' not in self.buffer and \
-    #          (size is None or len(self.buffer) < size):
-    #        if size:
-    #            # since size is not None here, len(self.buffer) < size
-    #            chunk = self._read_limited(size - len(self.buffer))
-    #        else:
-    #            chunk = self._read_limited()
-    #        if not chunk:
-    #            break
-    #        self.buffer += chunk
-    #    sio = StringIO(self.buffer)
-    #    if size:
-    #        line = sio.readline(size)
-    #    else:
-    #        line = sio.readline()
-    #    self.buffer = sio.read()
-    #    return line
 
 def hgweb_handler(environ, start_response):
     from mercurial import demandimport; demandimport.enable()
@@ -149,38 +129,20 @@ def print_sec_msec():
 def wpp_handler(environ, start_response):
     """WPP posreq handler"""
     if 'CONTENT_LENGTH' in environ:
-        #datin = LimitedStream(environ['wsgi.input'], int(environ['CONTENT_LENGTH'])).read()
-        datin = environ['wsgi.input'].read()
-        if datin: 
-            datin = datin.split('dtd">')
-            if len(datin) == 1: # del xml-doc declaration.
-                datin = datin[0].split('?>')
-                if len(datin) == 1: datin = datin[0]
-                else: datin = datin[1] 
-            else: datin = datin[1] # del xml-doc declaration.
-            xmlnodes = xmlparser(datin).getchildren()
-            macs = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANIdentifier' ]
-            rsss = [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == 'WLANMatcher' ]
-            if macs and rsss:
-                macs = macs[0]; rsss = rsss[0]
-                INTERSET = min(CLUSTERKEYSIZE, len(macs))
-                idxs_max = argsort(rsss)[:INTERSET]
-                macsrsss = vstack((macs, rsss))[:,idxs_max]
-                loc = fixPos(INTERSET, macsrsss)
-            else: loc = []
-            errinfo='OK'; errcode='100'
-            if loc: lat,lon,ee = loc; wpplog.info(datin)
-            else:
-                cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ]
-                lat=39.9055; lon=116.3914; ee=1000; errinfo='AccuTooBad'; errcode='102'
-                if cell: 
-                    loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]); wpplog.info(datin)
-                    if loc_google: lat,lon,ee = loc_google; errinfo='OK'; errcode='100'
-                    else: wpplog.error('Google location FAILED!')
-            resp= POS_RESP % (errcode, errinfo, lat, lon, ee)
-            start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(resp)) )])
-            wpplog.info('%s\n%s' % (resp,'='*30))
-            return [ resp ]
+        #posreq = LimitedStream(environ['wsgi.input'], int(environ['CONTENT_LENGTH'])).read()
+        posreq = environ['wsgi.input'].read()
+        wpplog.info(posreq) #TODO:avoid multi-process log garbling.
+        if posreq:
+            posreq = posreq.split('dtd">')
+            if len(posreq) == 1: # del xml-doc declaration.
+                posreq = posreq[0].split('?>')
+                if len(posreq) == 1: posreq = posreq[0]
+                else: posreq = posreq[1] 
+            else: posreq = posreq[1] # del xml-doc declaration.
+            posresp = fixPos(posreq)
+            start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(posresp)) )])
+            wpplog.info('%s\n%s' % (posresp,'='*30))
+            return [ posresp ]
     return not_found(environ, start_response)
 
 # map urls to functions

@@ -253,3 +253,7 @@
 2011-07-22
     1) Refactor logg system to support gunicorn multi-process rotate file central logging.
     2) Mod connect_error decorator to sleep in every loop.
+2011-07-25
+    1) Add wpp cell location & google wifi/cell location persistance support.
+    2) Refactor web.wpp_server & online.fixPos to support wppdb sharing between online wifi/cell location & google location db persistance.
+    3) Support both central rotate file logging & linux syslog for multi-process environment.
