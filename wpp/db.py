@@ -181,6 +181,13 @@ class WppDB(object):
         new_cid = (query+1 if query else 1) # query=None when the table is empty.
         return new_cid
 
+    def laccidLocation(self, laccid=None):
+        sql = "select lat,lon,ee from wpp_celloc where laccid='%s'" % laccid
+        self.cur.execute(sql)
+        laccid_loc = self.cur.fetchone()
+        if laccid_loc: laccid_loc = [ float(x) for x in laccid_loc ]
+        return laccid_loc
+
     def addCellLocation(self, laccid=None, loc=[]):
         table_name = 'wpp_celloc'
         lat, lon, h, ee = loc

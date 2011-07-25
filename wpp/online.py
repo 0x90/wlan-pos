@@ -6,11 +6,11 @@ from lxml.etree import fromstring as xmlparser
 import numpy as np
 from numpy import (array, argsort, vstack, searchsorted, reciprocal, average,
         sum as np_sum, abs as np_abs, sort as np_sort, all as np_all, any as np_any)
-import logging
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
+import logging
 wpplog = logging.getLogger('wpp')
 from wpp.db import WppDB
 from wpp.config import dbsvrs, KNN, CLUSTERKEYSIZE, KWIN, DB_ONLINE, POS_RESP
@@ -89,7 +89,8 @@ def getWLAN(fake=0):
 def fixPos(posreq=None):
     xmlnodes = xmlparser(posreq).getchildren()
     f = lambda x : [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == x ] 
-    macs = f('WLANIdentifier'); rsss = f('WLANMatcher'); need_google = False
+    macs = f('WLANIdentifier'); rsss = f('WLANMatcher') 
+    need_google = False; lat,lon,ee=39.9055,116.3914,5000; errinfo='AccuTooBad'; errcode='102'
     dbsvr = dbsvrs[DB_ONLINE]; wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     if macs and rsss:
         macs = macs[0]; rsss = rsss[0]
@@ -102,30 +103,28 @@ def fixPos(posreq=None):
         cell = [ node.attrib for node in xmlnodes if node.tag == 'CellInfo' ]
         if cell:
             laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
-            celloc = wppdb.execute("select lat,lon,ee from wpp_celloc where laccid='%s'" % laccid)
-            if celloc: celloc=celloc[0]
-            else: need_google=True; wpplog.error('Cell location FAILED!')
-    errinfo='OK'; errcode='100'
+            celloc = wppdb.laccidLocation(laccid)
+            if not celloc: need_google=True; wpplog.error('Cell location FAILED!')
+        else: celloc = []
     loc = wlanloc or celloc
-    if loc: lat,lon,ee = loc
+    if loc: lat,lon,ee = loc; errinfo='OK'; errcode='100'
     if need_google: # Try Google location, when wifi location failed && wifi info exists.
-        lat=39.9055; lon=116.3914; ee=1000; errinfo='AccuTooBad'; errcode='102'
-        if cell:
-            loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
-            if loc_google:
-                lat1,lon1,h,ee1 = loc_google 
-                if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
-                # wifi location import. TODO: make google loc import task async.
-                if macs and rsss:
-                    t = [ node.attrib['val'] for node in xmlnodes if node.tag=='Time' ]; t = t[0] if t else ''
-                    fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
-                    n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
-                    if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')
-                    else: wpplog.error('Failed to added FP from Google')
-                # Cell location import.
+        loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
+        if loc_google:
+            lat1,lon1,h,ee1 = loc_google 
+            if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
+            # wifi location import. TODO: make google loc import task async.
+            if macs and rsss:
+                t = [ node.attrib['val'] for node in xmlnodes if node.tag=='Time' ]; t = t[0] if t else ''
+                fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
+                n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
+                if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')
+                else: wpplog.error('Failed to added FP from Google')
+            # Cell location import.
+            if cell and not celloc:
                 wppdb.addCellLocation(laccid=laccid, loc=loc_google)
                 wpplog.info('Added 1 Cell FP from Google')
-            else: wpplog.error('Google location FAILED!')
+        else: wpplog.error('Google location FAILED!')
     wppdb.close()
     posresp= POS_RESP % (errcode, errinfo, lat, lon, ee)
     return posresp

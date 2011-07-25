@@ -210,7 +210,7 @@ if __name__ == "__main__":
               'Gulou': '350102',
               'Binhu': '320211', }
 
-    setProxy()
+    #setProxy()
     
     collectCellArea()
 
