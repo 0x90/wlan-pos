@@ -118,7 +118,7 @@ def googleLocation(macs=None, rsss=None, cellinfo=None):
     gloc = ret_content['location'] 
     if gloc['accuracy'] > 2000: return []
     gh = gloc['altitude'] if ('altitude' in gloc) else 0
-    else: return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
+    return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 
 
 def setProxy():
