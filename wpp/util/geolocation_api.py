@@ -114,8 +114,10 @@ def googleLocation(macs=None, rsss=None, cellinfo=None):
     sckt.setdefaulttimeout(3)#; setProxy()
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
-    gloc = ret_content['location']; gh = gloc['altitude'] if ('altitude' in gloc) else 0
-    if not len(ret_content) or (gloc['accuracy'] > 2000): return []
+    if not 'location' in ret_content: return []
+    gloc = ret_content['location'] 
+    if gloc['accuracy'] > 2000: return []
+    gh = gloc['altitude'] if ('altitude' in gloc) else 0
     else: return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 
 
