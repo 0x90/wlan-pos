@@ -86,7 +86,7 @@ def getWLAN(fake=0):
     return (INTERSET, scannedwlan)
 
 
-def fixPos(posreq=None):
+def fixPos(posreq=None, has_google=False):
     xmlnodes = xmlparser(posreq).getchildren()
     f = lambda x : [ node.attrib['val'].split('|') for node in xmlnodes if node.tag == x ] 
     macs = f('WLANIdentifier'); rsss = f('WLANMatcher') 
@@ -108,7 +108,7 @@ def fixPos(posreq=None):
         else: celloc = []
     loc = wlanloc or celloc
     if loc: lat,lon,ee = loc; errinfo='OK'; errcode='100'
-    if need_google: # Try Google location, when wifi location failed && wifi info exists.
+    if need_google and has_google: # Try Google location, when wifi location failed && wifi info exists.
         loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
         if loc_google:
             lat1,lon1,h,ee1 = loc_google 
