@@ -176,6 +176,37 @@ def collectCellArea():
     conn.close()
 
 
+area_codes = {
+      "Dongcheng": "110101",
+        "Xicheng": "110102",
+       "Chongwen": "110103",
+         "Xuanwu": "110104",
+       "Chaoyang": "110105",
+        "Fengtai": "110106",
+    "Shijingshan": "110107",
+        "Haidian": "110108",
+      "Mentougou": "110109",
+       "Fangshan": "110111",
+       "Tongzhou": "110112",
+         "Shunyi": "110113",
+      "Changping": "110114",
+         "Daxing": "110115",
+        "Huairou": "110116",
+         "Pinggu": "110117",
+          "Miyun": "110228",
+        "Yanqing": "110229",
+          "Mawei": "350105",
+        "Changle": "350182",
+          "Gulou": "350102",
+         "Jin'an": "350111",
+       "Taijiang": "350103",
+       "Cangshan": "350104",
+        "Kunshan": "320583",
+        "Beitang": "320204",
+       "Chong'an": "320202",
+       "Nanchang": "320203",
+          "Binhu": "320211", }
+
 if __name__ == "__main__":
     try:
         import psyco
@@ -185,30 +216,6 @@ if __name__ == "__main__":
         #psyco.bind(googleGeocoding)
     except ImportError:
         pass
-
-    area_codes = {
-          'Dongcheng': '110101',
-            'Xicheng': '110102',
-           'Chongwen': '110103',
-             'Xuanwu': '110104',
-           'Chaoyang': '110105',
-            'Fengtai': '110106',
-        'Shijingshan': '110107',
-            'Haidian': '110108',
-          'Mentougou': '110109',
-           'Fangshan': '110111',
-           'Tongzhou': '110112',
-             'Shunyi': '110113',
-          'Changping': '110114',
-             'Daxing': '110115',
-            'Huairou': '110116',
-             'Pinggu': '110117',
-              'Miyun': '110228',
-            'Yanqing': '110229',
-              'Mawei': '350105',
-            'Changle': '350182',
-              'Gulou': '350102',
-              'Binhu': '320211', }
 
     #setProxy()
     
