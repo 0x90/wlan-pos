@@ -4,7 +4,8 @@ import sqlite3 as sl
 import psycopg2 as pg
 
 db_old = sl.connect('cell_area.db')
-db_new = pg.connect("host=localhost dbname=wppdb user=wpp password=wpp port=5432")
+dsn_new = "host=192.168.109.54 dbname=wppdb user=wpp password=wpp port=5432"
+db_new = pg.connect(dsn_new)
 
 cur_old = db_old.cursor()
 cur_new = db_new.cursor()
