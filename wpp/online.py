@@ -86,7 +86,7 @@ def getWLAN(fake=0):
     return (INTERSET, scannedwlan)
 
 
-def fixPos(posreq=None):
+def fixPos(posreq=None, has_google=False):
     f = lambda x : [ node.attrib['val'] for node in xmlnodes if node.tag == x ] 
     lat,lon,ee=39.9055,116.3914,5000; errinfo='AccuTooBad'; errcode='102';
     dbsvr = dbsvrs[DB_ONLINE]; wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
@@ -117,7 +117,7 @@ def fixPos(posreq=None):
             else: celloc = []
         loc = wlanloc or celloc
         if loc: lat,lon,ee = loc; errinfo='OK'; errcode='100'
-        if need_google: # Try Google location, when wifi location failed && wifi info exists.
+        if need_google and has_google: # Try Google location, when wifi location failed && wifi info exists.
             loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
             if loc_google:
                 lat1,lon1,h,ee1 = loc_google 

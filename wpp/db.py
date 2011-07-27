@@ -181,6 +181,12 @@ class WppDB(object):
         new_cid = (query+1 if query else 1) # query=None when the table is empty.
         return new_cid
 
+    def areaLocation(self, laccid=None):
+        sql = "select areacode,areaname from wpp_cellarea where laccid='%s'" % laccid
+        self.cur.execute(sql)
+        area = self.cur.fetchone()
+        return area
+
     def laccidLocation(self, laccid=None):
         sql = "select lat,lon,ee from wpp_celloc where laccid='%s'" % laccid
         self.cur.execute(sql)

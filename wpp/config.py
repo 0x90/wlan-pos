@@ -136,6 +136,7 @@ wpp_tables = { 'wpp_clusteridaps':'wpp_clusteridaps',
                  'wpp_uprecsinfo':'wpp_uprecsinfo',
                   'wpp_uprecsver':'wpp_uprecsver',
                      'wpp_celloc':'wpp_celloc',
+                   'wpp_cellarea':'wpp_cellarea',
                'wpp_uprecs_noloc':'wpp_uprecs_noloc' }
 # NOTE: tbl_fields dont contain PRIMAY key or SERIAL columns, like *id* in wpp_uprecsinfo.
 tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
@@ -149,12 +150,14 @@ tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                                   'lat','lon','height','wlanidentifier','wlanmatcher',
                                   'ver_uprecs'),
                     'wpp_celloc':('laccid', 'lat', 'lon', 'h', 'ee'),
+                  'wpp_cellarea':('laccid', 'areacode', 'areaname'),
                         'tsttbl':('clusterid', 'keyaps', 'seq') }
 tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
                       'wpp_cfps':('clusterid',),
                 'wpp_uprecsinfo':('ver_uprecs',),
               'wpp_uprecs_noloc':('ver_uprecs',),
                     'wpp_celloc':('laccid',),
+                  'wpp_cellarea':('laccid',),
                  'wpp_uprecsver':(),
                         'tsttbl':('clusterid',)}
 tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl', 
@@ -165,6 +168,7 @@ tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl',
                         'cidaps':'test/tbl/cidaps.tbl',
                           'cfps':'test/tbl/cfprints.tbl',
                     'wpp_celloc':'test/tbl/celloc.tbl',
+                  'wpp_cellarea':'test/tbl/cellarea.tbl',
                         'tsttbl':'test/tbl/tsttbl.tbl' }
 tbl_forms = { 'oracle':{
                 'wpp_clusteridaps':""" (  
@@ -212,12 +216,16 @@ tbl_forms = { 'oracle':{
                         height NUMERIC(5,1) DEFAULT 0,
                           rsss VARCHAR(100) NOT NULL,
                      cfps_time VARCHAR(20))""",
+                'wpp_cellarea':""" (
+                        laccid VARCHAR(30) NOT NULL,
+                      areacode VARCHAR(10) NOT NULL,
+                      areaname VARCHAR(30) NOT NULL)""",
                 'wpp_celloc':""" (
                         laccid VARCHAR(30) NOT NULL,
                            lat NUMERIC(9,6) NOT NULL DEFAULT 0,
                            lon NUMERIC(9,6) NOT NULL DEFAULT 0,
                              h NUMERIC(5,1) DEFAULT 0,
-                            ee NUMERIC(5,1) DEFAULT 0""",
+                            ee NUMERIC(5,1) DEFAULT 0)""",
                 'wpp_uprecsver':""" (
                     ver_uprecs INT DEFAULT 0)""",
                 'wpp_uprecsinfo':""" (

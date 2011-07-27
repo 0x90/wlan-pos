@@ -139,7 +139,7 @@ def wpp_handler(environ, start_response):
                 if len(posreq) == 1: posreq = posreq[0]
                 else: posreq = posreq[1] 
             else: posreq = posreq[1] # del xml-doc declaration.
-            posresp = fixPos(posreq)
+            posresp = fixPos(posreq=posreq, has_google=True)
             start_response('200 OK', [('Content-Type', XHTML_IMT),('Content-Length', str(len(posresp)) )])
             wpplog.info('%s\n%s' % (posresp,'='*30))
             return [ posresp ]
