@@ -14,8 +14,8 @@ POS_RESP="""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
 <PosRes>
         <Result ErrCode="%s" ErrDesc="%s"/>
-        <Coord lat="%.6f" lon="%.6f" h="0.0"/>
-        <ErrRange val="%.2f"/>
+        <Coord lat="%s" lon="%s" h="0.0"/>
+        <ErrRange val="%s"/>
         <PosLevel val="%s" />
         <Area code="%s" addr="%s"/>
 </PosRes>"""

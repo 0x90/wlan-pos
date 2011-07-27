@@ -250,6 +250,7 @@ area_codes = {
          "Lianhu": "610104",
           "Qixia": "320113",
       "Tai Ha St": "810000",
+         "Haizhu": "440105",
           "Binhu": "320211", }
 
 if __name__ == "__main__":
