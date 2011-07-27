@@ -121,6 +121,7 @@ def fixPos(posreq=None, has_google=False):
         if not wlanloc: 
             if not pos_area: cell = f('CellInfo')
             if cell:
+                if not pos_area: laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
                 celloc = wppdb.laccidLocation(laccid)
                 if not celloc: need_google=True; wpplog.error('Cell location FAILED!')
             else: celloc = []
