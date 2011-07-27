@@ -9,4 +9,4 @@ fi
 hits_tot=`grep 'PosReq' $logs |wc -l`
 hits_fail=`grep 'ErrCode="102"' $logs |wc -l`
 rate_ok=`echo "scale=4;($hits_tot-$hits_fail)/$hits_tot*100" |bc`
-echo "positioning success rate: $(($hits_tot-$hits_fail))/${hits_tot}=${rate_ok}%"
+echo "positioning success rate: ${rate_ok}%, total: ${hits_tot}, failed: ${hits_fail}"
