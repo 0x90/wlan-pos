@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Fingerprint data model for wpp offline processing(online location ONLY deals with db data).
 from __future__ import division
-import os
+import os, sys
 import csv
 import numpy as np
 from pprint import pprint,PrettyPrinter
