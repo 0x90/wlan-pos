@@ -1,17 +1,8 @@
 #!/usr/bin/env python
-import sys
-import os
-import csv
-import time
 import urllib2 as ul
 import socket as sckt
-import numpy as np
-import pprint as pp
 import simplejson as json
-import sqlite3 as db
-#import logging
-#wpplog = logging.getLogger('wpp')
-from wpp.config import termtxtcolors as colors
+from wpp.util.net import connectRetry
  
 
 def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
@@ -84,36 +75,11 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
     req_json = json.dumps(req)
     return req_json
 
-
-def connect_retry(**ka):
-    """ try 10 times at most. """
-    def decorator(f, **kb):
-        def wrapper(*args, **kc):
-            delay = 1; result = None
-            if 'try_times' in ka and type(ka['try_times']) is int: try_times = ka['try_times']
-            else: try_times = 5
-            for i in xrange(try_times):
-                try:
-                    result = f(*args, **kc)
-                    break
-                except (sckt.error, ul.URLError), e:
-                    if hasattr(e, 'code'):
-                        print(colors['red'] % ('HTTP Error: (%s): %s' % (e.code, e.msg)))
-                    elif hasattr(e, 'reason'):
-                        print(colors['red'] % ('URL Error: %s!' % e.reason))
-                    else: print e
-                except Exception, e: print e
-                delay += 0.5; time.sleep(delay)
-                print colors['blue'] % '... Retrying ...'
-            return result
-        return wrapper
-    return decorator
-
-@connect_retry(try_times=3)
+@connectRetry(try_times=3)
 def googleLocation(macs=[], rsss=[], cellinfo=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
-    sckt.setdefaulttimeout(3)#; setProxy()
+    sckt.setdefaulttimeout(3)
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
     if not 'location' in ret_content: return []
@@ -123,15 +89,7 @@ def googleLocation(macs=[], rsss=[], cellinfo=None):
     return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 
 
-def setProxy():
-    proxyserver = "http://proxy.cmcc:8080"
-    proxy = {'http': proxyserver}
-    #sckt.setdefaulttimeout(50)
-    opener = ul.build_opener( ul.ProxyHandler(proxy) )
-    ul.install_opener( opener )
-
-
-@connect_retry()
+@connectRetry()
 def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
     """return reverse geocoding result of google api."""
     googleurl = 'http://maps.google.com/maps/api/geocode'
@@ -187,6 +145,7 @@ def collectCellArea():
     conn.close()
 
 
+# FIXME: tobe imported into db.
 area_codes = {
       "Dongcheng": "110101",
         "Xicheng": "110102",
@@ -359,11 +318,16 @@ area_codes = {
           "Binhu": "320211", }
 
 if __name__ == "__main__":
+    import sys, os
+    import pprint as pp
+    import sqlite3 as db
+    from wpp.config import termtxtcolors as colors
+    from wpp.util.net import setProxy
     try:
         import psyco
         psyco.bind(genLocReq)
         #psyco.bind(googleLocation)
-        psyco.bind(setProxy)
+        #psyco.bind(setProxy)
         #psyco.bind(googleGeocoding)
     except ImportError:
         pass
@@ -371,52 +335,3 @@ if __name__ == "__main__":
     #setProxy()
     
     collectCellArea()
-
-    sys.exit(0)
-    #wlans = ['00:21:91:1D:C0:D4|00:27:19:88:97:10|00:19:E0:CC:9C:F8|00:23:CD:54:DC:E0','-83|-86|-85|-88']
-    #macs = wlans[0].split('|')
-    #rsss = wlans[1].split('|')
-    #wlans = []
-    #for i,mac in enumerate(macs):
-    #    wlan = {}
-    #    wlan['mac_address'] = mac
-    #    wlan['signal_strength'] = rsss[i]
-    #    wlans.append(wlan)
-    #print wlans
-
-    # csvfile format: x,y,lac,cid
-    csvfile = sys.argv[1] 
-    csvin = csv.reader( open(csvfile,'r') )
-    laccids = np.array([ line for line in csvin ])[:,2:].astype(int)
-    print laccids
-
-    atoken = None; celldb = []
-    for i,laccid in enumerate(laccids):
-        print '-'*50
-        cell = {}
-        cell['location_area_code'] = laccid[0]
-        cell['cell_id'] = laccid[1]
-        cells = [ cell ]
-        req_content = genLocReq(cells=cells, atoken=atoken)
-        print '%d: %s' % (i+1, json.loads(req_content)['cell_towers'])
-        ret_content = googleLocation(req_content)
-        if not len(ret_content): 
-            print colors['red'] % 'Google location failed!'
-            continue
-        if ret_content['location']['accuracy'] >= 1000: 
-            print colors['red'] % 'Accuracy too bad!'
-            continue
-        cdb = [ str(laccid[0]), str(laccid[1]),
-                str(ret_content['location']['latitude']), 
-                str(ret_content['location']['longitude']),
-                str(ret_content['location']['accuracy']) ]
-        if (not atoken) and ('access_token' in ret_content):
-            atoken = ret_content['access_token']
-        celldb.append(cdb)
-        print '%d: %s' % (len(celldb), cdb)
-
-    timestamp = time.strftime('%Y%m%d-%H%M%S')
-    datafile = 'celldb_%s.csv' % timestamp
-    celldb = np.array(celldb)
-    np.savetxt(datafile, celldb, fmt='%s',delimiter=',')
-    print '\nDumping all celldb to: %s ... Done' % datafile

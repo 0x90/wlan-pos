@@ -30,7 +30,7 @@ wpplog.addHandler(handler)
 #import datetime as dt
 #import re
 
-from wpp.online import fixPos
+from wpp.location import fixPos
 from wpp.config import XHTML_IMT
 
 
@@ -187,7 +187,7 @@ if __name__ == "__main__":
 
     
     # Get IP address.
-    from wpp.offline import getIP
+    from wpp.util.net import getIP
     ipaddr = getIP()
     if 'wlan0' in ipaddr:
         ipaddr = ipaddr['wlan0']

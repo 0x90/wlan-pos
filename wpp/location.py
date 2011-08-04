@@ -1,8 +1,8 @@
 #!/usr/bin/env python
+# Location engine for wpp.
 from __future__ import division
-from pprint import pprint, PrettyPrinter
 from copy import deepcopy
-from lxml.etree import fromstring as xmlparser
+from pprint import pprint, PrettyPrinter
 import numpy as np
 from numpy import (array, argsort, vstack, searchsorted, reciprocal, average,
         sum as np_sum, abs as np_abs, sort as np_sort, all as np_all, any as np_any)
@@ -10,80 +10,34 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
+from lxml.etree import fromstring as xmlparser
 import logging
 wpplog = logging.getLogger('wpp')
-from wpp.db import WppDB
+
 from wpp.config import dbsvrs, KNN, CLUSTERKEYSIZE, KWIN, DB_ONLINE, POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT
+from wpp.db import WppDB
 from wpp.util.geo import dist_km
 from wpp.util.geolocation_api import googleLocation
-from wpp.offline import doClusterIncr
+from wpp.fingerprint import doClusterIncr
 
 
 def usage():
     from time import strftime
     print """
-online.py - Copyleft 2009-%s Yan Xiaotian, xiaotian.yan@gmail.com.
-Location fingerprinting using deterministic/probablistic approaches.
+location.py - Copyleft 2009-%s Yan Xiaotian, yxtbj@139.com.
+Location fingerprinting engine using deterministic/probablistic approaches.
 
 usage:
-    offline <option> <infile>
+    location <option> <infile>
 option:
     -f --fake=<mode id>  :  Fake WLAN scan results in case of bad WLAN coverage.
                             <mode id> same as in WLAN_FAKE of config module.
     -v --verbose         :  Verbose mode.
     -h --help            :  Show this help.
 example:
-    $online.py -a 2 -v -f 25  #fake wlan verbose mode using algo with id=2.
-    $online.py -f 1 -v 
+    $location.py -v -f 25  #fake wlan verbose mode.
+    $location.py -f 1 -v 
 """ % strftime('%Y')
-
-
-def getWLAN(fake=0):
-    """
-    Returns the number and corresponding MAC/RSS info of online visible APs.
-    
-    Parameters
-    ----------
-    fake: fake WLAN scan option, int, default: 0
-        Use old WLAN scanned data stored in WLAN_FAKE if valid value is taken.
-    
-    Returns
-    -------
-    (len_scanAP, scannedwlan): tuple, (int, array)
-        Number and corresponding MAC/RSS info of online visible APs in tuple.
-    """
-    from wpp.config import WLAN_FAKE
-    from errno import EPERM
-    if fake == 0:   # True WLAN scan.
-        #scannedwlan = scanWLAN_RE()
-        scannedwlan = scanWLAN_OS()
-        if scannedwlan == EPERM: # fcntl.ioctl() not permitted.
-            print 'For more information, please use \'-h/--help\'.'
-            sys.exit(99)
-    else:           # CMRI or Home.
-        #addrid = fake
-        try: scannedwlan = WLAN_FAKE[fake]
-        except KeyError, e:
-            print "\nError(%s): Illegal WLAN fake ID: '%d'!" % (e, fake) 
-            print "Supported IDs: %s" % WLAN_FAKE.keys()
-            sys.exit(99)
-    # Address book init.
-    #addr = addr_book[addrid]
-
-    len_scanAP = len(scannedwlan)
-    print 'Online visible APs: %d' % len_scanAP
-    if len(scannedwlan) == 0: sys.exit(0)   
-
-    INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
-    # All integers in rss field returned by scanWLAN_OS() 
-    # are implicitly converted to strings during array(scannedwlan).
-    scannedwlan = array(scannedwlan).T
-    idxs_max = argsort(scannedwlan[1])[:INTERSET]
-    # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
-    scannedwlan = scannedwlan[:,idxs_max]
-    print scannedwlan
-
-    return (INTERSET, scannedwlan)
 
 
 def fixPos(posreq=None, has_google=False):
@@ -337,6 +291,54 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
     return ret
 
 
+def getWLAN(fake=0):
+    """
+    Returns the number and corresponding MAC/RSS info of online visible APs.
+    
+    Parameters
+    ----------
+    fake: fake WLAN scan option, int, default: 0
+        Use old WLAN scanned data stored in WLAN_FAKE if valid value is taken.
+    
+    Returns
+    -------
+    (len_scanAP, scannedwlan): tuple, (int, array)
+        Number and corresponding MAC/RSS info of online visible APs in tuple.
+    """
+    from wpp.config import WLAN_FAKE
+    from errno import EPERM
+    if fake == 0:   # True WLAN scan.
+        #scannedwlan = scanWLAN_RE()
+        scannedwlan = scanWLAN_OS()
+        if scannedwlan == EPERM: # fcntl.ioctl() not permitted.
+            print 'For more information, please use \'-h/--help\'.'
+            sys.exit(99)
+    else:           # CMRI or Home.
+        #addrid = fake
+        try: scannedwlan = WLAN_FAKE[fake]
+        except KeyError, e:
+            print "\nError(%s): Illegal WLAN fake ID: '%d'!" % (e, fake) 
+            print "Supported IDs: %s" % WLAN_FAKE.keys()
+            sys.exit(99)
+    # Address book init.
+    #addr = addr_book[addrid]
+
+    len_scanAP = len(scannedwlan)
+    print 'Online visible APs: %d' % len_scanAP
+    if len(scannedwlan) == 0: sys.exit(0)   
+
+    INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
+    # All integers in rss field returned by scanWLAN_OS() 
+    # are implicitly converted to strings during array(scannedwlan).
+    scannedwlan = array(scannedwlan).T
+    idxs_max = argsort(scannedwlan[1])[:INTERSET]
+    # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
+    scannedwlan = scannedwlan[:,idxs_max]
+    print scannedwlan
+
+    return (INTERSET, scannedwlan)
+
+
 def main():
     import getopt
     try: opts, args = getopt.getopt(sys.argv[1:], 
@@ -377,7 +379,9 @@ def main():
     len_visAPs, wifis = getWLAN(wlanfake)
 
     # Fix current position.
-    posresult = fixPosWLAN(len_visAPs, wifis, verbose)
+    dbsvr = dbsvrs[DB_ONLINE] 
+    wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
+    posresult = fixPosWLAN(len_visAPs, wifis, wppdb, verbose)
     if not posresult: sys.exit(99)
     print 'final posfix/poserr: \n%s' % posresult
 
@@ -389,8 +393,8 @@ if __name__ == "__main__":
         import psyco
         psyco.bind(scanWLAN_OS)
         psyco.bind(getWLAN)
-        psyco.bind(fixPosWLAN)
-        psyco.bind(fixPos)
+        #psyco.bind(fixPosWLAN)
+        #psyco.bind(fixPos)
         #psyco.full()
         #psyco.log()
         #psyco.profile(0.3)

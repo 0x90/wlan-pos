@@ -257,3 +257,6 @@
     1) Add wpp cell location & google wifi/cell location persistance support.
     2) Refactor web.wpp_server & online.fixPos to support wppdb sharing between online wifi/cell location & google location db persistance.
     3) Support both central rotate file logging & linux syslog for multi-process environment.
+2011-08-04
+    1) Refactor wpp to add fingerprint (from part of offline) & location (from online, online is dropped) & util.net (from net related tools from offline, util.geolocation_api).
+    2) Add util.stats_srcline to stats source code lines of python & bash files.
