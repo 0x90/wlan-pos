@@ -93,7 +93,7 @@ def setProxy():
 
 
 def connectRetry(**ka):
-    """ try 10 times at most. """
+    """ try 5 times at most. """
     def decorator(f, **kb):
         def wrapper(*args, **kc):
             delay = 1; result = None
