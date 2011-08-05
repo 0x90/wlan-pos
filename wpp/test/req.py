@@ -93,6 +93,9 @@ if __name__ == "__main__":
 
     target = targets['wpp_local']
     #target['urlpath'] = target['urlpath'].lower() # compatible with local fpp urlpath.
+    # urlpath & port for nginx reverse proxy testing.
+    #target['urlpath'] = 'wpp'
+    #target['port'] = '80'
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])
     print '\nRequesting %s from %s\n' % (url, ipsrc)
     req_data = target['req_data']
