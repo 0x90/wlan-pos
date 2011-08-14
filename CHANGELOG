@@ -260,3 +260,7 @@
 2011-08-04
     1) Refactor wpp to add fingerprint (from part of offline) & location (from online, online is dropped) & util.net (from net related tools from offline, util.geolocation_api).
     2) Add util.stats_srcline to stats source code lines of python & bash files.
+2011-08-14
+    1) Add util.up_areanames for updating areanames(en,cn) in |wpp_cellarea| for areaLocation. 
+	2) Mod location.fixPos() to return chinese area name when needed. 
+	3) Minor mod db.WppDB.execute().

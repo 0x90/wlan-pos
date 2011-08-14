@@ -72,11 +72,13 @@ class WppDB(object):
         self.cur.close()
         self.con.close()
 
-    def execute(self, sql):
+    def execute(self, sql='', fetch_one=True):
+        """Raw sql execute api for external module. NOT recommend to be used in db module."""
         self.cur.execute(sql)
         try:
-            query = self.cur.fetchall()
-            return query
+            if fetch_one: result = self.cur.fetchone()
+            else: result = self.cur.fetchall()
+            return result
         except (pg.ProgrammingError, Exception), e:
             return None
 
@@ -177,12 +179,21 @@ class WppDB(object):
 
     def _getNewCid(self, table_inst=None):
         self.cur.execute( self.sqls['SQL_SELECT'] % ('max(clusterid)', table_inst) )
-        query = self.cur.fetchone()[0]
-        new_cid = (query+1 if query else 1) # query=None when the table is empty.
+        cur_cid = self.cur.fetchone()[0]
+        new_cid = cur_cid+1 if cur_cid else 1 # cur_cid=None when the table is empty.
         return new_cid
 
+    def areaname2code(self, areaname_en=None):
+        """ Area name(en) from google reverse-geocoding api to code specified by NBSC.
+        http://www.stats.gov.cn/tjbz/xzqhdm
+        """
+        sql = "select code from wpp_area where name_en='%s'" % areaname_en
+        self.cur.execute(sql)
+        areacode = self.cur.fetchone()
+        return areacode
+
     def areaLocation(self, laccid=None):
-        sql = "select areacode,areaname from wpp_cellarea where laccid='%s'" % laccid
+        sql = "select areacode,areaname_en,areaname_cn from wpp_cellarea where laccid='%s'" % laccid
         self.cur.execute(sql)
         area = self.cur.fetchone()
         return area

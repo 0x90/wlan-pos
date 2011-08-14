@@ -203,7 +203,7 @@ def updateAlgoData():
             strWhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
             cols_select = ','.join(wppdb.tbl_field[tab_rd][:-1])
             sql = wppdb.sqls['SQL_SELECT'] % ( cols_select, '%s %s'%(tab_rd,strWhere) )
-            rdata_loc = wppdb.execute(sql)
+            rdata_loc = wppdb.execute(sql=sql, fetch_one=False)
             if not rdata_loc: continue    # NO FPs has location info.
             str_rdata_loc = '\n'.join([ ','.join([str(col) for col in fp]) for fp in rdata_loc ])
             fd_csv = StringIO(str_rdata_loc)
@@ -214,9 +214,9 @@ def updateAlgoData():
         tab_rd_noloc = 'wpp_uprecs_noloc'
         strWhere = 'lat=0 or lon=0'
         sql = wppdb.sqls['SQL_INSERT_SELECT'] % ( tab_rd_noloc, '*', '%s WHERE %s'%(tab_rd,strWhere) )
-        wppdb.execute(sql)
+        wppdb.cur.execute(sql)
         sql = wppdb.sqls['SQL_DELETE'] % (tab_rd, strWhere)
-        wppdb.execute(sql)
+        wppdb.cur.execute(sql)
         wppdb.close()
         print 'Move noloc rawdata -> |%s|' % tab_rd_noloc
         if alerts['vers']:

@@ -61,7 +61,7 @@ def fixPos(posreq=None, has_google=False):
         if cell: 
             laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
             acode_addr = wppdb.areaLocation(laccid)
-            if acode_addr: acode, addr = acode_addr; errinfo='OK'; errcode='100'
+            if acode_addr: acode,addr_en,addr=acode_addr; errinfo='OK'; errcode='100'
             lat = lon = ee = ''
     if pos_pt: # Point location, which returns 3d coordinates.
         macs = f('WLANIdentifier'); rsss = f('WLANMatcher'); need_google = False; 
@@ -86,7 +86,7 @@ def fixPos(posreq=None, has_google=False):
             if loc_google:
                 lat1,lon1,h,ee1 = loc_google 
                 if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
-                # wifi location import. TODO: make google loc import task async when wpp location *succeeded*.
+                # wifi location import. TODO: make google loc import job async when it's *succeeded*.
                 if macs and rsss:
                     t = f('Time')[0]['val']; t = t[0] if t else ''
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
