@@ -3,10 +3,10 @@
 import psycopg2 as pg
 from wpp.config import dsn_local_pg, dsn_moto_pg
 
-#dsn_new = dsn_moto_pg
-dsn_new = dsn_local_pg
-db_new = pg.connect(dsn_new)
-cur = db_new.cursor()
+dsn = dsn_moto_pg
+#dsn = dsn_local_pg
+con = pg.connect(dsn)
+cur = con.cursor()
 cur.execute('select areacode,areaname_en from wpp_cellarea')
 data = cur.fetchall()
 
@@ -33,15 +33,15 @@ for line in data:
     aname_district = cur.fetchone()[0]
     # acode_full: acode_province + acode_city + acode_district/county.
     aname_cn = ">".join([aname_prov, aname_city, aname_district])
-    #newline = "'%s', '%s', '%s'" % (laccid, acode, aname)
-    #sql = 'insert into wpp_cellarea values (%s)'%newline
-    sql = "update wpp_area set name_cn='%s' where code='%s'" % (aname_cn,acode_full)
-    print sql
-    cur.execute(sql)
+    # Update |wpp_area|.
+    #sql = "update wpp_area set name_cn='%s' where code='%s'" % (aname_cn,acode_full)
+    #print sql
+    #cur.execute(sql)
+    # Update |wpp_cellarea|.
     areanames = "'%s', '%s'" % (aname_en, aname_cn)
     sql = "update wpp_cellarea set (areaname_en,areaname_cn)=(%s) where areacode='%s'" % (areanames,acode_full)
     print sql
     cur.execute(sql)
-    db_new.commit()
+    con.commit()
     checked_areas.append(acode_full)
     #break

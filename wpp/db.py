@@ -184,7 +184,7 @@ class WppDB(object):
         return new_cid
 
     def areaname2code(self, areaname_en=None):
-        """ Area name(en) from google reverse-geocoding api to code specified by NBSC.
+        """ Area name(en) from google reverse-geocoding api to area code specified by NBSC.
         http://www.stats.gov.cn/tjbz/xzqhdm
         """
         sql = "select code from wpp_area where name_en='%s'" % areaname_en
