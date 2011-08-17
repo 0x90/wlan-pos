@@ -5,9 +5,9 @@ date_mon=`date +%m`
 date_year=`date +%Y`
 for day in $(seq $date_day)
 do
-	d=`printf "%02d" $day`
+    d=`printf "%02d" $day`
     date_tmp="$date_year-$date_mon-$d"
-	hits=`grep -nr 'PosReq' ~/tmp/log/wpp.log* |grep "$date_tmp" |wc -l` 
+    hits=`grep -nr 'PosReq' ~/tmp/log/wpp.log* |grep "$date_tmp" |wc -l` 
     day_of_week=`date -d "$date_tmp" +%u`
     printf '%-10s_%s,%8d\n' $date_tmp $day_of_week $hits
 done
