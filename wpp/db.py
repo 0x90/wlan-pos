@@ -54,13 +54,13 @@ class WppDB(object):
                 sys.exit('\nERROR: %s' % e)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
-        if not tbl_field or not tbl_forms or not tables:
-            sys.exit('Need name, field, format definition for all tables!')
-        self.tables = wpp_tables
+        #if not tbl_field or not tbl_forms or not tables:
+        #    sys.exit('Need name, field, format definition for all tables!')
+        self.tables = tables
         self.tbl_field = tbl_field
         self.tbl_forms = tbl_forms[self.dbtype]
             
-        if not sqls: sys.exit('Need sql set!')
+        #if not sqls: sys.exit('Need sql set!')
         self.sqls = sqls
 
         self.tbl_files = tbl_files

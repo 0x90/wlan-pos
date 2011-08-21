@@ -1,37 +1,9 @@
 #!/usr/bin/env python
-# "Getting Started with WSGI" - Armin Ronacher, 2007, 
-# http://lucumr.pocoo.org/2007/5/21/getting-started-with-wsgi.
-from logging import getLogger, INFO, Formatter
-from logging.handlers import SysLogHandler
-wpplog = getLogger('wpp')
-wpplog.setLevel(INFO)
-formatter = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
-# syslog.
-#handler = SysLogHandler(address='/dev/log')
-# rotate file log.
-from cloghandler import ConcurrentRotatingFileHandler
-# for python wpp_handler.py.
-import os, sys
-logdir = '%s/tmp/log' % os.environ['HOME']
-logfile = '%s/wpp.log' % logdir #TODO: dynamic path instead of ugly static path.
-if not os.path.isfile(logfile):
-    if not os.path.isdir(logdir):
-        try:
-            os.mkdir(logdir, 0755)
-        except OSError, errmsg:
-            print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
-            sys.exit(99)
-    open(logfile, 'w').close()
-handler = ConcurrentRotatingFileHandler(logfile, "a", 20*1024*1024, 50) # Rotate after 20M, keep 50 old copies.
-#
-handler.setFormatter(formatter)
-wpplog.addHandler(handler)
-
 #import datetime as dt
 #import re
 
 from wpp.location import fixPos
-from wpp.config import XHTML_IMT
+from wpp.config import XHTML_IMT, wpplog
 
 
 class LimitedStream(object):

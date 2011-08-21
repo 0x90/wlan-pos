@@ -2,7 +2,6 @@
 # Location engine for wpp.
 from __future__ import division
 from copy import deepcopy
-from pprint import pprint, PrettyPrinter
 import numpy as np
 from numpy import (array, argsort, vstack, searchsorted, reciprocal, average,
         sum as np_sum, abs as np_abs, sort as np_sort, all as np_all, any as np_any)
@@ -14,7 +13,8 @@ from lxml.etree import fromstring as xmlparser
 import logging
 wpplog = logging.getLogger('wpp')
 
-from wpp.config import dbsvrs, KNN, CLUSTERKEYSIZE, KWIN, DB_ONLINE, POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT
+from wpp.config import (dbsvrs, DB_ONLINE, KNN, CLUSTERKEYSIZE, KWIN,
+        POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT)
 from wpp.db import WppDB
 from wpp.util.geo import dist_km
 from wpp.util.geolocation_api import googleLocation
@@ -92,7 +92,7 @@ def fixPos(posreq=None, has_google=False):
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
                     if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')
-                    else: wpplog.error('Failed to added FP from Google')
+                    else: wpplog.error('Failed to add FP from Google!')
                 # Cell location import.
                 if cell and not celloc:
                     wppdb.addCellLocation(laccid=laccid, loc=loc_google)
@@ -127,7 +127,6 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         e.g. [ 39.922942  116.472673 ]
     """
     interpart_offline = False; interpart_online = False
-    if verb: pp = PrettyPrinter(indent=2)
 
     # db query result: [ maxNI, keys:[ [keyaps:[], keycfps:(())], ... ] ].
     # maxNI=0 if no cluster found.
@@ -148,23 +147,19 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             # size of intersection set < online AP set size(len_wlan) < CLUSTERKEYSIZE,
             # not only keymacs/keyrsss, but also maxmacs/maxrsss need to be cut down.
             interpart_online = True
-        if verb: print 'Partly[%d] matched cluster(s) found:' % maxNI
+        if verb: wpplog.debug('Partly[%d] matched cluster(s) found:' % maxNI)
     else: 
-        if verb: print 'Full matched cluster(s) found:' 
-        else: pass
-    if verb: pp.pprint(keys)
+        if verb: wpplog.debug('Full matched cluster(s) found:')
+    if verb: wpplog.debug('keys:\n%s' % keys)
 
     # Evaluation|sort of similarity between online FP & radio map FP.
     # fps_cand: [ min_spid1:[cid,spid,lat,lon,rsss], min_spid2, ... ]
     # keys: ID and key APs of matched cluster(s) with max intersect APs.
     all_pos_lenrss = []
     fps_cand = []; sums_cand = []
-    if verb: print '='*35
     for keyaps,keycfps in keys:
         if verb:
-            print ' keyaps: %s' % keyaps
-            if len(keycfps) == 1: print 'keycfps: %s' % keycfps
-            else: print 'keycfps: '; pp.pprint(keycfps)
+            wpplog.debug('keyaps:\n%s\nkeycfps:\n%s' % (keyaps, keycfps))
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys)==1 and len(keycfps)==1:
             fps_cand = [ list(keycfps[0]) ]
@@ -191,8 +186,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         fps_cand.extend( keycfps )
         sums_cand.extend( sum_rss )
         if verb:
-            print 'sum_rss: %s' % sum_rss
-            print '-'*35
+            wpplog.debug('sum_rss:\n%s' % sum_rss)
 
     # Location estimation.
     if len(fps_cand) > 1:
@@ -214,7 +208,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         sorted_sums = sums_cand[idx_sums_sort_bound]
         sorted_fps = fps_cand[idx_sums_sort_bound]
         if verb:
-            print 'k-dists: \n%s\nk-locations: \n%s' % (sorted_sums, sorted_fps)
+            wpplog.debug('k-dists:\n%s\nk-locations:\n%s' % (sorted_sums, sorted_fps))
         # DKNN
         if sorted_sums[0]: 
             boundry = sorted_sums[0]*KWIN
@@ -228,7 +222,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         idx_dkmin = searchsorted(sorted_sums, boundry, side='right')
         dknn_sums = sorted_sums[:idx_dkmin].tolist()
         dknn_fps = sorted_fps[:idx_dkmin]
-        if verb: print 'dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_fps)
+        if verb: wpplog.debug('dk-dists: \n%s\ndk-locations: \n%s' % (dknn_sums, dknn_fps))
         # Weighted_AVG_DKNN.
         num_dknn_fps = len(dknn_fps)
         if  num_dknn_fps > 1:
@@ -236,23 +230,22 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             num_keyaps = array([ rsss.count('|')+1 for rsss in dknn_fps[:,-2] ])
             # ww: weights of dknn weights.
             ww = np_abs(num_keyaps - len_wlan).tolist()
-            #print ww
+            #wpplog.debug(ww)
             if not np_all(ww):
                 if np_any(ww):
                     ww_sort = np_sort(ww)
-                    #print 'ww_sort:' , ww_sort
+                    #wpplog.debug('ww_sort: %s' % ww_sort)
                     idx_dknn_sums_sort = searchsorted(ww_sort, 0, 'right')
-                    #print 'idx_dknn_sums_sort', idx_dknn_sums_sort
+                    #wpplog.debug('idx_dknn_sums_sort: %s' % idx_dknn_sums_sort)
                     ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
                     w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
                 else:
                     w_zero = 1
                 for idx,sum in enumerate(ww):
                     if not sum: ww[idx] = w_zero
-            #print 'ww:', ww
             ws = array(ww) + dknn_sums
             weights = reciprocal(ws)
-            if verb: print 'coors: \n%s\nweights: %s' % (coors, weights)
+            if verb: wpplog.debug('coors:%s, weights:%s' % (coors, weights))
             posfix = average(coors, axis=0, weights=weights)
         else: posfix = array(dknn_fps[0][1:3]).astype(float)
         # ErrRange Estimation (more than 1 relevant clusters).
@@ -262,16 +255,15 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             else: poserr = 50
         else: 
             if verb:
-                print 'idxs_clusters: %s' % idxs_clusters
-                print 'all_pos_lenrss:'; pp.pprint(all_pos_lenrss)
+                wpplog.debug('idxs_clusters: %s\nall_pos_lenrss: %s' % (idxs_clusters, all_pos_lenrss))
             #allposs_dknn = vstack(array(all_pos_lenrss, object)[idxs_clusters])
             allposs_dknn = array(all_pos_lenrss, object)[idxs_clusters]
-            if verb: print 'allposs_dknn:'; pp.pprint(allposs_dknn)
+            if verb: wpplog.debug('allposs_dknn: %s' % allposs_dknn)
             poserr = max( average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in allposs_dknn ]), 50 )
     else: 
         fps_cand = fps_cand[0][:-2]
-        if verb: print 'location:\n%s' % fps_cand
+        if verb: wpplog.debug('location:\n%s' % fps_cand)
         posfix = array(fps_cand[1:3]).astype(float)
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
@@ -280,13 +272,12 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             else: poserr = 50
         else:
             if verb: 
-                print 'posfix: %s' % posfix
-                print 'all_pos_lenrss: '; pp.pprint(all_pos_lenrss)
+                wpplog.debug('posfix: %s' % posfix)
+                wpplog.debug('all_pos_lenrss: %s' % all_pos_lenrss)
             poserr = max( np_sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in all_pos_lenrss ]) / (N_fp-1), 50 )
     ret = posfix.tolist()
     ret.append(poserr)
-    if verb: print 'posresult: %s' % ret
 
     return ret
 
@@ -308,6 +299,7 @@ def getWLAN(fake=0):
     from wpp.config import WLAN_FAKE
     from errno import EPERM
     if fake == 0:   # True WLAN scan.
+        from wpp.util.wlan import scanWLAN_OS#, scanWLAN_RE
         #scannedwlan = scanWLAN_RE()
         scannedwlan = scanWLAN_OS()
         if scannedwlan == EPERM: # fcntl.ioctl() not permitted.
@@ -324,7 +316,6 @@ def getWLAN(fake=0):
     #addr = addr_book[addrid]
 
     len_scanAP = len(scannedwlan)
-    print 'Online visible APs: %d' % len_scanAP
     if len(scannedwlan) == 0: sys.exit(0)   
 
     INTERSET = min(CLUSTERKEYSIZE, len_scanAP)
@@ -334,7 +325,7 @@ def getWLAN(fake=0):
     idxs_max = argsort(scannedwlan[1])[:INTERSET]
     # TBE: Necessity of different list comprehension for maxmacs and maxrsss.
     scannedwlan = scannedwlan[:,idxs_max]
-    print scannedwlan
+    wpplog.debug('Selected APs(%d): %s' % (len_scanAP, scannedwlan))
 
     return (INTERSET, scannedwlan)
 
@@ -383,17 +374,21 @@ def main():
     wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     posresult = fixPosWLAN(len_visAPs, wifis, wppdb, verbose)
     if not posresult: sys.exit(99)
-    print 'final posfix/poserr: \n%s' % posresult
+    wpplog.debug('final posfix/poserr: \n%s' % posresult)
 
 
 if __name__ == "__main__":
-    from wpp.util.wlan import scanWLAN_OS#, scanWLAN_RE
     import sys
+    from wpp.config import wpplog, Formatter, loghandler
+    logfmt = Formatter('<%(asctime)s,%(levelname)s ==> %(message)s')
+    loghandler.setFormatter(logfmt)
+    wpplog.addHandler(loghandler)
+    wpplog.setLevel(logging.DEBUG)
     try:
         import psyco
-        psyco.bind(scanWLAN_OS)
+        #psyco.bind(scanWLAN_OS)
         psyco.bind(getWLAN)
-        #psyco.bind(fixPosWLAN)
+        psyco.bind(fixPosWLAN)
         #psyco.bind(fixPos)
         #psyco.full()
         #psyco.log()

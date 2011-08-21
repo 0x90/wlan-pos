@@ -1,4 +1,7 @@
 #-*- encoding=utf8 -*-
+import os
+import sys
+
 DATPATH = 'dat/'
 LOCPATH = DATPATH+ 'loc/'
 RAWSUFFIX = '.raw'
@@ -10,6 +13,28 @@ KNN = 4
 KWIN = 1.25
 RADIUS = 6372797 #meter
 
+# Logging related cfg.
+from logging import getLogger, Formatter, INFO
+from logging.handlers import SysLogHandler
+from cloghandler import ConcurrentRotatingFileHandler as cLogRotateFileHandler
+wpplog = getLogger('wpp')
+wpplog.setLevel(INFO)
+logfmt = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
+logdir = '%s/tmp/log' % os.environ['HOME']
+logfile = '%s/wpp.log' % logdir #TODO: dynamic path instead of ugly static path.
+if not os.path.isfile(logfile):
+    if not os.path.isdir(logdir):
+        try:
+            os.mkdir(logdir, 0755)
+        except OSError, errmsg:
+            print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
+            sys.exit(99)
+    open(logfile, 'w').close()
+loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 50) # Rotate after 20M, keep 50 old copies.
+loghandler.setFormatter(logfmt)
+wpplog.addHandler(loghandler)
+
+# PosResp msg fmt.
 POS_RESP_FULL="""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE PosRes SYSTEM "PosRes.dtd">
 <PosRes>

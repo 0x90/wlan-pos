@@ -264,3 +264,7 @@
     1) Add util.up_areanames for updating areanames(en,cn) in |wpp_cellarea| for areaLocation. 
 	2) Mod location.fixPos() to return chinese area name when needed. 
 	3) Minor mod db.WppDB.execute().
+2011-08-21
+    1) Add nose test framework.
+	2) Mod wpplog definition to wpp.config module.
+	3) Use logging instead of print in wpp.location.fixPosWLAN()
