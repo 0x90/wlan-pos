@@ -42,5 +42,5 @@ def test_fixPosWLAN():
     wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     for i, pos_ok in enumerate(poss_ok):
         len_visAPs, wifis = getWLAN(i+1)
-        pos_test = fixPosWLAN(len_visAPs, wifis, wppdb)
+        pos_test = fixPosWLAN(len_visAPs, wifis, wppdb, True)
         assert_equal(pos_ok, pos_test)

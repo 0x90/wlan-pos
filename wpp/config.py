@@ -14,11 +14,11 @@ KWIN = 1.25
 RADIUS = 6372797 #meter
 
 # Logging related cfg.
-from logging import getLogger, Formatter, INFO
+from logging import getLogger, Formatter, INFO, DEBUG
 from logging.handlers import SysLogHandler
 from cloghandler import ConcurrentRotatingFileHandler as cLogRotateFileHandler
 wpplog = getLogger('wpp')
-wpplog.setLevel(INFO)
+wpplog.setLevel(DEBUG)
 logfmt = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
 logdir = '%s/tmp/log' % os.environ['HOME']
 logfile = '%s/wpp.log' % logdir #TODO: dynamic path instead of ugly static path.
@@ -110,19 +110,16 @@ DB_ONLINE = '192.168.109.54'
 DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
 #DB_UPLOAD = ( 'local_pg', )
 DB_UPLOAD = ( '192.168.109.54', )
-dsn_local_ora = "yxt/yxt@localhost:1521/XE"
-dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
+#dsn_local_ora = "yxt/yxt@localhost:1521/XE"
+#dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
+#dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
 dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
-dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
 dsn_vance_pg = "host=192.168.109.49 dbname=wppdb user=mwlan password=mwlan_pw port=5432"
 dsn_moto_pg = "host=192.168.109.54 dbname=wppdb user=wpp password=wpp port=5432"
-dbtype_ora = 'oracle' 
+#dbtype_ora = 'oracle' 
+#dbtype_my  = 'mysql'
 dbtype_pg  = 'postgresql'
-dbtype_my  = 'mysql'
-dbsvrs = {'192.168.19.132':{
-            'dsn':dsn_vance_pg_mic,
-            'dbtype':dbtype_pg,
-           },
+dbsvrs = {
           '192.168.109.54':{
             'dsn':dsn_moto_pg,
             'dbtype':dbtype_pg,
@@ -131,14 +128,14 @@ dbsvrs = {'192.168.19.132':{
             'dsn':dsn_vance_pg,
             'dbtype':dbtype_pg,
            },
-          '192.168.35.202':{
-            'dsn':dsn_vance_ora,
-            'dbtype':dbtype_ora,
-           },
-          'local_ora':{
-            'dsn':dsn_local_ora,
-            'dbtype':dbtype_ora,
-           },
+          #'192.168.35.202':{
+          #  'dsn':dsn_vance_ora,
+          #  'dbtype':dbtype_ora,
+          # },
+          #'local_ora':{
+          #  'dsn':dsn_local_ora,
+          #  'dbtype':dbtype_ora,
+          # },
           'local_pg':{
             'dsn':dsn_local_pg,
             'dbtype':dbtype_pg,
@@ -210,40 +207,41 @@ tbl_files = { 'wpp_clusteridaps':'test/tbl/cidaps.tbl',
                     'wpp_celloc':'test/tbl/celloc.tbl',
                   'wpp_cellarea':'test/tbl/cellarea.tbl',
                         'tsttbl':'test/tbl/tsttbl.tbl' }
-tbl_forms = { 'oracle':{
-                'wpp_clusteridaps':""" (  
-                     clusterid INT NOT NULL, 
-                        keyaps VARCHAR2(71) NOT NULL,
-                           seq INT NOT NULL)""", 
-                'wpp_cfps':""" (  
-                     clusterid INT NOT NULL,
-                           lat NUMBER(9,6) NOT NULL,
-                           lon NUMBER(9,6) NOT NULL,
-                        height NUMBER(5,1) DEFAULT 0,
-                          rsss VARCHAR2(100) NOT NULL,
-                     cfps_time VARCHAR2(20))""",
-                'wpp_uprecsinfo':""" (  
-                            id INT PRIMARY KEY,	
-                          spid INT,
-                        servid INT,
-                          time VARCHAR(20),
-                          imsi VARCHAR(20),
-                          imei VARCHAR(20),
-                     useragent VARCHAR(300),
-                           mcc INT,
-                           mnc INT,
-                           lac INT,
-                        cellid INT,
-                       cellrss VARCHAR(5),
-                           lat NUMERIC(9,6),
-                           lon NUMERIC(9,6),
-                        height NUMERIC(5,1),
-                wlanidentifier VARCHAR(1024),
-                   wlanmatcher VARCHAR(255))""",
-                'tsttbl':"""(
-                     clusterid INT, 
-                        keyaps VARCHAR2(71) NOT NULL,
-                           seq INT NOT NULL)""" },
+tbl_forms = { 
+              #'oracle':{
+              #  'wpp_clusteridaps':""" (  
+              #       clusterid INT NOT NULL, 
+              #          keyaps VARCHAR2(71) NOT NULL,
+              #             seq INT NOT NULL)""", 
+              #  'wpp_cfps':""" (  
+              #       clusterid INT NOT NULL,
+              #             lat NUMBER(9,6) NOT NULL,
+              #             lon NUMBER(9,6) NOT NULL,
+              #          height NUMBER(5,1) DEFAULT 0,
+              #            rsss VARCHAR2(100) NOT NULL,
+              #       cfps_time VARCHAR2(20))""",
+              #  'wpp_uprecsinfo':""" (  
+              #              id INT PRIMARY KEY,	
+              #            spid INT,
+              #          servid INT,
+              #            time VARCHAR(20),
+              #            imsi VARCHAR(20),
+              #            imei VARCHAR(20),
+              #       useragent VARCHAR(300),
+              #             mcc INT,
+              #             mnc INT,
+              #             lac INT,
+              #          cellid INT,
+              #         cellrss VARCHAR(5),
+              #             lat NUMERIC(9,6),
+              #             lon NUMERIC(9,6),
+              #          height NUMERIC(5,1),
+              #  wlanidentifier VARCHAR(1024),
+              #     wlanmatcher VARCHAR(255))""",
+              #  'tsttbl':"""(
+              #       clusterid INT, 
+              #          keyaps VARCHAR2(71) NOT NULL,
+              #             seq INT NOT NULL)""" },
               'postgresql':{
                 'wpp_clusteridaps':"""(
                      clusterid INT NOT NULL, 
@@ -474,35 +472,35 @@ icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],
         'dotshadow': [ '"dotshadow"',  '/kml/icons/dotshadow.png'],
 }
 
-props_jpg = {'term':'jpeg', # MUST be recognized by Gnuplot.
-         'outfname':'cdf.jpg',
-             'font':'"/usr/share/fonts/truetype/arphic/gbsn00lp.ttf, 14"',
-             'size':'', # default: 1,1
-            'title':'误差累积函数',
-           'xlabel':'误差/米',
-           'ylabel':'概率',
-           'legend':'',
-              'key':'right bottom',
-           'xrange':[0,100],
-           'yrange':[0,1],
-            'xtics':'nomirror 10',
-            'ytics':'nomirror .05',
-             'grid':'x y', # default: off
-           'border':3,
-             'with':'lp pt 3 lc 1'}
-props_mp = { 'term':'mp latex', # MUST be recognized by Gnuplot.
-         'outfname':'cdf.mp',
-             'font':'"Romans" 7',
-             'size':'.8, .8', # default: 1,1
-            'title':'CDF',
-           'xlabel':'error/m',
-           'ylabel':'probability',
-           'legend':'',
-              'key':'right bottom',
-           'xrange':[0,100],
-           'yrange':[0,1],
-            'xtics':'nomirror 10',
-            'ytics':'nomirror .05',
-             'grid':'x y', # default: off
-           'border':3,
-             'with':'lp pt 4'}
+#props_jpg = {'term':'jpeg', # MUST be recognized by Gnuplot.
+#         'outfname':'cdf.jpg',
+#             'font':'"/usr/share/fonts/truetype/arphic/gbsn00lp.ttf, 14"',
+#             'size':'', # default: 1,1
+#            'title':'误差累积函数',
+#           'xlabel':'误差/米',
+#           'ylabel':'概率',
+#           'legend':'',
+#              'key':'right bottom',
+#           'xrange':[0,100],
+#           'yrange':[0,1],
+#            'xtics':'nomirror 10',
+#            'ytics':'nomirror .05',
+#             'grid':'x y', # default: off
+#           'border':3,
+#             'with':'lp pt 3 lc 1'}
+#props_mp = { 'term':'mp latex', # MUST be recognized by Gnuplot.
+#         'outfname':'cdf.mp',
+#             'font':'"Romans" 7',
+#             'size':'.8, .8', # default: 1,1
+#            'title':'CDF',
+#           'xlabel':'error/m',
+#           'ylabel':'probability',
+#           'legend':'',
+#              'key':'right bottom',
+#           'xrange':[0,100],
+#           'yrange':[0,1],
+#            'xtics':'nomirror 10',
+#            'ytics':'nomirror .05',
+#             'grid':'x y', # default: off
+#           'border':3,
+#             'with':'lp pt 4'}
