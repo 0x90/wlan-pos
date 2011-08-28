@@ -3,13 +3,14 @@
 from __future__ import division
 from copy import deepcopy
 import numpy as np
+np_char_array = np.char.array
 from numpy import (array, argsort, vstack, searchsorted, reciprocal, average,
         sum as np_sum, abs as np_abs, sort as np_sort, all as np_all, any as np_any)
+from lxml.etree import fromstring as xmlparser
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-from lxml.etree import fromstring as xmlparser
 import logging
 wpplog = logging.getLogger('wpp')
 
@@ -158,14 +159,13 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
     all_pos_lenrss = []
     fps_cand = []; sums_cand = []
     for keyaps,keycfps in keys:
-        if verb:
-            wpplog.debug('keyaps:\n%s\nkeycfps:\n%s' % (keyaps, keycfps))
+        if verb: wpplog.debug('keyaps:\n%s\nkeycfps:\n%s' % (keyaps, keycfps))
         # Fast fix when the ONLY 1 selected cid has ONLY 1 fp in 'cfps'.
         if len(keys)==1 and len(keycfps)==1:
             fps_cand = [ list(keycfps[0]) ]
             break
         pos_lenrss = (array(keycfps)[:,1:3].astype(float)).tolist()
-        keyrsss = np.char.array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
+        keyrsss = np_char_array(keycfps)[:,4].split('|') #4: column order in cfps.tbl
         keyrsss = array([ [float(rss) for rss in spid] for spid in keyrsss ])
         for idx,pos in enumerate(pos_lenrss):
             pos_lenrss[idx].append(len(keyrsss[idx]))
@@ -185,8 +185,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         sum_rss = np_sum( (mrsss-keyrsss)**2, axis=1 )
         fps_cand.extend( keycfps )
         sums_cand.extend( sum_rss )
-        if verb:
-            wpplog.debug('sum_rss:\n%s' % sum_rss)
+        if verb: wpplog.debug('sum_rss:\n%s' % sum_rss)
 
     # Location estimation.
     if len(fps_cand) > 1:
@@ -207,8 +206,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         #idxs_kmin = argsort(min_sums)[:KNN]
         sorted_sums = sums_cand[idx_sums_sort_bound]
         sorted_fps = fps_cand[idx_sums_sort_bound]
-        if verb:
-            wpplog.debug('k-dists:\n%s\nk-locations:\n%s' % (sorted_sums, sorted_fps))
+        if verb: wpplog.debug('k-dists:\n%s\nk-locations:\n%s' % (sorted_sums, sorted_fps))
         # DKNN
         if sorted_sums[0]: 
             boundry = sorted_sums[0]*KWIN
@@ -239,8 +237,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
                     #wpplog.debug('idx_dknn_sums_sort: %s' % idx_dknn_sums_sort)
                     ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
                     w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
-                else:
-                    w_zero = 1
+                else: w_zero = 1
                 for idx,sum in enumerate(ww):
                     if not sum: ww[idx] = w_zero
             ws = array(ww) + dknn_sums
@@ -254,8 +251,7 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             if maxNI == 1: poserr = 100
             else: poserr = 50
         else: 
-            if verb:
-                wpplog.debug('idxs_clusters: %s\nall_pos_lenrss: %s' % (idxs_clusters, all_pos_lenrss))
+            if verb: wpplog.debug('idxs_clusters: %s\nall_pos_lenrss: %s' % (idxs_clusters, all_pos_lenrss))
             #allposs_dknn = vstack(array(all_pos_lenrss, object)[idxs_clusters])
             allposs_dknn = array(all_pos_lenrss, object)[idxs_clusters]
             if verb: wpplog.debug('allposs_dknn: %s' % allposs_dknn)
@@ -272,8 +268,8 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
             else: poserr = 50
         else:
             if verb: 
-                wpplog.debug('posfix: %s' % posfix)
                 wpplog.debug('all_pos_lenrss: %s' % all_pos_lenrss)
+                wpplog.debug('posfix: %s' % posfix)
             poserr = max( np_sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
                 for p in all_pos_lenrss ]) / (N_fp-1), 50 )
     ret = posfix.tolist()

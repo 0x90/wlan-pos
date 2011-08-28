@@ -13,6 +13,7 @@ USAGE: $thisfile <total reqs> <concurrent reqs> <target server id>
 3 - WPP Vance
 4 - FPP Moto
 5 - WPP Local
+6 - FPP neusoft (public ip)
 EXAMPLE:
 #$thisfile 4000 400 2   //requst FPP neu 4000 times with 400 concurrent hits.
 
@@ -66,6 +67,12 @@ elif [ $target -eq 5 ]; then # wpp_local
 	port=8080
 	urlpath=wlan/distribution
 	postfile=$abdir/wpp_req.xml
+elif [ $target -eq 6 ]; then # fpp_neu_pubip
+	target_name=fpp_neu_pubip
+	ip=218.206.179.209
+	port=18080
+	urlpath=FPP_AD/adapter
+	postfile=$abdir/fpp_req.xml
 else
 	echo "Unsupported target id: $target"
 	exit 99
