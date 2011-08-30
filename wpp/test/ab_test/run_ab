@@ -46,7 +46,8 @@ if [ $target -eq 1 ]; then # wpp_py
 elif [ $target -eq 2 ]; then # fpp_neu
 	target_name=fpp_neu
 	ip=192.168.109.58
-	port=18080
+	#port=18080
+	port=8080
 	urlpath=FPP_AD/adapter
 	postfile=$abdir/fpp_req.xml
 elif [ $target -eq 3 ]; then # wpp_vance

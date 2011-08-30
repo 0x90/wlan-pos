@@ -1,6 +1,4 @@
-<?xml version='1.0' encoding='UTF-8' standalone='no' ?>
-<!DOCTYPE PosReq SYSTEM "PosReq.dtd">
- <PosReq>
+<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq>
   <SPID val="123" />
   <ServID val="456" />
   <Time val="20110130-114424" />
