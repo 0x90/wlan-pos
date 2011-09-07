@@ -1,7 +1,11 @@
 #!/bin/bash
 
-date_day=`date +%d`
-date_mon=`date +%m`
+day_str="2 days ago"
+day_str="now"
+mon_str="1 month ago"
+mon_str="now"
+date_day=`date -d "$day_str" "+%d"`
+date_mon=`date -d "$mon_str" "+%m"`
 date_year=`date +%Y`
 for day in $(seq $date_day)
 do
