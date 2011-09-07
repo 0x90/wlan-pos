@@ -4,10 +4,15 @@ day_str="2 days ago"
 day_str="now"
 mon_str="1 month ago"
 mon_str="now"
-date_day=`date -d "$day_str" "+%d"`
+
+day_end=`date -d "$day_str" "+%d"`
+day_start=$day_end  #just for today.
+#day_start=1        #from the beginning of this month.
+
 date_mon=`date -d "$mon_str" "+%m"`
 date_year=`date +%Y`
-for day in $(seq $date_day)
+
+for day in $(seq $day_start $day_end)
 do
     d=`printf "%02d" $day`
     date_tmp="$date_year-$date_mon-$d"
