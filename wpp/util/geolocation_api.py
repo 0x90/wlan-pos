@@ -84,7 +84,7 @@ def googleLocation(macs=[], rsss=[], cellinfo=None):
     ret_content = dict( eval(resp.read()) )
     if not 'location' in ret_content: return []
     gloc = ret_content['location'] 
-    if gloc['accuracy'] > 5000: return []
+    if gloc['accuracy'] > 8000: return []
     gh = gloc['altitude'] if ('altitude' in gloc) else 0
     return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 

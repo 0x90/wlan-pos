@@ -89,7 +89,7 @@ def fixPos(posreq=None, has_google=False):
                 if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
                 # wifi location import. TODO: make google loc import job async when it's *succeeded*.
                 if macs and rsss:
-                    t = f('Time')[0]['val']; t = t[0] if t else ''
+                    t = f('Time'); t = t[0]['val'] if t else ''
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
                     if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')

@@ -8,13 +8,15 @@ try:
 except ImportError:
     from StringIO import StringIO
 from time import strftime, ctime
-import numpy as np
-from pprint import pprint,PrettyPrinter
+from numpy import array as np_array, append as np_append
+from pprint import pprint, PrettyPrinter
+from bz2 import BZ2File
+from ftplib import FTP
 
-from wpp.config import DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE, \
-        DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG
+from wpp.config import DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG#, \
+        #DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
 from wpp.db import WppDB
-from wpp.fingerprint import doClusterIncr, doClusterAll, genFPs
+from wpp.fingerprint import doClusterIncr, doClusterAll#, genFPs
 from wpp.util.net import getIP, sendMail
 
 
@@ -56,7 +58,7 @@ def genKMLfile(cfpsfile):
     from wpp.util.kml import genKML
     from wpp.config import icon_types
     cfpsin = csv.reader( open(cfpsfile,'r') )
-    cfps = np.array([ cluster for cluster in cfpsin ])[:,:4]
+    cfps = np_array([ cluster for cluster in cfpsin ])[:,:4]
     cfps = [ [[ c[2], c[3], c[1], 'cluster:%s, spid:%s'%(c[0],c[1]) ]] for c in cfps ]
     if verbose: pp.pprint(cfps)
     else: print cfps
@@ -118,7 +120,6 @@ def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
     vers_fpp: fpp rawdata versions needed for wpp.
     localbzs: local path(s) of rawdata bzip2(s).
     """
-    from ftplib import FTP
     ftp = FTP()
     #ftp.set_debuglevel(1)
     try:
@@ -151,15 +152,14 @@ def syncFtpUprecs(ftpcfg=None, ver_wpp=None):
 
 def updateAlgoData():
     """
-    Update data directly used by Algo in DB(wpp_clusterid, wpp_cfps).
+    Update from raw data into FPs directly used by location.fixPosWLAN() from WppDB(wpp_clusterid, wpp_cfps).
     1) Retrieve latest incremental rawdata(csv) from remote FTP server(hosted by FPP).
     2) Decompress bzip2, import CSV into wpp_uprecsinfo with its ver_uprecs, Update ver_uprecs in wpp_uprecsver.
     3) Incr clustering inserted rawdata for direct algo use.
     """
-    from bz2 import BZ2File
     dbips = DB_OFFLINE
-    for svrip in dbips:
-        dbsvr = dbsvrs[svrip]
+    for dbip in dbips:
+        dbsvr = dbsvrs[dbip]
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
         ver_wpp = wppdb.getRawdataVersion()
         # Sync rawdata into wpp_uprecsinfo from remote FTP server.
@@ -180,12 +180,12 @@ def updateAlgoData():
             sys.stdout.write('Decompress & append rawdata ... ')
             csvdat = csv.reader( BZ2File(bzfile) )
             try:
-                indat = np.array([ line for line in csvdat ])
+                indat = np_array([ line for line in csvdat ])
             except csv.Error, e:
                 sys.exit('\n\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
             # Append ver_uprecs info to last col.
-            vers = np.array([ [ver_bzfile] for i in xrange(len(indat)) ])
-            indat_withvers = np.append(indat, vers, axis=1).tolist(); print 'Done'
+            vers = np_array([ [ver_bzfile] for i in xrange(len(indat)) ])
+            indat_withvers = np_append(indat, vers, axis=1).tolist(); print 'Done'
             # Import csv into wpp_uprecsinfo.
             try:
                 sys.stdout.write('Import rawdata: ')
@@ -241,8 +241,8 @@ def loadRawdata(rawfile=None, updbmode=1):
     """
     dbips = DB_OFFLINE
     doflush = True
-    for svrip in dbips:
-        dbsvr = dbsvrs[svrip]
+    for dbip in dbips:
+        dbsvr = dbsvrs[dbip]
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
         if updbmode == 1:
             # Create WPP tables.
@@ -358,8 +358,8 @@ def main():
             doClusterAll(file(rmpfile))
         elif cluster_type == 2: 
             dbips = DB_OFFLINE
-            for svrip in dbips:
-                dbsvr = dbsvrs[svrip]
+            for dbip in dbips:
+                dbsvr = dbsvrs[dbip]
                 wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
                 n_inserts = doClusterIncr(fd_csv=file(rmpfile), wppdb=wppdb)
                 print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
@@ -370,63 +370,63 @@ def main():
     if dokml:
         genKMLfile(cfpsfile)
 
-    # Raw data to fingerprint convertion.
-    if tormp:
-        fingerprint = []
-        fingerprint = genFPs(rawfile)
-        if not fingerprint:
-            print 'Error: Fingerprint generation FAILED: %s' % rawfile
-            sys.exit(99)
-        if nodump is False:
-            if not rawfile == None: 
-                date = strftime('%Y-%m%d')
-                rmpfilename = DATPATH + date + RMPSUFFIX
-                dumpCSV(rmpfilename, fingerprint)
-                print '-'*65
-                sys.exit(0)
-            else:
-                usage(); sys.exit(99)
-        else:
-            if verbose: pp.pprint(fingerprint)
-            else: print fingerprint
-            sys.exit(0)
+    ## Raw data to fingerprint convertion.
+    #if tormp:
+    #    fingerprint = []
+    #    fingerprint = genFPs(rawfile)
+    #    if not fingerprint:
+    #        print 'Error: Fingerprint generation FAILED: %s' % rawfile
+    #        sys.exit(99)
+    #    if nodump is False:
+    #        if not rawfile == None: 
+    #            date = strftime('%Y-%m%d')
+    #            rmpfilename = DATPATH + date + RMPSUFFIX
+    #            dumpCSV(rmpfilename, fingerprint)
+    #            print '-'*65
+    #            sys.exit(0)
+    #        else:
+    #            usage(); sys.exit(99)
+    #    else:
+    #        if verbose: pp.pprint(fingerprint)
+    #        else: print fingerprint
+    #        sys.exit(0)
 
-    # WLAN & GPS scan for raw data collection.
-    if not times == 0:
-        for i in range(times):
-            print "Survey: %d" % (i+1)
-            rawdata = getRaw()
-            rawdata.insert(0, spid)
-            # Rawdata Integrity check,
-            # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
-            print rawdata
-            if len(rawdata) == 6: 
-                if verbose: 
-                    pp.pprint(rawdata)
-                else:
-                    print 'Calibration at sampling point %d ... OK!' % spid
-            else: 
-                # wlan scanned APs less than CLUSTERKEYSIZE:4.
-                tfail += 1
-                print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
-                print '-'*65
-                continue
-            # Raw data dumping to file.
-            if nodump is False:
-                if not os.path.isdir(DATPATH):
-                    try:
-                        os.umask(0) #linux system default umask: 022.
-                        os.mkdir(DATPATH,0777)
-                        #os.chmod(DATPATH,0777)
-                    except OSError, errmsg:
-                        print "Failed: %d" % str(errmsg)
-                        sys.exit(99)
-                date = strftime('%Y-%m%d')
-                rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
-                dumpCSV(rfilename, rawdata)
-            print '-'*50
-        #Scan Summary
-        print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
+    ## WLAN & GPS scan for raw data collection.
+    #if not times == 0:
+    #    for i in range(times):
+    #        print "Survey: %d" % (i+1)
+    #        rawdata = getRaw()
+    #        rawdata.insert(0, spid)
+    #        # Rawdata Integrity check,
+    #        # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
+    #        print rawdata
+    #        if len(rawdata) == 6: 
+    #            if verbose: 
+    #                pp.pprint(rawdata)
+    #            else:
+    #                print 'Calibration at sampling point %d ... OK!' % spid
+    #        else: 
+    #            # wlan scanned APs less than CLUSTERKEYSIZE:4.
+    #            tfail += 1
+    #            print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
+    #            print '-'*65
+    #            continue
+    #        # Raw data dumping to file.
+    #        if nodump is False:
+    #            if not os.path.isdir(DATPATH):
+    #                try:
+    #                    os.umask(0) #linux system default umask: 022.
+    #                    os.mkdir(DATPATH,0777)
+    #                    #os.chmod(DATPATH,0777)
+    #                except OSError, errmsg:
+    #                    print "Failed: %d" % str(errmsg)
+    #                    sys.exit(99)
+    #            date = strftime('%Y-%m%d')
+    #            rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
+    #            dumpCSV(rfilename, rawdata)
+    #        print '-'*50
+    #    #Scan Summary
+    #    print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
 
 
 if __name__ == "__main__":

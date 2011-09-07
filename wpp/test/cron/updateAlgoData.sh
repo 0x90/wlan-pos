@@ -16,4 +16,4 @@ echo -e $task_banner  >> $LOGDIR/upalgodb_$datetime.log 2>&1
 
 export PYTHONPATH=$WPP_HOME
 cd $WPP_HOME/wpp
-python offline.py -u 1 >> $LOGDIR/upalgodb_$datetime.log 2>&1
+python offline.py -u >> $LOGDIR/upalgodb_$datetime.log 2>&1

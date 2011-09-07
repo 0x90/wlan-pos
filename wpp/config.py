@@ -88,7 +88,7 @@ ftpcfgs = {
      'timeout': 10,
     'localdir': '/home/alexy/tmp/wpp/local'},
 }
-FTPCFG=ftpcfgs['fpp_neu_cmri']
+FTPCFG = ftpcfgs['fpp_neu_cmri']
 mailcfg = {
       'from' : 'xiaotian.yan@gmail.com',
        'to'  : '13811310350@139.com',
