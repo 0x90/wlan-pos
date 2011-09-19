@@ -251,7 +251,7 @@ if __name__ == '__main__':
              'lvj': {'user': '11041539',
                    'passwd': '02190',
                     'phase': '散段',} }
-    plans = {'yxt': [{'date': '2011-09-24',
+    timeplan = {'yxt': [{'date': '2011-09-24',
                       'hour': '19_21'}], }
     time_order['lvj'] = time_order['yxt']
 
@@ -259,6 +259,6 @@ if __name__ == '__main__':
     aDfssCourse.login(user_info=users['yxt'])
     aDfssCourse.showTimetable()
     aDfssCourse.showTimetable(refresh=0) # 0:模拟机,1:散段,2:综合训练.
-    #for day in plans['yxt']:
+    #for day in timeplan['yxt']:
     #    aDfssCourse.orderTicket(time=day)
     #aDfssCourse.showTimetable(refresh=True)

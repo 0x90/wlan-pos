@@ -248,15 +248,15 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         # ErrRange Estimation (more than 1 relevant clusters).
         idxs_clusters = idx_sums_sort_bound[:idx_dkmin]
         if len(idxs_clusters) == 1: 
-            if maxNI == 1: poserr = 100
-            else: poserr = 50
+            if maxNI == 1: poserr = 200
+            else: poserr = 100
         else: 
             if verb: wpplog.debug('idxs_clusters: %s\nall_pos_lenrss: %s' % (idxs_clusters, all_pos_lenrss))
             #allposs_dknn = vstack(array(all_pos_lenrss, object)[idxs_clusters])
             allposs_dknn = array(all_pos_lenrss, object)[idxs_clusters]
             if verb: wpplog.debug('allposs_dknn: %s' % allposs_dknn)
             poserr = max( average([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in allposs_dknn ]), 50 )
+                for p in allposs_dknn ]), 100 )
     else: 
         fps_cand = fps_cand[0][:-2]
         if verb: wpplog.debug('location:\n%s' % fps_cand)
@@ -264,14 +264,14 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
         # ErrRange Estimation (only 1 relevant clusters).
         N_fp = len(keycfps)
         if N_fp == 1: 
-            if maxNI == 1: poserr = 100
-            else: poserr = 50
+            if maxNI == 1: poserr = 200
+            else: poserr = 100
         else:
             if verb: 
                 wpplog.debug('all_pos_lenrss: %s' % all_pos_lenrss)
                 wpplog.debug('posfix: %s' % posfix)
             poserr = max( np_sum([ dist_km(posfix[1], posfix[0], p[1], p[0])*1000 
-                for p in all_pos_lenrss ]) / (N_fp-1), 50 )
+                for p in all_pos_lenrss ]) / (N_fp-1), 100 )
     ret = posfix.tolist()
     ret.append(poserr)
 
