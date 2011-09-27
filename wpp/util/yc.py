@@ -1,157 +1,129 @@
 #!/usr/bin/python
 # coding=UTF-8
  
+import os
+import sys
+import re
+import random
+import time
 import urllib2
 import urllib
 import cookielib
-import re
-import random
-import sys
-import time
 import pprint as pp
  
- 
-def log(msg):
-    fn_log = '%s.log' % 'yc'
-    fd_log = open(fn_log, 'a')
-    msg = '[%s]: %s\n' % (time.strftime('%H:%M:%S'), str(msg))
-    print msg
-    fd_log.write(msg);
-    fd_log.close()
- 
-def sendsms(dest,msg):
-    #发送短信通知
-    p=urllib.urlencode({'Msg':msg.decode('utf-8').encode('gbk')})
-    url="http://xxx.xxx.xxx.xxx/send_sms?Dest="+dest+"&"+p
-    send_rsp=urllib2.urlopen(url)
-    if send_rsp.getcode() == 200:
-        return send_rsp.read()
-    else:
-        return 'error:'+send_rsp.getcode
- 
-def yueche():
-    #登陆,并获得约车信息(表单)页面地址
-    yueche_form_url = login()
-    yueche_form_urlopener = opener.open(yueche_form_url)
-    if yueche_form_urlopener.getcode() == 200:
- 
-        #约车表单页面html内容
-        data = yueche_form_urlopener.read()
-        #log data
- 
-        #同样,获取表单的两个hidden字段值
-        VIEWSTATE = re.findall('<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="(.*)"', data)[0]
-        EV = re.findall('<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="(.*)"', data)[0]
- 
-        #遍历约车时段表单,取出约车按钮
-        for line in data.split("\n"):
-            #log line
- 
-            # 按钮,<input type="submit" name="GridView1$ctl02$I_HOUR13_17" value="0" onclick="return checkwall();" id="GridView1_ctl02_I_HOUR13_17" style="background-color:#00FFFF;height:30px;width:50px;" />
-            # 含义:<input type="submit" name="约车时段按钮名" value="剩余约车数量" onclick="return checkwall();" id="GridView1_ctl02_I_HOUR13_17" style="background-color:#00FFFF;height:30px;width:50px;" />
-            #注意:value值如为"数字+空格",则为已约好的时段的车号
-            target=re.findall('<input type="submit" name="(GridView1\$ctl(\d\d)\$I_HOUR(13_17))" value="(\d*)"',line)
-            if target:
-                log(target)
- 
-                name=target[0][0]       #表单名
-                day_add=target[0][1]        #日期加值
-                lesson_time=target[0][2]    #课程时段
-                value=target[0][3]      #可约车数量
- 
-                #如果可约车数量不为0， 约车
-                if value != '0':
- 
-                    #组参数
-                        p = urllib.urlencode({'__VIEWSTATE':VIEWSTATE, '__EVENTVALIDATION':EVENTVALIDATION, 'RadioButtonList1':'散段', name:value})
-                        #log p
-                        log('约车:'+name+':'+value)
-                        yueche_rsq=opener.open(yueche_form_url,p)
-                        if yueche_rsq.getcode()==200:
- 
-                        #约车成功,发送通知短信
-                            yueche_data=yueche_rsq.read()
-                            #log yueche_data
-                            day=int(time.strftime('%d'))-2+int(day_add)
-                            msg=time.strftime('%y-%m')+'-'+str(day)+'日'+lesson_time+'时段约车成功!'
-                            log(msg)
-                            log(sendsms(sys.argv[3],msg))
- 
-def login():
-    #请求登陆表单页面
-    login_form_urlopener = opener.open(url_root)
-    if login_form_urlopener.getcode() == 200:
- 
-        #表单页面html内容
-        data = login_form_urlopener.read()
-        log(login_form_urlopener.info())
- 
-        #取得表单的两个hidden字段值(验证用?防止重复提交用?)
-        VIEWSTATE = re.findall('id="__VIEWSTATE" value="(.*)"', data)[0]
-        EVENTVALIDATION = re.findall('id="__EVENTVALIDATION" value="(.*)"', data)[0]
- 
-        #组登陆请求参数
-        p = urllib.urlencode({'__VIEWSTATE':VIEWSTATE, '__EVENTVALIDATION':EVENTVALIDATION, 'txtname':sys.argv[1], 'txtpwd':sys.argv[2], 'button.x':random.randint(0, 99), 'button.y':random.randint(0, 99)})
-        log(p)
- 
-        #提交表单
-        login_action_urlopener = opener.open(login_action_url, p)
-        if login_action_urlopener.getcode() == 200:
- 
-            #登陆结果页面内容
-            action_data = login_action_urlopener.read()
-            #log login_action_urlopener.info()
-            #log action_data
- 
-            #约车页面地址为js的window.open跳转,获取地址
-            m = re.findall("<script language='javascript'>window\.open\('(.*)','SubWindow", action_data)
-            if m:
-                log(m)
-                yueche_form_url = url_root + m[0]
-                log(yueche_form_url)
-                return yueche_form_url
-            else:
-                log("login fail !!\n"+action_data)
-    else:
-        log('open login_form fail:' + str(login_form_urlopener.getcode()))
+from logging import getLogger, Formatter, INFO, DEBUG
+from logging.handlers import SysLogHandler
+from cloghandler import ConcurrentRotatingFileHandler as cLogRotateFileHandler
+yclog = getLogger('yc')
+yclog.setLevel(INFO)
+logfmt = Formatter('[%(asctime)s][%(levelname)s] %(message)s')
+logdir = '%s/tmp/log/yc' % os.environ['HOME']
+logfile = '%s/yc.log' % logdir #TODO: dynamic path instead of ugly static path.
+if not os.path.isfile(logfile):
+    if not os.path.isdir(logdir):
+        try:
+            os.mkdir(logdir, 0755)
+        except OSError, errmsg:
+            print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
+            sys.exit(99)
+    open(logfile, 'w').close()
+loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 20) # Rotate after 20M, keep 20 old copies.
+loghandler.setFormatter(logfmt)
+yclog.addHandler(loghandler)
 
+def sendMail(sender, userpwd, recipient, subject, body):
+    """Send an email.
+    All arguments should be Unicode strings (plain ASCII works as well).
+    Only the real name part of sender and recipient addresses may contain
+    non-ASCII characters.
+    The email will be properly MIME encoded and delivered though SMTP to
+    localhost port 25.  This is easy to change if you want something different.
+    The charset of the email will be the first one out of US-ASCII, ISO-8859-1
+    and UTF-8 that can represent all the characters occurring in the email.
+    """
+    from smtplib import SMTP
+    from email.MIMEText import MIMEText
+    from email.Header import Header
+    from email.Utils import parseaddr, formataddr
+    # Header class is smart enough to try US-ASCII, then the charset we
+    # provide, then fall back to UTF-8.
+    header_charset = 'ISO-8859-1'
+    # We must choose the body charset manually
+    for body_charset in 'UTF-8', 'US-ASCII', 'ISO-8859-1':
+        try:
+            body.encode(body_charset)
+        except UnicodeError: pass
+        else: break
+    # Split real name (which is optional) and email address parts
+    sender_name, sender_addr = parseaddr(sender)
+    recipient_name, recipient_addr = parseaddr(recipient)
+    # We must always pass Unicode strings to Header, otherwise it will
+    # use RFC 2047 encoding even on plain ASCII strings.
+    sender_name = str(Header(unicode(sender_name), header_charset))
+    recipient_name = str(Header(unicode(recipient_name), header_charset))
+    # Make sure email addresses do not contain non-ASCII characters
+    sender_addr = sender_addr.encode('ascii')
+    recipient_addr = recipient_addr.encode('ascii')
+    # Create the message ('plain' stands for Content-Type: text/plain)
+    msg = MIMEText(body.encode(body_charset), 'plain', body_charset)
+    msg['From'] = formataddr((sender_name, sender_addr))
+    msg['To'] = formataddr((recipient_name, recipient_addr))
+    msg['Subject'] = Header(unicode(subject), header_charset)
+    # Send the message via SMTP to localhost:25
+    smtp = SMTP("smtp.gmail.com:587")
+    smtp.starttls()  
+    smtp.login(userpwd[0], userpwd[1])  
+    smtp.sendmail(sender, recipient, msg.as_string())
+    smtp.quit()
  
 class CourseReservation(object):
-    def __init__(self):
+    def __init__(self, user_info=None):
         self.url_root = 'http://114.251.109.215/WLYC'
         self.url_chkcode = '%s/image.aspx' % self.url_root
         self.url_login = '%s/XYYC21DR1.aspx' % self.url_root 
         self.url_cal = '%s/script/calendar.aspx' % self.url_root 
 
         self.restr_redirect_url = "language='javascript'>window\.open\('(.*)','SubWindow"
-        self.restr_time_ticket = '<input type="submit" name="gv\$ctl(\d+)\$I_HOUR(\d+_\d+)" value="(\d+)"'
+        self.restr_timetable = '<input type="submit" name="gv\$ctl(\d+)\$I_HOUR(\d+_\d+)" +value="(\d+ *)"'
         self.restr_dates = '\<td\>\<font color="\#\d+"\>(\d+-\d+-\d+)\((.*)\)'
         self.restr_stat = '\<span id="lblMessage".*\<font color="Red" size="3"\>(.*)\<\/font\>'
-         
+        self.restr_curphase = '\<span id="lblCurrentPhase".*\<font color="Black"\>(.*)\<\/font\>'
+        self.restr_mytickets = '<input type="submit" name="gv\$ctl(\d+)\$I_HOUR(\d+_\d+)" +value="(\d+ +)"'
+        self.restr_closed = 'id="gv_ctl%s_I_HOUR%s" disabled="disabled" />' # %(02, 9_13)
+        self.restr_reserved = '<input type="submit" name="gv\$ctl%s\$I_HOUR%s" +value="(\d+ +)"' # %(02, 9_13)
         
         self.req = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
-        self.req.addheaders = [('User-agent', 'Mozilla/5.0 Gecko/20100101 Firefox/4.0b7'),
+        self.req.addheaders = [('User-agent', 'Firefox/4.0b7'),
                                ('Connection', 'keep-alive'), ('Keep-Alive', 300)]
+        if user_info and isinstance(user_info, dict):
+            self.userid = user_info['userid'] if 'userid' in user_info else ''
+            self.passwd = user_info['passwd'] if 'passwd' in user_info else ''
+            self.userphase = user_info['phase'] if 'phase' in user_info else ''
+        # timetable: {'2011-09-19':{'13_17':0, '17_19':0, '19_21':51, '7_9':8, '9_13':0}}
+        self.id_phase = {0: '模拟机', 1: '散段', 2: '综合训练'}
+        self.phase_id = dict([ (self.id_phase[id],id) for id in self.id_phase ])
+        self.timetable = {}
+        self.pagephase = ''
 
     def _getHiddenVals(self, page=None):
         self.VS = re.findall('id="__VIEWSTATE" value="(.*)"', page)[0]
         self.EV = re.findall('id="__EVENTVALIDATION" value="(.*)"', page)[0]
 
     def getCookie(self):
-        print 'Getting Cookie & __VIEWSTATE & __EVENTVALIDATION ...'
+        yclog.debug('Getting cookie & hidden vals ...')
         resp_root = self.req.open(self.url_root)
         if resp_root.getcode() == 200:
             page_root = resp_root.read()
             headers_resp = dict(resp_root.headers)
             self.cookie = headers_resp['set-cookie'].split('; ')[0]
             self.req.addheaders += [('Cookie', self.cookie)]
-            print 'headers(opener): '; pp.pprint(self.req.addheaders)
             self._getHiddenVals(page_root)
         else:
-            sys.exit('Failed to connect: %s' % self.url_root)
+            yclog.error('Failed to connect: %s' % self.url_root)
+            sys.exit(99)
 
     def getChkcode(self):
-        print 'Getting Check Code ...'
+        yclog.debug('Getting check code ...')
         resp_chkcode = self.req.open(self.url_chkcode)
         if resp_chkcode.getcode() == 200:
             headers_resp = dict(resp_chkcode.headers)
@@ -159,25 +131,28 @@ class CourseReservation(object):
             self.chkcode = headers_resp['set-cookie'].split('; ')[0].split('=')[1]
             self.cookie = '%s; CheckCode=%s; ImageV=%s' % (self.cookie, self.chkcode, self.chkcode)
             self.req.addheaders[-1] = ('Cookie', self.cookie)
-            print 'headers(opener): '; pp.pprint(self.req.addheaders)
         else:
-            sys.exit('Failed to connect: %s' % self.url_chkcode)
+            yclog.error('Failed to connect: %s' % self.url_chkcode)
+            sys.exit(99)
 
     def login(self, user_info=None):
         self.getCookie()
         self.getChkcode()
         # login POST data.
         if user_info and isinstance(user_info, dict):
-            self.user = user_info['user']
-            self.passwd = user_info['passwd']
-            self.phase = user_info['phase']
+            self.userid = user_info['userid'] if 'userid' in user_info else ''
+            self.passwd = user_info['passwd'] if 'passwd' in user_info else ''
+            self.userphase = user_info['phase'] if 'phase' in user_info else ''
+            yclog.debug('Current user phase: %s' % self.userphase)
+        if not self.userid or not self.passwd:
+            yclog.error('Failed to login: user info error!')
+            sys.exit(99)
         data_login = {'__VIEWSTATE': self.VS, '__EVENTVALIDATION': self.EV,
-                   'RadioButtonList1': self.phase,
-                   'txtname': self.user, 'txtpwd': self.passwd, 'yanzheng': self.chkcode,
+                   'RadioButtonList1': self.userphase,
+                   'txtname': self.userid, 'txtpwd': self.passwd, 'yanzheng': self.chkcode,
                    'button.x': random.randint(0, 99), 'button.y': random.randint(0, 99)}
         data_urlencode = urllib.urlencode(data_login)
-        pp.pprint(data_login)
-        print 'Login ...'
+        yclog.info('Login: [UserID:%s]' % self.userid)
         resp_login = self.req.open(self.url_login, data_urlencode)
         if resp_login.getcode() == 200:
             page_login = resp_login.read()
@@ -186,9 +161,13 @@ class CourseReservation(object):
                 self.url_timetable = '%s/%s' % (self.url_root, path_login_redirect)
             else:
                 self.url_timetable = '%s/%s' % (self.url_root, 'aspx/car/XYYC22.aspx')
-            print 'Redirecting to: %s' % path_login_redirect
+            yclog.debug('Redirecting to: %s' % path_login_redirect)
+            self.getDataTimetable()
+        else:
+            yclog.error('Failed to connect: %s' % self.url_login)
+            sys.exit(99)
 
-    def showTimetable(self, refresh=False):
+    def getPageTimetable(self, refresh=False, save_page=False):
         """ refresh: first-time fetch or refresh a page.
                     1)True -- same page refresh with same phase refresh. 
                     2)False-- 1st-time fetching.
@@ -196,69 +175,197 @@ class CourseReservation(object):
         """
         if refresh is False: 
             resp_login = self.req.open(self.url_timetable)
-            print 'Getting time table ...'
+            yclog.info('Getting timetable: |%s|' % self.userphase)
         else:
+            target_phase = self.id_phase[refresh] if refresh in self.id_phase else self.userphase
             self._getHiddenVals(self.page_timetable)
-            target_refresh = 'RadioButtonList1$%s'%refresh if refresh != 'True' else ''
-            data_refresh = {'__VIEWSTATE': self.VS, '__EVENTTARGET=': target_refresh, 
-                            '__EVENTARGUMENT=': '', '__LASTFOCUS=': ''}
+            target_btn = 'RadioButtonList1$%s'%refresh if refresh is not True else ''
+            data_refresh = {'__VIEWSTATE': self.VS, '__EVENTVALIDATION': self.EV,
+                            '__EVENTTARGET': target_btn, 'RadioButtonList1': target_phase,
+                            '__EVENTARGUMENT': '', '__LASTFOCUS': ''}
+            if refresh is True:
+                data_refresh['btnRefresh'] = '刷新'
+                yclog.info('Refreshing timetable |%s|' % target_phase)
+            else:
+                yclog.info('Switch to timetable: |%s|' % target_phase)
             data_urlencode = urllib.urlencode(data_refresh)
+            #yclog.info(data_refresh)
             resp_login = self.req.open(self.url_timetable, data_urlencode)
-            print 'Refreshing time table: %s' % target_refresh
         if resp_login.getcode() == 200:
             self.page_timetable = resp_login.read()
+            if save_page and self.page_timetable:
+                f = open('%s/tmp/tmp.aspx'%os.environ['HOME'], 'a')
+                f.write(self.page_timetable+'\n'*2)
+                f.close()
             status = re.findall(self.restr_stat, self.page_timetable)[0]
-            print 'Status: %s' % status
-            # <input type="submit" name="gv$ctl08$I_HOUR19_21" value="94" ...
-            # tickets: [(date_id, hour_win, num_tickets]
-            tickets = re.findall(self.restr_time_ticket, self.page_timetable)
-            # dates: {date(2011-09-30): day of week(chinese)}
-            dates = dict(re.findall(self.restr_dates, self.page_timetable))
-            date_ids = list(set([ x[0] for x  in tickets ]))
-            date_ids.sort()
-            dates_keys = dates.keys()
-            dates_keys.sort()
-            self.map_id_dates = dict(zip(date_ids, dates_keys))
-            # reserv_table: {date: [{hour_window: num_tickets}, ...]}
-            self.reserv_table = {}
-            for x in tickets:
-                self.reserv_table.setdefault(self.map_id_dates[x[0]], {})[x[1]] = int(x[2])
-            if self.reserv_table: pp.pprint(self.reserv_table)
+            if status:
+                yclog.info('Status: %s' % status)
+            if refresh is False:
+                self.pagephase = re.findall(self.restr_curphase, self.page_timetable)[0]
+            else:
+                self.pagephase = target_phase
+            yclog.debug('Current page phase: %s' % self.pagephase)
+        else:
+            yclog.error('Failed to connect: %s' % self.url_timetable)
+            sys.exit(99)
 
-    def orderTicket(self, time=None):
+    def getDataTimetable(self, refresh=False):
+        """ Filter out time table data from webpage.
+        """
+        self.getPageTimetable(refresh=refresh)
+        # <input type="submit" name="gv$ctl08$I_HOUR19_21" value="94" ...
+        # timetable: [(dateid, hour_win, num_tickets]
+        timetable = re.findall(self.restr_timetable, self.page_timetable)
+        # dates: {date(2011-09-30): day of week(chinese)}
+        dates = dict(re.findall(self.restr_dates, self.page_timetable))
+        dateids = list(set([ x[0] for x  in timetable ]))
+        dateids.sort()
+        dates_keys = dates.keys()
+        dates_keys.sort()
+        self.id_date = dict(zip(dateids, dates_keys))
+        self.date_id = dict([ (self.id_date[id],id) for id in self.id_date ])
+        for x in timetable:
+            self.timetable.setdefault(self.id_date[x[0]], {})[x[1]] = int(x[2])
+
+    def flipTicket(self, ticket=None):
+        """ Flipping a ticket to reserve or abandon a course of the corresponding
+        ticket(phase & date & hour-window). *flip* here means the status of a ticket
+        switches between 'taken' and 'dropped' on every click.
+        """
+        date = ticket['date']; hour = ticket['hour']; phase = ticket['phase']
+        if self.pagephase != phase:
+            self.getDataTimetable(refresh=self.phase_id[phase])
+        if not hour in self.timetable[date]: 
+            return 'Already reserved: [%(phase)s,%(date)s|%(hour)s]' % ticket
+        elif self.timetable[date][hour] == 0: 
+            return 'No ticket left: [%(phase)s,%(date)s|%(hour)s]' % ticket
+        else: pass
         self._getHiddenVals(self.page_timetable)
-        map_date_id = dict([ (self.map_id_dates[k],k) for k in self.map_id_dates ])
-        date = time['date']; hour = time['hour']
         # id_button: gv$ctl08$I_HOUR17_19
-        id_button = 'gv$ctl%s$I_HOUR%s' % (map_date_id[date], hour)
-        num_tickets = self.reserv_table[date][hour]
+        id_button = 'gv$ctl%s$I_HOUR%s' % (self.date_id[date], hour)
+        num_tickets = self.timetable[date][hour]
         data_order = {'__VIEWSTATE': self.VS, '__EVENTVALIDATION': self.EV,
-                      'RadioButtonList1': self.phase, id_button: num_tickets}
+                      'RadioButtonList1': phase, id_button: num_tickets}
         data_urlencode = urllib.urlencode(data_order)
-        #pp.pprint(data_order)
-        print 'Making reservation: %s' % time
+        yclog.info('Flipping ticket: [%(phase)s][%(date)s|%(hour)s]' % ticket)
         resp_order = self.req.open(self.url_timetable, data_urlencode)
         if resp_order.getcode() == 200:
             self.page_timetable = resp_order.read()
-            status = re.findall(self.restr_stat, self.page_timetable)[0]
-            print 'Status: %s' % status
+            status = re.findall(self.restr_stat, self.page_timetable)
+            if status: status = status[0]
+            return status
+        else:
+            yclog.info('Failed to connect: %s' % self.url_chkcode)
+            return str(resp_order.getcode())
+
+    def getReservedTickets(self, phase=None):
+        """Get reserved tickets for a certain phase.  
+        Why not support traversing the tickets for all phases: the reservation
+        access to the next phase is not permitted if the training of current
+        phase is not finished.
+
+        Parameter
+        ---------
+        phase: phase name(chinese).
+
+        Return
+        ---------
+        [{'phase':p, 'date':d, 'hour':h, 'id':id}, ... ]
+        """
+        phase =  self.userphase if not phase else phase
+        self.tickets = []
+        # update self.page_timetable for a certain phase in phases.
+        if phase != self.pagephase:
+            self.getPageTimetable(refresh=self.phase_id[phase])
+        # filter out tickets of a certain phase in phases.
+        found_tickets = re.findall(self.restr_mytickets, self.page_timetable)
+        for found_ticket in found_tickets:
+            id_date, hour, tid = found_ticket
+            date = self.id_date[id_date]
+            self.tickets.append({'phase':phase, 'date':date, 'hour':hour, 'id':tid.strip()})
+        return self.tickets
+
+    def isTicketOpen(self, ticket=None):
+        """ Query to know if a ticket is closed, reserved, or expired.
+        """
+        date = ticket['date']; hour = ticket['hour']; phase = ticket['phase']
+        # update self.page_timetable if the phases dont match.
+        if self.pagephase != phase:
+            self.getDataTimetable(refresh=self.phase_id[phase])
+        # query if the ticket is expired(beyond 7days).
+        if date in self.date_id:
+            dateid = self.date_id[date]
+        else: 
+            yclog.info('Ticket EXPIRED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
+            return False # the required ticket is already expired.
+        # query if the ticket is closed(no more left).
+        re_str = self.restr_closed % (dateid,hour)
+        is_closed = re.findall(re_str, self.page_timetable)
+        if is_closed: 
+            yclog.info('Ticket CLOSED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
+            return False # no ticket left.
+        # query if the ticket is already reserved.
+        re_str = self.restr_reserved % (dateid,hour)
+        is_reserved = re.findall(re_str, self.page_timetable)
+        if is_reserved: 
+            yclog.info('Ticket RESERVED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
+            return False # the ticket has already been reserved.
+        return True
+
+def notifyUser(user_tickets=None, send_mail=True):
+    # ready to config & send email.
+    body = ''
+    for user in user_tickets:
+        if not user_tickets[user]: continue
+        body += 'User:[%s|%s]\r\n' % (user, users_info[user]['userid'])
+        for u_ticket in user_tickets[user]:
+            body += '[%(phase)s]:[id:%(id)s][time:%(date)s|%(hour)s]\r\n' % u_ticket
+    if not body: sys.exit(0)
+
+    subject = "[约车时间]" #% (_file, _func, ','.join(alerts['vers']))
+    mail_to = ('yxtbj@139.com', '13488793935@139.com')
+    mail_from = 'xiaotian.yan@gmail.com'
+    credentails = ('xiaotian.yan', 'yan714257')
+    yclog.info('%s\n%s' % (subject, body))
+
+    if not send_mail: sys.exit(0)
+
+    yclog.info('Sending notice email -> %s' % '|'.join(mail_to))
+    sendMail(mail_from, credentails, mail_to, subject.decode('utf8'), body.decode('utf8'))
+
+
+users_info = {'yxt': {'userid': '11041536',
+                      'passwd': '05070',
+                       'phase': '散段',},
+              'lvj': {'userid': '11041539',
+                      'passwd': '02190',
+                       'phase': '散段',} }
 
 
 if __name__ == '__main__':
-    users = {'yxt': {'user': '11041536',
-                   'passwd': '05070',
-                    'phase': '散段',},
-             'lvj': {'user': '11041539',
-                   'passwd': '02190',
-                    'phase': '散段',} }
-    timeplan = {'yxt': [{'date': '2011-09-24',
-                      'hour': '19_21'}], }
-    time_order['lvj'] = time_order['yxt']
+    user_tickets = {'yxt': [
+          {'phase': '散段', 'date': '2011-09-30', 'hour': '7_9'},
+          {'phase': '散段', 'date': '2011-09-30', 'hour': '9_13'}, ] }
+    user_tickets['lvj'] = user_tickets['yxt']
 
-    aDfssCourse = CourseReservation()
-    aDfssCourse.login(user_info=users['yxt'])
-    aDfssCourse.showTimetable()
-    aDfssCourse.showTimetable(refresh=0) # 0:模拟机,1:散段,2:综合训练.
-    #for day in timeplan['yxt']:
-    #    aDfssCourse.orderTicket(time=day)
-    #aDfssCourse.showTimetable(refresh=True)
+    # for tests.
+    users_info.pop('lvj')
+    user_tickets.pop('lvj')
+    #user_tickets['yxt'].pop()
+
+    for user in users_info:
+        yclog.info('='*25)
+        yclog.info('User: [%s]' % user)
+        aCourse = CourseReservation()
+        aCourse.login(user_info=users_info[user])
+        # reserve a ticket.
+        for user_ticket in user_tickets[user]:
+            yclog.info('-'*25)
+            # query if a ticket is *closed* or already *reserved*.
+            #if not aCourse.isTicketOpen(ticket=user_ticket): continue
+            status = aCourse.flipTicket(ticket=user_ticket)
+            yclog.info(status)
+        yclog.info('-'*25)
+        user_tickets[user] = aCourse.getReservedTickets(phase=user_tickets[user][0]['phase'])
+    yclog.debug(user_tickets)
+    notifyUser(user_tickets=user_tickets, send_mail=False)

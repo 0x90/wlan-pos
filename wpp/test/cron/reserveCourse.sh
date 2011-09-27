@@ -1,24 +1,26 @@
 #!/bin/bash
 
-HOME=/home/YanXT
-#VENV_HOME=/opt/wpp
-VENV_HOME=$HOME/envs/wpp_py26
-#WPP_HOME=$VENV_HOME/src/wpp
-WPP_HOME=$HOME/wpp
-LOGDIR=$HOME/tmp/log/cron
+#HOME=/home/alexy #x200
+#WPP_HOME=$HOME/wpp #R61,x200
+#VENV_HOME=$HOME/envs/wpp_py26 #R61
+#HOME=/home/YanXT #R61
+
+#WPP_HOME=$VENV_HOME/src/wpp #vm
+
+LOGDIR=$HOME/tmp/log/yc
 PYDIR=$WPP_HOME/wpp/util
 
-. $VENV_HOME/bin/activate
+. $VENV_HOME/bin/activate #vm
 
 datetime=`date +%Y-%m%d`
 timestamp=`date +%Y-%m%d-%H%M%S`
 thisfilename=`basename $0 |awk -F. '{print $1}'`
-logfile=reserveCourse_$datetime.log
+logfile=yc.log
 
 task_banner="\n========= TASK:$thisfilename WAKEUP@$timestamp ========"
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
 echo -e $task_banner  >> $LOGDIR/$logfile 2>&1
 
-export PYTHONPATH=$WPP_HOME
+export PYTHONPATH=$WPP_HOME:$PYTHONPATH
 cd $PYDIR
-python yc.py >> $LOGDIR/$logfile 2>&1
+python yc.py #>> $LOGDIR/$logfile 2>&1
