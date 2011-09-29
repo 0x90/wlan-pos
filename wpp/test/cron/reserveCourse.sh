@@ -3,6 +3,7 @@
 #HOME=/home/alexy #x200
 #WPP_HOME=$HOME/wpp #R61,x200
 #VENV_HOME=$HOME/envs/wpp_py26 #R61
+VENV_HOME=/opt/wpp #vm
 #HOME=/home/YanXT #R61
 
 WPP_HOME=$VENV_HOME/src/wpp #vm
