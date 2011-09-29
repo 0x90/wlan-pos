@@ -5,7 +5,7 @@
 #VENV_HOME=$HOME/envs/wpp_py26 #R61
 #HOME=/home/YanXT #R61
 
-#WPP_HOME=$VENV_HOME/src/wpp #vm
+WPP_HOME=$VENV_HOME/src/wpp #vm
 
 LOGDIR=$HOME/tmp/log/yc
 PYDIR=$WPP_HOME/wpp/util
@@ -16,11 +16,12 @@ datetime=`date +%Y-%m%d`
 timestamp=`date +%Y-%m%d-%H%M%S`
 thisfilename=`basename $0 |awk -F. '{print $1}'`
 logfile=yc.log
+log=$LOGDIR/$logfile
 
 task_banner="\n========= TASK:$thisfilename WAKEUP@$timestamp ========"
 [ -d $LOGDIR ] || mkdir -p $LOGDIR
-echo -e $task_banner  >> $LOGDIR/$logfile 2>&1
+echo -e $task_banner  >> $log 2>&1
 
 export PYTHONPATH=$WPP_HOME:$PYTHONPATH
 cd $PYDIR
-python yc.py #>> $LOGDIR/$logfile 2>&1
+python yc.py >> /dev/null 2>&1

@@ -31,51 +31,9 @@ loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 20) # Rotate afte
 loghandler.setFormatter(logfmt)
 yclog.addHandler(loghandler)
 
-def sendMail(sender, userpwd, recipient, subject, body):
-    """Send an email.
-    All arguments should be Unicode strings (plain ASCII works as well).
-    Only the real name part of sender and recipient addresses may contain
-    non-ASCII characters.
-    The email will be properly MIME encoded and delivered though SMTP to
-    localhost port 25.  This is easy to change if you want something different.
-    The charset of the email will be the first one out of US-ASCII, ISO-8859-1
-    and UTF-8 that can represent all the characters occurring in the email.
-    """
-    from smtplib import SMTP
-    from email.MIMEText import MIMEText
-    from email.Header import Header
-    from email.Utils import parseaddr, formataddr
-    # Header class is smart enough to try US-ASCII, then the charset we
-    # provide, then fall back to UTF-8.
-    header_charset = 'ISO-8859-1'
-    # We must choose the body charset manually
-    for body_charset in 'UTF-8', 'US-ASCII', 'ISO-8859-1':
-        try:
-            body.encode(body_charset)
-        except UnicodeError: pass
-        else: break
-    # Split real name (which is optional) and email address parts
-    sender_name, sender_addr = parseaddr(sender)
-    recipient_name, recipient_addr = parseaddr(recipient)
-    # We must always pass Unicode strings to Header, otherwise it will
-    # use RFC 2047 encoding even on plain ASCII strings.
-    sender_name = str(Header(unicode(sender_name), header_charset))
-    recipient_name = str(Header(unicode(recipient_name), header_charset))
-    # Make sure email addresses do not contain non-ASCII characters
-    sender_addr = sender_addr.encode('ascii')
-    recipient_addr = recipient_addr.encode('ascii')
-    # Create the message ('plain' stands for Content-Type: text/plain)
-    msg = MIMEText(body.encode(body_charset), 'plain', body_charset)
-    msg['From'] = formataddr((sender_name, sender_addr))
-    msg['To'] = formataddr((recipient_name, recipient_addr))
-    msg['Subject'] = Header(unicode(subject), header_charset)
-    # Send the message via SMTP to localhost:25
-    smtp = SMTP("smtp.gmail.com:587")
-    smtp.starttls()  
-    smtp.login(userpwd[0], userpwd[1])  
-    smtp.sendmail(sender, recipient, msg.as_string())
-    smtp.quit()
- 
+from wpp.util.net import connectRetry, sendMail
+
+
 class CourseReservation(object):
     def __init__(self, user_info=None):
         self.url_root = 'http://114.251.109.215/WLYC'
@@ -296,7 +254,7 @@ class CourseReservation(object):
         if date in self.date_id:
             dateid = self.date_id[date]
         else: 
-            yclog.info('Ticket EXPIRED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
+            yclog.info('Ticket EXPIRED/NOT_PUB: [%(phase)s,%(date)s|%(hour)s]' % ticket)
             return False # the required ticket is already expired.
         # query if the ticket is closed(no more left).
         re_str = self.restr_closed % (dateid,hour)
@@ -312,27 +270,6 @@ class CourseReservation(object):
             return False # the ticket has already been reserved.
         return True
 
-def notifyUser(user_tickets=None, send_mail=True):
-    # ready to config & send email.
-    body = ''
-    for user in user_tickets:
-        if not user_tickets[user]: continue
-        body += 'User:[%s|%s]\r\n' % (user, users_info[user]['userid'])
-        for u_ticket in user_tickets[user]:
-            body += '[%(phase)s]:[id:%(id)s][time:%(date)s|%(hour)s]\r\n' % u_ticket
-    if not body: sys.exit(0)
-
-    subject = "[约车时间]" #% (_file, _func, ','.join(alerts['vers']))
-    mail_to = ('yxtbj@139.com', '13488793935@139.com')
-    mail_from = 'xiaotian.yan@gmail.com'
-    credentails = ('xiaotian.yan', 'yan714257')
-    yclog.info('%s\n%s' % (subject, body))
-
-    if not send_mail: sys.exit(0)
-
-    yclog.info('Sending notice email -> %s' % '|'.join(mail_to))
-    sendMail(mail_from, credentails, mail_to, subject.decode('utf8'), body.decode('utf8'))
-
 
 users_info = {'yxt': {'userid': '11041536',
                       'passwd': '05070',
@@ -341,11 +278,57 @@ users_info = {'yxt': {'userid': '11041536',
                       'passwd': '02190',
                        'phase': '散段',} }
 
+def makeMsg(user_tickets=None):
+    # ready to config & send email.
+    body = ''
+    for user in user_tickets:
+        if not user_tickets[user]: continue
+        body += 'User:[%s|%s]\r\n' % (user, users_info[user]['userid'])
+        for u_ticket in user_tickets[user]:
+            body += '[%(phase)s]:[id:%(id)s][time:%(date)s|%(hour)s]\r\n' % u_ticket
+    return body
+
+def sendMsg(body=None):
+    subject = "[约车时间]" #% (_file, _func, ','.join(alerts['vers']))
+    mail_to = ('yxtbj@139.com', '13488793935@139.com')
+    mail_from = 'xiaotian.yan@gmail.com'
+    credentails = ('xiaotian.yan', 'yan714257')
+    yclog.info('%s\n%s' % (subject, body))
+
+    yclog.info('Sending notice email -> %s' % '|'.join(mail_to))
+    sendMail(mail_from, credentails, mail_to, subject.decode('utf8'), body.decode('utf8'))
+
+@connectRetry(try_times=3, timeout=60)
+def reserveCourse(user_tickets=None, send_notice=True, always_flip=False):
+    for user in users_info:
+        yclog.info('%s Connecting %s' % ('='*5, '='*5))
+        aCourse = CourseReservation()
+        aCourse.login(user_info=users_info[user])
+        # reserve a ticket.
+        for user_ticket in user_tickets[user]:
+            yclog.info('-'*25)
+            if not always_flip:
+                # query if a ticket is *closed* or already *reserved*.
+                if not aCourse.isTicketOpen(ticket=user_ticket): 
+                    send_notice = False
+                    continue
+                else: send_notice = True
+            status = aCourse.flipTicket(ticket=user_ticket)
+            yclog.info(status)
+        yclog.info('-'*25)
+        user_tickets[user] = aCourse.getReservedTickets(phase=user_tickets[user][0]['phase'])
+    yclog.debug(user_tickets)
+
+    if not send_notice: sys.exit(0)
+    msg_body = makeMsg(user_tickets=user_tickets)
+    if msg_body: sendMsg(body=msg_body)
+
 
 if __name__ == '__main__':
+    # time format MUST be: yyyy-mm-dd.
     user_tickets = {'yxt': [
-          {'phase': '散段', 'date': '2011-09-30', 'hour': '7_9'},
-          {'phase': '散段', 'date': '2011-09-30', 'hour': '9_13'}, ] }
+          {'phase': '散段', 'date': '2011-10-07', 'hour': '7_9'},
+          {'phase': '散段', 'date': '2011-10-07', 'hour': '9_13'}, ] }
     user_tickets['lvj'] = user_tickets['yxt']
 
     # for tests.
@@ -353,19 +336,4 @@ if __name__ == '__main__':
     user_tickets.pop('lvj')
     #user_tickets['yxt'].pop()
 
-    for user in users_info:
-        yclog.info('='*25)
-        yclog.info('User: [%s]' % user)
-        aCourse = CourseReservation()
-        aCourse.login(user_info=users_info[user])
-        # reserve a ticket.
-        for user_ticket in user_tickets[user]:
-            yclog.info('-'*25)
-            # query if a ticket is *closed* or already *reserved*.
-            #if not aCourse.isTicketOpen(ticket=user_ticket): continue
-            status = aCourse.flipTicket(ticket=user_ticket)
-            yclog.info(status)
-        yclog.info('-'*25)
-        user_tickets[user] = aCourse.getReservedTickets(phase=user_tickets[user][0]['phase'])
-    yclog.debug(user_tickets)
-    notifyUser(user_tickets=user_tickets, send_mail=False)
+    reserveCourse(user_tickets=user_tickets, send_notice=True, always_flip=False)

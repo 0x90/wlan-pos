@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import urllib2 as ul
-import socket as sckt
+#import socket as sckt
 import simplejson as json
 from wpp.util.net import connectRetry
  
@@ -79,7 +79,6 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
 def googleLocation(macs=[], rsss=[], cellinfo=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
-    sckt.setdefaulttimeout(3)
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
     if not 'location' in ret_content: return []

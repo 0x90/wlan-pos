@@ -97,10 +97,17 @@ def connectRetry(**ka):
     def decorator(f, **kb):
         def wrapper(*args, **kc):
             delay = 1; result = None
-            if 'try_times' in ka and type(ka['try_times']) is int: try_times = ka['try_times']
-            else: try_times = 5
+            if 'try_times' in ka and type(ka['try_times']) is int: 
+                try_times = ka['try_times']
+            else: 
+                try_times = 5
+            if 'timeout' in ka and type(ka['timeout']) is int: 
+                timeout = ka['timeout']
+            else: 
+                timeout = 5
             for i in xrange(try_times):
                 try:
+                    sckt.setdefaulttimeout(timeout)
                     result = f(*args, **kc)
                     break
                 except (sckt.error, ul.URLError), e:
