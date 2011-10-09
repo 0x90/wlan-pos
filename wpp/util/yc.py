@@ -13,7 +13,10 @@ import pprint as pp
  
 from logging import getLogger, Formatter, INFO, DEBUG
 from logging.handlers import SysLogHandler
-from cloghandler import ConcurrentRotatingFileHandler as cLogRotateFileHandler
+try:
+    from cloghandler import ConcurrentRotatingFileHandler as loghandler_rotfile
+except ImportError:
+    from logging.handlers import RotatingFileHandler as loghandler_rotfile
 yclog = getLogger('yc')
 yclog.setLevel(INFO)
 logfmt = Formatter('[%(asctime)s][%(levelname)s] %(message)s')
@@ -27,7 +30,8 @@ if not os.path.isfile(logfile):
             print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
             sys.exit(99)
     open(logfile, 'w').close()
-loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 20) # Rotate after 20M, keep 20 old copies.
+# Rotate after 20M, keep 20 old copies.
+loghandler = loghandler_rotfile(logfile, "a", 20*1024*1024, 20) 
 loghandler.setFormatter(logfmt)
 yclog.addHandler(loghandler)
 
@@ -57,9 +61,9 @@ class CourseReservation(object):
             self.userid = user_info['userid'] if 'userid' in user_info else ''
             self.passwd = user_info['passwd'] if 'passwd' in user_info else ''
             self.userphase = user_info['phase'] if 'phase' in user_info else ''
-        # timetable: {'2011-09-19':{'13_17':0, '17_19':0, '19_21':51, '7_9':8, '9_13':0}}
         self.id_phase = {0: '模拟机', 1: '散段', 2: '综合训练'}
         self.phase_id = dict([ (self.id_phase[id],id) for id in self.id_phase ])
+        # timetable: {'2011-09-19':{'13_17':0, '17_19':0, '19_21':51, '7_9':8, '9_13':0}}
         self.timetable = {}
         self.pagephase = ''
 
