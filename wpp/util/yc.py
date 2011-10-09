@@ -327,13 +327,13 @@ def reserveCourse(user_tickets=None, send_notice=True, always_flip=False):
 if __name__ == '__main__':
     # time format MUST be: yyyy-mm-dd.
     user_tickets = {'yxt': [
-          {'phase': '散段', 'date': '2011-10-07', 'hour': '7_9'},
-          {'phase': '散段', 'date': '2011-10-07', 'hour': '9_13'}, ] }
+          {'phase': '散段', 'date': '2011-10-15', 'hour': '13_17'},
+          {'phase': '散段', 'date': '2011-10-16', 'hour': '13_17'}, ] }
     user_tickets['lvj'] = user_tickets['yxt']
 
     # for tests.
-    users_info.pop('lvj')
-    user_tickets.pop('lvj')
+    #users_info.pop('lvj')
+    #user_tickets.pop('lvj')
     #user_tickets['yxt'].pop()
 
     reserveCourse(user_tickets=user_tickets, send_notice=True, always_flip=False)
