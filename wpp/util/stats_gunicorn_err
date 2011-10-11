@@ -3,7 +3,7 @@
 
 logdir_gunicorn=wpp/web/log
 
-logfile_gunicorn=`ls -tr ${logdir_gunicorn}/gunicorn_20110* |tail -1`
+logfile_gunicorn=`ls -tr ${logdir_gunicorn}/gunicorn_* |tail -1`
 numErr=`grep '\[ERROR\]' ${logfile_gunicorn} |wc -l`
 
 echo "Found $numErr ERROR(s) in ${logfile_gunicorn}"

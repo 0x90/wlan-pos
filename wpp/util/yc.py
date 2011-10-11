@@ -331,7 +331,9 @@ def reserveCourse(user_tickets=None, send_notice=True, always_flip=False):
 if __name__ == '__main__':
     # time format MUST be: yyyy-mm-dd.
     user_tickets = {'yxt': [
+          {'phase': '散段', 'date': '2011-10-15', 'hour': '9_13'},
           {'phase': '散段', 'date': '2011-10-15', 'hour': '13_17'},
+          {'phase': '散段', 'date': '2011-10-16', 'hour': '9_13'},
           {'phase': '散段', 'date': '2011-10-16', 'hour': '13_17'}, ] }
     user_tickets['lvj'] = user_tickets['yxt']
 
