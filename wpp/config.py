@@ -30,7 +30,7 @@ if not os.path.isfile(logfile):
             print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
             sys.exit(99)
     open(logfile, 'w').close()
-loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 50) # Rotate after 20M, keep 50 old copies.
+loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 80) # Rotate after 20M, keep 50 old copies.
 loghandler.setFormatter(logfmt)
 wpplog.addHandler(loghandler)
 

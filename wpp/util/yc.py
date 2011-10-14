@@ -72,7 +72,7 @@ class CourseReservation(object):
         self.EV = re.findall('id="__EVENTVALIDATION" value="(.*)"', page)[0]
 
     def getCookie(self):
-        yclog.debug('Getting cookie & hidden vals ...')
+        #yclog.debug('Getting cookie & hidden vals ...')
         resp_root = self.req.open(self.url_root)
         if resp_root.getcode() == 200:
             page_root = resp_root.read()
@@ -85,7 +85,7 @@ class CourseReservation(object):
             sys.exit(99)
 
     def getChkcode(self):
-        yclog.debug('Getting check code ...')
+        #yclog.debug('Getting check code ...')
         resp_chkcode = self.req.open(self.url_chkcode)
         if resp_chkcode.getcode() == 200:
             headers_resp = dict(resp_chkcode.headers)
@@ -105,7 +105,7 @@ class CourseReservation(object):
             self.userid = user_info['userid'] if 'userid' in user_info else ''
             self.passwd = user_info['passwd'] if 'passwd' in user_info else ''
             self.userphase = user_info['phase'] if 'phase' in user_info else ''
-            yclog.debug('Current user phase: %s' % self.userphase)
+            #yclog.debug('Current user phase: %s' % self.userphase)
         if not self.userid or not self.passwd:
             yclog.error('Failed to login: user info error!')
             sys.exit(99)
@@ -123,7 +123,7 @@ class CourseReservation(object):
                 self.url_timetable = '%s/%s' % (self.url_root, path_login_redirect)
             else:
                 self.url_timetable = '%s/%s' % (self.url_root, 'aspx/car/XYYC22.aspx')
-            yclog.debug('Redirecting to: %s' % path_login_redirect)
+            #yclog.debug('Redirecting to: %s' % path_login_redirect)
             self.getDataTimetable()
         else:
             yclog.error('Failed to connect: %s' % self.url_login)
@@ -166,7 +166,7 @@ class CourseReservation(object):
                 self.pagephase = re.findall(self.restr_curphase, self.page_timetable)[0]
             else:
                 self.pagephase = target_phase
-            yclog.debug('Current page phase: %s' % self.pagephase)
+            #yclog.debug('Current page phase: %s' % self.pagephase)
         else:
             yclog.error('Failed to connect: %s' % self.url_timetable)
             sys.exit(99)
@@ -247,7 +247,7 @@ class CourseReservation(object):
             self.tickets.append({'phase':phase, 'date':date, 'hour':hour, 'id':tid.strip()})
         return self.tickets
 
-    def isTicketOpen(self, ticket=None):
+    def chkTicket(self, ticket=None):
         """ Query to know if a ticket is closed, reserved, or expired.
         """
         date = ticket['date']; hour = ticket['hour']; phase = ticket['phase']
@@ -259,20 +259,20 @@ class CourseReservation(object):
             dateid = self.date_id[date]
         else: 
             yclog.info('Ticket EXPIRED/NOT_PUB: [%(phase)s,%(date)s|%(hour)s]' % ticket)
-            return False # the required ticket is already expired.
+            return 'EXP/NOTPUB' # the required ticket is already expired.
         # query if the ticket is closed(no more left).
         re_str = self.restr_closed % (dateid,hour)
         is_closed = re.findall(re_str, self.page_timetable)
         if is_closed: 
             yclog.info('Ticket CLOSED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
-            return False # no ticket left.
+            return 'CLOSED' # no ticket left.
         # query if the ticket is already reserved.
         re_str = self.restr_reserved % (dateid,hour)
         is_reserved = re.findall(re_str, self.page_timetable)
         if is_reserved: 
             yclog.info('Ticket RESERVED: [%(phase)s,%(date)s|%(hour)s]' % ticket)
-            return False # the ticket has already been reserved.
-        return True
+            return 'RESERVED' # the ticket has already been reserved.
+        return 'OPEN'
 
 
 users_info = {'yxt': {'userid': '11041536',
@@ -302,8 +302,10 @@ def sendMsg(body=None):
     yclog.info('Sending notice email -> %s' % '|'.join(mail_to))
     sendMail(mail_from, credentails, mail_to, subject.decode('utf8'), body.decode('utf8'))
 
-@connectRetry(try_times=3, timeout=60)
+@connectRetry(try_times=1, timeout=8)
 def reserveCourse(user_tickets=None, send_notice=True, always_flip=False):
+    need_notice = False
+    yclog.info('')
     for user in users_info:
         yclog.info('%s Connecting %s' % ('='*5, '='*5))
         aCourse = CourseReservation()
@@ -313,19 +315,19 @@ def reserveCourse(user_tickets=None, send_notice=True, always_flip=False):
             yclog.info('-'*25)
             if not always_flip:
                 # query if a ticket is *closed* or already *reserved*.
-                if not aCourse.isTicketOpen(ticket=user_ticket): 
-                    send_notice = False
-                    continue
-                else: send_notice = True
+                ticket_status = aCourse.chkTicket(ticket=user_ticket)
+                if not ticket_status == 'OPEN': continue
+                else: need_notice = True
             status = aCourse.flipTicket(ticket=user_ticket)
             yclog.info(status)
         yclog.info('-'*25)
         user_tickets[user] = aCourse.getReservedTickets(phase=user_tickets[user][0]['phase'])
-    yclog.debug(user_tickets)
+    #yclog.debug(user_tickets)
 
-    if not send_notice: sys.exit(0)
-    msg_body = makeMsg(user_tickets=user_tickets)
-    if msg_body: sendMsg(body=msg_body)
+    if send_notice and need_notice: 
+        msg_body = makeMsg(user_tickets=user_tickets)
+        if msg_body: 
+            sendMsg(body=msg_body)
 
 
 if __name__ == '__main__':
@@ -333,7 +335,9 @@ if __name__ == '__main__':
     user_tickets = {'yxt': [
           {'phase': '散段', 'date': '2011-10-15', 'hour': '9_13'},
           {'phase': '散段', 'date': '2011-10-15', 'hour': '13_17'},
+          {'phase': '散段', 'date': '2011-10-15', 'hour': '17_19'},
           {'phase': '散段', 'date': '2011-10-16', 'hour': '9_13'},
+          {'phase': '散段', 'date': '2011-10-16', 'hour': '17_19'},
           {'phase': '散段', 'date': '2011-10-16', 'hour': '13_17'}, ] }
     user_tickets['lvj'] = user_tickets['yxt']
 
