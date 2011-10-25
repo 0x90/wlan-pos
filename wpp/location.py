@@ -238,8 +238,9 @@ def fixPosWLAN(len_wlan=None, wlan=None, wppdb=None, verb=False):
                     ww_2ndbig = ww_sort[idx_dknn_sums_sort] 
                     w_zero = ww_2ndbig / (len(ww)*ww_2ndbig)
                 else: w_zero = 1
-                for idx,sum in enumerate(ww):
-                    if not sum: ww[idx] = w_zero
+                #for idx,sum in enumerate(ww):
+                #    if not sum: ww[idx] = w_zero
+                ww = [ w if w else w_zero for w in ww ]
             ws = array(ww) + dknn_sums
             weights = reciprocal(ws)
             if verb: wpplog.debug('coors:%s, weights:%s' % (coors, weights))
