@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 import urllib2 as ul
 #import socket as sckt
 import simplejson as json
@@ -89,249 +90,86 @@ def googleLocation(macs=[], rsss=[], cellinfo=None):
     return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
 
 
-@connectRetry()
-def googleGeocoding(latlon=(0,0), format='json', sensor='false'):
-    """return reverse geocoding result of google api."""
-    googleurl = 'http://maps.google.com/maps/api/geocode'
-    uri = '%s/%s?latlng=%s,%s&sensor=%s' % (googleurl,format,latlon[0],latlon[1],sensor)
-    resp = ul.urlopen(uri)
+@connectRetry(try_times=1)
+def googleGeocoding(latlon=(0,0), format='json', sensor='false', lang='zh_CN'):
+    """wrapper for google reverse geocoding api.
+    http://maps.google.com/maps/api/geocode/json?latlng=24.47726,112.64043\&sensor=false\&language=zh_CN
+    """
+    url = 'http://maps.google.com/maps/api/geocode/%s' % format
+    params = 'latlng=%s,%s&sensor=%s&language=%s' % (latlon[0],latlon[1],sensor,lang)
+    url = '%s?%s' % (url, params)
+    resp = ul.urlopen(url)
     data = json.load(resp)
     return data
 
-def collectCellArea():
-    query_cnt = 0 # Google Map API regular user limit: no more than 2500 queries/day
-    cell_area = {}
-    homedir = os.environ['HOME']; csvfile = '%s/wpp/wpp/util/cells_latlon.csv' % homedir
-    conn = db.connect('%s/wpp/wpp/util/cell_area.db'% homedir); cur = conn.cursor()
-    cells_loc = open(csvfile,'r').readlines()
-    for cell in cells_loc:
-        lac,cid,lat,lon = [ x.strip('\"') for x in cell.strip().split(',') ]
-        print '%s, %s, %s, %s' % (lac, cid, lat, lon)
-        sql = 'SELECT areacode from cell_area WHERE lac=%s AND cellid=%s'%(lac,cid)
-        cur.execute(sql)
-        areacodes = cur.fetchall()
-        if not areacodes:
-            latlon = (lat, lon)
-            geodata = googleGeocoding(latlon)
-            if type(geodata) is dict and 'status' in geodata:
-                if geodata['status'] == u'OK':
-                    query_cnt += 1; print 'query count: %s' % query_cnt
-                    # filter out sublocality field.
-                    area_names = [ x['address_components'][::-1][1:] 
-                            for x in geodata['results'] if x['types'][0]=='sublocality' ]
-                    if area_names: area_names = area_names[0]
-                    else: # if no sublocality presented, then filter out street_address field.
-                        area_names = [ x['address_components'][::-1][:-2] 
-                                for x in geodata['results'] if x['types'][0]=='street_address' ]
-                        if area_names: area_names = area_names[0]
-                        else: continue
-                    area_name = [ x['long_name'] for x in area_names if not x['long_name'].isdigit() ]
-                    area_district = area_name[-1]
-                    if not area_district in area_codes: 
-                        print 'district: %s not in area_codes!' % area_district
-                        pp.pprint(geodata['results']); sys.exit(0)
-                    area_code = area_codes[area_district]
-                    if area_code in [x[0] for x in areacodes]: continue
-                    area_name = '+'.join(area_name)
-                    rec = '"%s","%s","%s","%s"' % (cid, area_code, area_name, lac)
-                    cur.execute('INSERT INTO cell_area VALUES (%s)' % rec)
-                    conn.commit()
-                    print colors['blue'] % ('insert %s' % rec)
-                else: sys.exit(colors['red'] % ('ERROR: %s !!!' % geodata['status']))
-            else: print colors['red'] % 'ERROR: Geocoding Failed !!!'; continue
-        else: continue
-        cur.execute('select count(*) from cell_area')
-        print 'Count: %s\n%s' % (cur.fetchone()[0], '-'*40)
-    conn.close()
 
+def parseGoogleGeocoding(geodict=None):
+    """ 
+    geodict: dict from google reverse geocoding api.
+    geoaddr: [ province, city, district ].
+    """
+    geoaddr = []
+    if type(geodict) is dict and 'status' in geodict:
+        if geodict['status'] == 'OK':
+            results = geodict['results']
+            addr_components = []
+            for res in results:
+                if res['types'][0] == 'sublocality':
+                    addr_components = res['address_components'][::-1][1:] 
+                    break
+                elif res['types'][0] in ('street_address','route'):
+                    for addr in res['address_components'][::-1]:
+                        if addr['types'][0] in ('administrative_area_level_1','locality','sublocality'):
+                            addr_components.append(addr)
+                        else: pass
+                    break
+                else: return geoaddr
+            geoaddr = [ x['long_name'] for x in addr_components if not x['long_name'].isdigit() ]
+            #if len(geoaddr) == 2: geoaddr.append(None)  # geoaddr:[province,city,None]
+        else: print 'ERROR: %s !!!' % geodict['status']
+    else: print 'ERROR: Geocoding Failed !!!'
+    return geoaddr
+        
 
-# FIXME: tobe imported into db.
-area_codes = {
-      "Dongcheng": "110101",
-        "Xicheng": "110102",
-       "Chongwen": "110103",
-         "Xuanwu": "110104",
-       "Chaoyang": "110105",
-        "Fengtai": "110106",
-    "Shijingshan": "110107",
-        "Haidian": "110108",
-      "Mentougou": "110109",
-       "Fangshan": "110111",
-       "Tongzhou": "110112",
-         "Shunyi": "110113",
-      "Changping": "110114",
-         "Daxing": "110115",
-        "Huairou": "110116",
-         "Pinggu": "110117",
-          "Miyun": "110228",
-        "Yanqing": "110229",
-          "Mawei": "350105",
-        "Changle": "350182",
-          "Gulou": "350102",
-         "Jin'an": "350111",
-       "Taijiang": "350103",
-       "Cangshan": "350104",
-        "Kunshan": "320583",
-        "Beitang": "320204",
-       "Chong'an": "320202",
-       "Nanchang": "320203",
-          "Anxin": "130632",
-     "Gaobeidian": "130684",
-       "Zhuozhou": "130681",
-       "Dingxing": "130626",
-      "Rongcheng": "130629",
-         "Xushui": "130625",
-         "Jixian": "120225",
-       "Dongling": "210112",
-          "Daoli": "230102",
-       "Jinjiang": "350582",
-       "Changtai": "350625",
-       "Kongtong": "620802",
-           "Jimo": "370282",
-         "Shibei": "370203",
-         "Sifang": "370205",
-          "Yanta": "610113",
-        "Chiping": "371523",
-       "Qingyang": "510105",
-      "Pingjiang": "430626",
-         "Jiyuan": "419001",
-         "Tianhe": "440106",
-       "Bao'anqu": "440306",
-         "Xishan": "320205",
-        "Fucheng": "510703",
-        "Youxian": "510704",
-         "Hal'an": "320621",
-          "Laixi": "370285",
-         "Nanhai": "440605",
-           "Anji": "330523",
-       "Jiangbei": "330205",
-         "Doumen": "440403",
-      "Jiangning": "320115",
-       "Jiangyan": "321284",
-         "Shishi": "350581",
-        "Shifang": "510682",
-          "Jinxi": "361027",
-        "Jiading": "310114",
-   "Huangshigang": "420202",
-         "Qingpu": "310118",
-       "Dangyang": "420582",
-     "Tianbao Rd": "441900",
-     "Jiangchuan": "530421",
-        "Qinhuai": "320104",
-      "Shouguang": "370783",
-       "Shahekou": "210204",
-      "Shuimogou": "650105",
-          "Pukou": "320111",
-         "Tinghu": "320902",
-         "Lianhu": "610104",
-          "Qixia": "320113",
-      "Tai Ha St": "810000",
-        "Sha Tin": "810000",
-     "Pak Tak St": "810000",
-         "Jinnan": "120112",
-        "Jinshui": "410105",
-          "Panyu": "440113",
-         "Heping": "210102",
-        "Wucheng": "330702",
-        "Jing'an": "310106",
-     "Tin Wah Rd": "810000",
-       "Shiji Rd": "210100",
- "Hunnan West Rd": "210100",
-    "Shenying Rd": "210100",
-     "Xinlong St": "210100",
-       "Gaoge Rd": "210100",
-       "Gaoke Rd": "210100",
-"Changbai East Rd": "210100",
-"Changbai West Rd": "210100",
-      "Minzhu Rd": "210100",
-      "Nansan Rd": "210100",
-    "Tongze S St": "210100",
-   "Tianjin S St": "210100",
-     "Nansima Rd": "210100",
-   "Nanning S St": "210100",
-     "River N St": "210100",
-      "Yuping Rd": "210100",
-     "Nanyima Rd": "210100",
-    "Heping S St": "210100",
-    "Zhonghua Rd": "210100",
-       "Shenyang": "210100",
-         "Haizhu": "440105",
-        "Gucheng": "530702",
-      "Songjiang": "310117",
-        "Minhang": "310112",
-        "Wanzhou": "500101",
-         "Futian": "440304",
-       "Xingning": "441481",
-        "Weiyang": "610112",
-       "Lingling": "431102",
-    "Lengshuitan": "431103",
-       "Baiyunqu": "440111",
-          "Liwan": "440103",
-         "Shunde": "440606",
-      "Anningshi": "530181",
-          "Yubei": "500112",
-         "Anyang": "410500",
-        "Hanshan": "341423",
-        "Lanshan": "371302",
-        "Tianxin": "430103",
-          "Putuo": "310107",
-          "Huadu": "440114",
-         "Haishu": "330203",
-         "Shinan": "370202",
-         "Zhabei": "310108",
-          "Guide": "632523",
-        "Xianyou": "350322",
-        "Hongkou": "310109",
-        "Dongtai": "320981",
-        "Laizhou": "370683",
-         "Yangpu": "310110",
-        "Jindong": "330703",
-       "Pengshui": "500243",
-      "Yongchuan": "500118",
-        "Wuzhong": "320506",
-       "Beilinqu": "610103",
-    "Hami(Kumul)": "652201",
-      "Jiangdong": "330204",
-       "Huangdao": "370211",
-           "Daye": "420281",
-           "Wudi": "371623",
-          "Feixi": "340123",
-          "Lixia": "370102",
-         "Liandu": "331102",
-         "Linwei": "610502",
-         "Qiaoxi": "130104",
-        "Xinzhou": "420117",
-        "Dinghai": "330902",
-        "Changji": "652301",
-        "Yingkou": "210800",
-      "Shuangliu": "510122",
-      "Shayibake": "650103",
-       "Fengyang": "341126",
-    "Xixiangtang": "450107",
-          "Taihe": "360826",
-          "Wujin": "320412",
-     "Jiangcheng": "530826",
- "Jiangzhou Unit": "451402",
-         "Hui'an": "350521",
-   "Pudong Xinqu": "310115",
-   "Binhai Xinqu": "120116",
-          "Binhu": "320211", }
+def googleAreaLocation(latlon=None):
+    """
+    Google reverse geocoding: from lat/lon to area name: province, city, district.
+
+    Parameter
+    --------
+    latlon: (latitude, longitude)
+
+    Return
+    --------
+    geoaddr: [ province, city, district ]
+    """
+    # geodict: dict returned by google reverse geocoding api.
+    geodict = googleGeocoding(latlon)
+    # geoaddr: [ province, city, district ].
+    geoaddr = parseGoogleGeocoding(geodict)
+    return geoaddr
+
 
 if __name__ == "__main__":
     import sys, os
-    import pprint as pp
-    import sqlite3 as db
-    from wpp.config import termtxtcolors as colors
     from wpp.util.net import setProxy
     try:
         import psyco
         psyco.bind(genLocReq)
-        #psyco.bind(googleLocation)
-        #psyco.bind(setProxy)
-        #psyco.bind(googleGeocoding)
+        psyco.bind(parseGoogleGeocoding)
     except ImportError:
         pass
 
     #setProxy()
-    
-    collectCellArea()
+
+    #latlon = (24.47726, 112.64043)
+    #latlon = (22.51637, 113.30049)
+    #latlon = (30.628662, 104.048456)
+    #latlon = (35.275769, 107.863598)
+    #latlon = (31.984866, 120.509039)
+    #latlon = (36.216297, 113.086912) # weird geocoding results.
+    #latlon = (22.797012, 113.757158)
+    latlon = (28.832358, 121.628340)
+    geoaddr = googleAreaLocation(latlon)
+    geoaddr = '>'.join(geoaddr)
+    print geoaddr

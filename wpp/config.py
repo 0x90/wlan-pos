@@ -12,6 +12,8 @@ CLUSTERKEYSIZE = 4
 KNN = 4
 KWIN = 1.25
 RADIUS = 6372797 #meter
+MAX_AREA_TRY=200
+CRAWL_LIMIT=500
 
 # Logging related cfg.
 from logging import getLogger, Formatter, INFO, DEBUG
@@ -106,8 +108,8 @@ WPP@%s
 # DB related configuration.
 #DB_ONLINE = 'local_pg'
 DB_ONLINE = '192.168.109.54'
-#DB_OFFLINE = ( 'local_pg', ) # Incr clustering.
-DB_OFFLINE = ( '192.168.109.54', ) # Incr clustering.
+#DB_OFFLINE = ( 'local_pg', ) 
+DB_OFFLINE = ( '192.168.109.54', ) 
 #DB_UPLOAD = ( 'local_pg', )
 DB_UPLOAD = ( '192.168.109.54', )
 #dsn_local_ora = "yxt/yxt@localhost:1521/XE"
@@ -181,7 +183,7 @@ tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                 'wpp_uprecsinfo':('spid','servid','time','imsi','imei','useragent',
                                   'mcc','mnc','lac','cellid','cellrss',
                                   'lat','lon','height','wlanidentifier','wlanmatcher',
-                                  'ver_uprecs'),
+                                  'ver_uprecs', 'area_ok', 'area_try'),
               'wpp_uprecs_noloc':('spid','servid','time','imsi','imei','useragent',
                                   'mcc','mnc','lac','cellid','cellrss',
                                   'lat','lon','height','wlanidentifier','wlanmatcher',
@@ -191,7 +193,7 @@ tbl_field = { 'wpp_clusteridaps':('clusterid', 'keyaps', 'seq'),
                         'tsttbl':('clusterid', 'keyaps', 'seq') }
 tbl_idx =   { 'wpp_clusteridaps':('clusterid','keyaps'), #{table_name:{'field_name'}}
                       'wpp_cfps':('clusterid',),
-                'wpp_uprecsinfo':('ver_uprecs',),
+                'wpp_uprecsinfo':('ver_uprecs','area_ok'),
               'wpp_uprecs_noloc':('ver_uprecs',),
                     'wpp_celloc':('laccid',),
                   'wpp_cellarea':('laccid',),
@@ -283,7 +285,9 @@ tbl_forms = {
                         height NUMERIC(5,1) DEFAULT 0,
                 wlanidentifier VARCHAR(1024),
                    wlanmatcher VARCHAR(255),
-                    ver_uprecs INT DEFAULT 0)""",
+                    ver_uprecs INT DEFAULT 0),
+                       area_ok SMALLINT DEFAULT 0),
+                      area_try INT DEFAULT 0)""",
                 'wpp_uprecs_noloc':""" (
                           spid INT,
                         servid INT,

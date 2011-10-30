@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 from __future__ import division
 import os
 import sys
@@ -18,17 +19,18 @@ from wpp.config import DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG#, \
 from wpp.db import WppDB
 from wpp.fingerprint import doClusterIncr, doClusterAll#, genFPs
 from wpp.util.net import getIP, sendMail
+from wpp.util.geolocation_api import googleAreaLocation
 
 
 def usage():
     print """
 offline.py - Copyleft 2009-%s Yan Xiaotian, xiaotian.yan@gmail.com.
-Calibration & preprocessing for radio map generation in WLAN location fingerprinting.
+Offline work for WLAN location fingerprinting.
 
 usage:
     <sudo> offline <option> <infile>
 option:
-    -a --aio [NOT avail]   :  All-in-one offline processing.
+    -a --areacrawl         :  Crawl laccid~area location data from google api.
     -c --cluster=<type id> :  Fingerprints clustering, type_id: 1-All,2-Incr.
     -d --db=<dbfiles>      :  Specify the db files to upload.
     -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
@@ -183,9 +185,9 @@ def updateAlgoData():
                 indat = np_array([ line for line in csvdat ])
             except csv.Error, e:
                 sys.exit('\n\nERROR: %s, line %d: %s!\n' % (bzfile, csvdat.line_num, e))
-            # Append ver_uprecs info to last col.
-            vers = np_array([ [ver_bzfile] for i in xrange(len(indat)) ])
-            indat_withvers = np_append(indat, vers, axis=1).tolist(); print 'Done'
+            # Append ver_uprecs(auto-incr),area_ok(0),area_try(0) to raw 16-col fp.
+            append_info = np_array([ [ver_bzfile,0,0] for i in xrange(len(indat)) ])
+            indat_withvers = np_append(indat, append_info, axis=1).tolist(); print 'Done'
             # Import csv into wpp_uprecsinfo.
             try:
                 sys.stdout.write('Import rawdata: ')
@@ -201,7 +203,8 @@ def updateAlgoData():
             # Incr clustering. 
             # file described by fd_csv contains all *location enabled* rawdata from wpp_uprecsinfo.
             strWhere = 'WHERE lat!=0 and lon!=0 and ver_uprecs=%s' % ver_bzfile
-            cols_select = ','.join(wppdb.tbl_field[tab_rd][:-1])
+            cols_ignored = 3  # 3 status cols to be ignored during clustering: ver_uprecs,area_ok,area_try.
+            cols_select = ','.join(wppdb.tbl_field[tab_rd][:-cols_ignored])
             sql = wppdb.sqls['SQL_SELECT'] % ( cols_select, '%s %s'%(tab_rd,strWhere) )
             rdata_loc = wppdb.execute(sql=sql, fetch_one=False)
             if not rdata_loc: continue    # NO FPs has location info.
@@ -223,10 +226,52 @@ def updateAlgoData():
             # Send alert email to admin.
             _func = sys._getframe().f_code.co_name
             subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
-            body = ( errmsg['db'] % (tab_rd,'insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
-            print subject, body
+            #body = ( errmsg['db'] % (tab_rd,'insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
+            print alerts['details']
+            print subject#, body
             print 'Sending alert email -> %s' % mailcfg['to']
-            sendMail(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
+            #sendMail(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
+
+def crawlAreaLocData():
+    """
+    1) fetch 100 records with flag area_ok = 0.
+    2) try areaLocation(laccid), if OK, then update flag area_ok =1 and quit; else goto 2).
+    3) try googleAreaLocation(latlon), if OK, then get geoaddr:[province,city,district]; 
+       else |wpp_uprecsinfo|.area_try += 1 and quit.
+    4) search area_code for the found district, insert area location 
+       (laccid,areacode,areaname_cn) into |wpp_cellarea|, and update flag area_ok = 1.
+    """
+    dbips = DB_OFFLINE
+    for dbip in dbips:
+        dbsvr = dbsvrs[dbip]
+        wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
+        # select config.CRAWL_LIMIT raw fps which haven't tried for google area location.
+        fps_noarea = wppdb.getCrawlFPs()
+        #fps_noarea = ((1000, 1000101, '20110910-164242', '460015710651156', '356899020326612', 'Unicom/choles', 460, 1, 55054, 151938030, '-69', '30.281185', '120.156248', '32.0', '54:e6:fc:52:f6:02|94:0c:6d:1e:8a:08|d8:5d:4c:38:86:1e|3c:e5:a6:60:d6:60|e0:05:c5:40:a1:94|40:16:9f:a2:a1:42|1c:7e:e5:fe:d3:be|00:23:cd:43:08:10|e0:05:c5:be:d9:e8|e0:05:c5:b4:7a:98', '-86|-87|-91|-91|-94|-94|-95|-95|-95|-95', 13463, 0, 0),)
+        for fp in fps_noarea:
+            # try areaLocation(laccid)
+            laccid = '%s-%s' % (fp[8], fp[9])
+            time = fp[2]
+            print laccid, time
+            if wppdb.areaLocation(laccid):
+                # area_ok = 1 & quit.
+                wppdb.setUprecsAreaStatus(status=1, time=time)
+            else:
+                print fp
+                # try google area location.
+                geoaddr = googleAreaLocation( latlon=(fp[11], fp[12]) )
+                if geoaddr:
+                    # insert area location info(laccid~geoaddr) into |wpp_cellarea|.
+                    # till now, area_location: 'laccid,area_code,province>city>district'.
+                    area_location = wppdb.addAreaLocation(laccid=laccid, geoaddr=geoaddr)
+                    if not area_location:
+                        sys.exit('Failed to add area location for: ' + geoaddr[-1].encode('utf8'))
+                    # area_ok = 1 & quit.
+                    wppdb.setUprecsAreaStatus(status=1, time=time)
+                    print area_location
+                # area_try += 1 & quit
+                wppdb.setUprecAreaTry(area_try=fp[18]+1, time=time)
+
 
 def loadRawdata(rawfile=None, updbmode=1):
     """
@@ -262,7 +307,7 @@ def main():
     import getopt
     try:
         opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:m:nr:s:t:uv",
-            ["aio","cluster","fake","help","spid=","kml=","mode=","no-dump",
+            ["areacrawl","cluster","fake","help","spid=","kml=","mode=","no-dump",
              "rawdata","raw-scan=","to-rmp=","updatedb","verbose"])
     except getopt.GetoptError:
         usage()
@@ -271,17 +316,32 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    spid=0; times=0; tormp=False; updatedb=False; doLoadRawdata=False
-    rawfile=None; tfail=0; docluster=False; dokml=False; updbmode=1
-    global verbose,pp,nodump,fake
+    crawl_area=False; updatedb=False; doLoadRawdata=False 
+    #spid=0; times=0; tormp=False; tfail=0; dokml=False; 
+    rawfile=None; docluster=False; updbmode=1
+    global verbose,pp,fake#,nodump
     verbose=False; pp=None; nodump=False; fake=False
 
     for o,a in opts:
-        if o in ("-i", "--spid"):
-            if a.isdigit(): spid = int(a)
-            else:
-                print '\nspid: %s should be an INTEGER!' % str(a)
+        if o in ("-a", "--areacrawl"):
+            crawl_area = True
+        elif o in ("-c", "--cluster"):
+            if not a.isdigit(): 
+                print '\ncluster type: %s should be an INTEGER!' % str(a)
                 usage(); sys.exit(99)
+            else:
+                # 1-All; 2-Incr.
+                cluster_type = int(a)
+                docluster = True
+                rmpfile = sys.argv[3]
+                if not os.path.isfile(rmpfile):
+                    print 'Raw data file NOT exist: %s!' % rmpfile
+                    sys.exit(99)
+        #elif o in ("-i", "--spid"):
+        #    if a.isdigit(): spid = int(a)
+        #    else:
+        #        print '\nspid: %s should be an INTEGER!' % str(a)
+        #        usage(); sys.exit(99)
         elif o in ("-m", "--mode"):
             if a.isdigit(): 
                 updbmode = int(a)
@@ -298,44 +358,31 @@ def main():
             else: 
                 doLoadRawdata = True
                 rawfile = a
-        elif o in ("-s", "--raw-scan"):
-            if a.isdigit(): times = int(a)
-            else: 
-                print '\nError: "-s/--raw-scan" should be followed by an INTEGER!'
-                usage(); sys.exit(99)
-        elif o in ("-t", "--to-rmp"):
-            if not os.path.isfile(a):
-                print 'Raw data file NOT exist: %s' % a
-                sys.exit(99)
-            else: 
-                tormp = True
-                rawfile = a
-        elif o in ("-c", "--cluster"):
-            if not a.isdigit(): 
-                print '\ncluster type: %s should be an INTEGER!' % str(a)
-                usage(); sys.exit(99)
-            else:
-                # 1-All; 2-Incr.
-                cluster_type = int(a)
-                docluster = True
-                rmpfile = sys.argv[3]
-                if not os.path.isfile(rmpfile):
-                    print 'Raw data file NOT exist: %s!' % rmpfile
-                    sys.exit(99)
-        elif o in ("-k", "--kml"):
-            if not os.path.isfile(a):
-                print 'cfprints table file NOT exist: %s' % a
-                sys.exit(99)
-            else: 
-                dokml = True
-                cfpsfile = a
-        elif o in ("-n", "--no-dump"):
-            nodump = True
+        #elif o in ("-s", "--raw-scan"):
+        #    if a.isdigit(): times = int(a)
+        #    else: 
+        #        print '\nError: "-s/--raw-scan" should be followed by an INTEGER!'
+        #        usage(); sys.exit(99)
+        #elif o in ("-t", "--to-rmp"):
+        #    if not os.path.isfile(a):
+        #        print 'Raw data file NOT exist: %s' % a
+        #        sys.exit(99)
+        #    else: 
+        #        tormp = True
+        #        rawfile = a
+        #elif o in ("-k", "--kml"):
+        #    if not os.path.isfile(a):
+        #        print 'cfprints table file NOT exist: %s' % a
+        #        sys.exit(99)
+        #    else: 
+        #        dokml = True
+        #        cfpsfile = a
+        #elif o in ("-n", "--no-dump"):
+        #    nodump = True
         elif o in ("-f", "--fake"):
             fake = True
         elif o in ("-u", "--updatedb"):
             updatedb = True
-        #elif o in ("-a", "--aio"):
         elif o in ("-v", "--verbose"):
             verbose = True
             pp = PrettyPrinter(indent=2)
@@ -352,6 +399,9 @@ def main():
     if updatedb:
         updateAlgoData()
 
+    if crawl_area:
+        crawlAreaLocData()
+
     # Ordinary fingerprints clustering.
     if docluster:
         if cluster_type   == 1: 
@@ -367,8 +417,8 @@ def main():
         else: sys.exit('Unsupported cluster type code: %s!' % cluster_type)
 
     # KML generation.
-    if dokml:
-        genKMLfile(cfpsfile)
+    #if dokml:
+    #    genKMLfile(cfpsfile)
 
     ## Raw data to fingerprint convertion.
     #if tormp:

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 import sys
 import os
 import csv
@@ -12,9 +13,13 @@ import psycopg2 as pg
 import sqlalchemy.pool as pool
 pg = pool.manage(pg)
 
-from wpp.config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, \
+from wpp.config import dbsvrs, wpp_tables, sqls, DB_UPLOAD, MAX_AREA_TRY, CRAWL_LIMIT, \
         tbl_field, tbl_forms, tbl_idx, tbl_files
 
+# Joining UNICODE & ASCII chars in WppDB.addAreaLocation(), when returned area
+# name(CN) by getAreaName() is not decoded from UTF-8(default in postgres) to ASCII.
+#reload(sys)
+#sys.setdefaultencoding('utf-8') 
 
 def usage():
     import time
@@ -183,29 +188,117 @@ class WppDB(object):
         new_cid = cur_cid+1 if cur_cid else 1 # cur_cid=None when the table is empty.
         return new_cid
 
-    def areaname2code(self, areaname_en=None):
-        """ Area name(en) from google reverse-geocoding api to area code specified by NBSC.
-        http://www.stats.gov.cn/tjbz/xzqhdm
-        """
-        sql = "select code from wpp_area where name_en='%s'" % areaname_en
+    def setUprecsAreaStatus(self, status=None, time=None):
+        sql = "UPDATE wpp_uprecsinfo SET area_ok=%s WHERE time='%s'" % (status, time)
         self.cur.execute(sql)
-        areacode = self.cur.fetchone()
-        return areacode
+
+    def setUprecAreaTry(self, area_try=None, time=None):
+        sql = "UPDATE wpp_uprecsinfo SET area_try=%s WHERE time='%s'" % (area_try, time)
+        self.cur.execute(sql)
+
+    def getCrawlFPs(self):
+        sql = "SELECT * FROM wpp_uprecsinfo WHERE area_ok=0 AND area_try<%s AND lat!=0 AND lon!=0 LIMIT %s" % \
+                (MAX_AREA_TRY,CRAWL_LIMIT)
+        self.cur.execute(sql)
+        fps_noarea = self.cur.fetchall()
+        return fps_noarea
+
+    def getAreaName(self, code=None):
+        """ Convert area code to corresponding name(cn) specified by NBSC,
+        http://www.stats.gov.cn/tjbz/xzqhdm.
+        reverse api of getAreaCode.
+        """
+        sql = "SELECT name_cn FROM wpp_area_std WHERE code='%s'" % code
+        self.cur.execute(sql)
+        name_cn = self.cur.fetchone()
+        if name_cn: name_cn = name_cn[0]
+        return name_cn
+
+    def getAreaCode(self, area=None, level=None):
+        """ Convert area name(cn) to corresponding code specified by NBSC,
+        http://www.stats.gov.cn/tjbz/xzqhdm.
+        reverse api of getAreaName.
+        level: default district. Different level of area has different coding rule.
+               e.g. xx0000 for city, and xxyy00 for district.
+        """
+        sql = "SELECT code FROM wpp_area_std WHERE name_cn LIKE '%s'" % area
+        self.cur.execute(sql)
+        code = self.cur.fetchall()
+        if code: 
+            if len(code) > 1:
+                if level == 'district' or level == None:
+                    code = [ x[0] for x in code if not x[0][-2:] == '00' ]
+                elif level == 'city':
+                    code = [ x[0] for x in code if x[0][-2:] == '00' and not x[0][-4:-2] == '00' ]
+                elif level == 'province':
+                    code = [ x[0] for x in code if x[0][-4:] == '0000' ]
+                else: pass
+                if code: code = code[0]
+            else: code = code[0][0]
+        return code
+
+    def addAreaLocation(self, laccid=None, geoaddr=None):
+        # find out area code for district of geoaddr.
+        # insert laccid~area info(area:'province>city>district') into |wpp_cellarea|.
+        # set area_ok = 1.
+        table_name = 'wpp_cellarea'
+        level = len(geoaddr)
+        need_allname = False
+        if level == 3:
+            prov, city, district = geoaddr
+            # ASCII: 1 chinese word = 1 char, Unicode: 1 chinese word = 3 char.
+            if not district[-1] in [x.decode('utf8') for x in ('区','县','市')]: 
+                #district += '区'.decode('utf8')
+                district = '%%%s%%' % district
+                need_allname = True
+            # FIXME: more than 1 code returned by getAreaCode(). 
+            # HINT: code rule.
+            code_district = self.getAreaCode(area=district, level='district')
+            if code_district:
+                code_prov = code_district[:2].ljust(6,'0')
+                code_city = code_district[:4].ljust(6,'0')
+                codes = [ code_prov, code_city, code_district ] 
+                geoaddr[-1] = district.strip('%')
+            else: return None
+        elif level == 2:
+            prov, city = geoaddr
+            if not city[-1] in [x.decode('utf8') for x in ('区','县','市')]: 
+                city += '市'.decode('utf8')
+            code_city = self.getAreaCode(area=city, level='city')
+            if code_city:
+                code_prov = code_city[:2].ljust(6,'0')
+                codes = [ code_prov, code_city ] 
+                geoaddr[-1] = city
+            else: return None
+        else: return None
+        # Decode UTF-8 encoded area name(CN) in postgres to ASCII.
+        if not need_allname:
+            geoaddr = [ self.getAreaName(x).decode('utf8') for x in codes[:-1] ] + [ geoaddr[-1] ]
+        else:
+            geoaddr = [ self.getAreaName(x).decode('utf8') for x in codes ]
+        areaname_cn = '>'.join(geoaddr)
+        values = ','.join([ "'%s'"%x for x in [laccid, codes[-1], areaname_cn] ])
+        sql = "INSERT INTO %s VALUES (%s)" % (table_name, values)
+        self.cur.execute(sql)
+        return values
 
     def areaLocation(self, laccid=None):
-        sql = "select areacode,areaname_en,areaname_cn from wpp_cellarea where laccid='%s'" % laccid
+        """ return area code & name_cn according to laccid. 
+        """
+        sql = "SELECT areacode,areaname_cn FROM wpp_cellarea WHERE laccid='%s'" % laccid
         self.cur.execute(sql)
         area = self.cur.fetchone()
         return area
 
     def laccidLocation(self, laccid=None):
-        sql = "select lat,lon,ee from wpp_celloc where laccid='%s'" % laccid
+        sql = "SELECT lat,lon,ee FROM wpp_celloc WHERE laccid='%s'" % laccid
         self.cur.execute(sql)
         laccid_loc = self.cur.fetchone()
         if laccid_loc: laccid_loc = [ float(x) for x in laccid_loc ]
         return laccid_loc
 
     def addCellLocation(self, laccid=None, loc=[]):
+        # FIXME: mod input params for many cell location data insert once.
         table_name = 'wpp_celloc'
         lat, lon, h, ee = loc
         indat = [[ laccid, lat, lon, h, ee ]]

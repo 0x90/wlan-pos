@@ -237,6 +237,9 @@ def doClusterAll(fd_csv=None):
     # h         10, 13
     # wlanmacs  11, 14
     # wlanrsss  12, 15
+    # ver_uprecs , 16
+    # area_ok    , 17
+    # area_try   , 18
     # Time      13, 2
     # 
     # spid        , 0
