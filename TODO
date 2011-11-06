@@ -1,7 +1,10 @@
 MUST
 Add  Fail history cache(dict) decorator for google area location.
-Add  Exception raised with (async) sendmail support etc.
 Add  MCC-MNC field in |wpp_celloc| & |wpp_cellarea|.
+Add  Cell location takes RSS into account.
+Mod  Make online google location db import async.
+Add  Gunicorn monitering with supervisor.
+Add  Exception raised with (async) sendmail support etc.
 --------
 add  2-level clustering for cluster and spid searching space reduction.
 mod  Refine sort routine with both indices and elements returned (numpy.argsort()).
