@@ -241,6 +241,7 @@ def crawlAreaLocData():
     4) search area_code for the found district, insert area location 
        (laccid,areacode,areaname_cn) into |wpp_cellarea|, and update flag area_ok = 1.
     """
+    fail_history = {}
     dbips = DB_OFFLINE
     for dbip in dbips:
         dbsvr = dbsvrs[dbip]
@@ -250,6 +251,7 @@ def crawlAreaLocData():
         for fp in fps_noarea:
             # try areaLocation(laccid)
             laccid = '%s-%s' % (fp[8], fp[9])
+            if laccid in fail_history: continue
             time = fp[2]
             print laccid, time
             if wppdb.areaLocation(laccid):
@@ -264,7 +266,10 @@ def crawlAreaLocData():
                     # till now, area_location: 'laccid,area_code,province>city>district'.
                     area_location = wppdb.addAreaLocation(laccid=laccid, geoaddr=geoaddr)
                     if not area_location:
-                        sys.exit('Failed to add area location for: ' + geoaddr[-1].encode('utf8'))
+                        if not laccid in fail_history: 
+                            fail_history[laccid] = geoaddr 
+                        print 'Failed to add area location for cell[%s] in %s' % (laccid, geoaddr[-1].encode('utf8'))
+                        continue
                     # area_ok = 1 & quit.
                     wppdb.setUprecsAreaStatus(status=1, time=time)
                     print area_location.encode('utf8')  # encode('utf8') for crontab.
@@ -273,6 +278,8 @@ def crawlAreaLocData():
                     else: pass
                 # area_try += 1 & quit
                 wppdb.setUprecAreaTry(area_try=fp[18]+1, time=time)
+        #if fail_history:
+        #    print fail_history
 
 
 def loadRawdata(rawfile=None, updbmode=1):
