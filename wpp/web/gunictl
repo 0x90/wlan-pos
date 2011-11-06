@@ -11,6 +11,7 @@ WPP_LOG=/dev/null
 #WPP_LOG=$LOGDIR/$WPPLOGFILE
 
 PFILE=/tmp/gunicorn.pid
+GU=gunicorn
 
 W_MH="egg:meinheld#gunicorn_worker"
 W_GE="egg:gunicorn#gevent"
@@ -45,11 +46,12 @@ start_gunic() {
     #    fi
     #fi
 
-    CMD="gunicorn -b :$port -w $nworkers $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
-    #CMD="gunicorn -b :$port -w $nworkers -k $W_MH $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
-    #CMD="gunicorn -b :$port -w $nworkers -k $W_GE $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
+    OPT="-b :$port -w $nworkers $APP --log-file $GU_LOG -p $PFILE -t $TOUT"
+    #worker=$W_GE
+    #OPT="$OPT -k $worker"
     #echo -e "\n\n##### LOG START @ $datetime #####\n" #>> $WPP_LOG
-    nohup  $CMD >> $WPP_LOG 2>&1 &
+    #nohup  $GU $OPT >> $WPP_LOG 2>&1 &    # no -D(--daemon) option.
+    $GU $OPT -D >> $WPP_LOG 2>&1 &         # daemon mode(detached from controlling terminal).
 }
 
 count_workers(){
