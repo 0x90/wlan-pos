@@ -247,7 +247,6 @@ def crawlAreaLocData():
         wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
         # select config.CRAWL_LIMIT raw fps which haven't tried for google area location.
         fps_noarea = wppdb.getCrawlFPs()
-        #fps_noarea = ((1000, 1000101, '20110910-164242', '460015710651156', '356899020326612', 'Unicom/choles', 460, 1, 55054, 151938030, '-69', '30.281185', '120.156248', '32.0', '54:e6:fc:52:f6:02|94:0c:6d:1e:8a:08|d8:5d:4c:38:86:1e|3c:e5:a6:60:d6:60|e0:05:c5:40:a1:94|40:16:9f:a2:a1:42|1c:7e:e5:fe:d3:be|00:23:cd:43:08:10|e0:05:c5:be:d9:e8|e0:05:c5:b4:7a:98', '-86|-87|-91|-91|-94|-94|-95|-95|-95|-95', 13463, 0, 0),)
         for fp in fps_noarea:
             # try areaLocation(laccid)
             laccid = '%s-%s' % (fp[8], fp[9])
@@ -268,7 +267,10 @@ def crawlAreaLocData():
                         sys.exit('Failed to add area location for: ' + geoaddr[-1].encode('utf8'))
                     # area_ok = 1 & quit.
                     wppdb.setUprecsAreaStatus(status=1, time=time)
-                    print area_location
+                    print area_location.encode('utf8')  # encode('utf8') for crontab.
+                else:
+                    if geoaddr is None: sys.exit(0)  # OVER_QUERY_LIMIT.
+                    else: pass
                 # area_try += 1 & quit
                 wppdb.setUprecAreaTry(area_try=fp[18]+1, time=time)
 

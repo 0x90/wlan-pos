@@ -197,8 +197,8 @@ class WppDB(object):
         self.cur.execute(sql)
 
     def getCrawlFPs(self):
-        sql = "SELECT * FROM wpp_uprecsinfo WHERE area_ok=0 AND area_try<%s AND lat!=0 AND lon!=0 LIMIT %s" % \
-                (MAX_AREA_TRY,CRAWL_LIMIT)
+        sql = "SELECT * FROM wpp_uprecsinfo WHERE area_ok=0 AND area_try<%s \
+               AND lat!=0 AND lon!=0 AND mcc=460 LIMIT %s" % (MAX_AREA_TRY,CRAWL_LIMIT)
         self.cur.execute(sql)
         fps_noarea = self.cur.fetchall()
         return fps_noarea

@@ -147,7 +147,7 @@ if __name__ == "__main__":
     #httpd.log = False
     # Meinheld server.
     from meinheld import server
-    server.listen(("0.0.0.0", 8080))
+    server.listen(("0.0.0.0", port))
     # Bjoern server.
     #import bjoern
     #bjoern.listen(wpp_handler, '0.0.0.0', port)

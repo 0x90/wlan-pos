@@ -13,7 +13,7 @@ KNN = 4
 KWIN = 1.25
 RADIUS = 6372797 #meter
 MAX_AREA_TRY=200
-CRAWL_LIMIT=500
+CRAWL_LIMIT=5000
 
 # Logging related cfg.
 from logging import getLogger, Formatter, INFO, DEBUG

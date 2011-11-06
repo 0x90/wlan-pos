@@ -123,10 +123,15 @@ def parseGoogleGeocoding(geodict=None):
                             addr_components.append(addr)
                         else: pass
                     break
-                else: return geoaddr
+                else: 
+                    import pprint as pp
+                    pp.pprint(geodict)
+                    return geoaddr
             geoaddr = [ x['long_name'] for x in addr_components if not x['long_name'].isdigit() ]
             #if len(geoaddr) == 2: geoaddr.append(None)  # geoaddr:[province,city,None]
-        else: print 'ERROR: %s !!!' % geodict['status']
+        else: 
+            print 'ERROR: %s !!!' % geodict['status']
+            if geodict['status'] == 'OVER_QUERY_LIMIT': geoaddr = None
     else: print 'ERROR: Geocoding Failed !!!'
     return geoaddr
         
