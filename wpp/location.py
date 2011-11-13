@@ -15,7 +15,7 @@ import logging
 wpplog = logging.getLogger('wpp')
 
 from wpp.config import (dbsvrs, DB_ONLINE, KNN, CLUSTERKEYSIZE, KWIN,
-        POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT)
+        POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT, GOOG_ERR_LIMIT)
 from wpp.db import WppDB
 from wpp.util.geo import dist_km
 from wpp.util.geolocation_api import googleLocation
@@ -41,7 +41,7 @@ example:
 """ % strftime('%Y')
 
 
-def fixPos(posreq=None, has_google=False):
+def fixPos(posreq=None, has_google=False, mc=None):
     xmlnodes = xmlparser(posreq).getchildren()
     # Parameters default vals init.
     lat,lon,ee=39.9055,116.3914,5000; errinfo='AccuTooBad'; errcode='102'
@@ -79,16 +79,19 @@ def fixPos(posreq=None, has_google=False):
                 if not pos_area: laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
                 celloc = wppdb.laccidLocation(laccid)
                 if not celloc: need_google=True; wpplog.error('Cell location FAILED!')
+                elif celloc[2]>GOOG_ERR_LIMIT: need_google=False  # googleLocation err too big for wlanloc.
+                else: pass
             else: celloc = []
         loc = wlanloc or celloc
         if loc: lat,lon,ee = loc; errinfo='OK'; errcode='100'
+        # TODO: make googleLocation async job when wlanloc fails & celloc succeeds.
         if need_google and has_google: # Try Google location, when wifi location failed && wifi info exists.
-            loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0]) 
+            loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0], mc=mc) 
             if loc_google:
                 lat1,lon1,h,ee1 = loc_google 
                 if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
                 # wifi location import. TODO: make google loc import job async when it's *succeeded*.
-                if macs and rsss:
+                if macs and ee1 <= GOOG_ERR_LIMIT:
                     t = f('Time'); t = t[0]['val'] if t else ''
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)

@@ -1,6 +1,7 @@
 #-*- encoding=utf8 -*-
 import os
 import sys
+import redis
 
 DATPATH = 'dat/'
 LOCPATH = DATPATH+ 'loc/'
@@ -14,6 +15,9 @@ KWIN = 1.25
 RADIUS = 6372797 #meter
 MAX_AREA_TRY=200
 CRAWL_LIMIT=5000
+GOOG_ERR_LIMIT=300
+GOOG_FAIL_LIMIT=20
+GOOG_FAIL_CACHE_TIME=3600*24
 
 # Logging related cfg.
 from logging import getLogger, Formatter, INFO, DEBUG
@@ -35,6 +39,8 @@ if not os.path.isfile(logfile):
 loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 80) # Rotate after 20M, keep 50 old copies.
 loghandler.setFormatter(logfmt)
 wpplog.addHandler(loghandler)
+
+mc = redis.Redis(host='localhost', port=6379, db=0)
 
 # PosResp msg fmt.
 POS_RESP_FULL="""<?xml version="1.0" encoding="UTF-8"?>

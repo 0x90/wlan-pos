@@ -18,6 +18,8 @@ from wpp.util.net import getIP
 #req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000101" /><Time val="20110725-141421" /><UserInfo imei="012682003400042" imsi="460007316414690" UserAgent="SEMC/LT15i_1247-1052" /><CellInfo mcc="460" mnc="00" lac="1015" cid="28837" rss="-63" /><WLANIdentifier val="00:21:27:61:16:36|00:23:cd:3f:2d:b6" /><WLANMatcher val="-88|-98" /><PosLevel val="Area" /></PosReq>"""
 # WPP OK, PosLevel = Hybrid.
 req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000101" /><Time val="20110725-141421" /><UserInfo imei="012682003400042" imsi="460007316414690" UserAgent="SEMC/LT15i_1247-1052" /><CellInfo mcc="460" mnc="00" lac="1015" cid="28837" rss="-63" /><WLANIdentifier val="00:21:27:61:16:36|00:23:cd:3f:2d:b6" /><WLANMatcher val="-88|-98" /><PosLevel val="Hybrid" /></PosReq>"""
+# cell invalid for fail_count test.
+#req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000101" /><Time val="20110725-141421" /><UserInfo imei="012682003400042" imsi="460007316414690" UserAgent="SEMC/LT15i_1247-1052" /><CellInfo mcc="460" mnc="00" lac="1011111111" cid="28837" rss="-63" /><PosLevel val="Point" /></PosReq>"""
 # WPP OK, PosLevel Null.
 #req_wpp = """<?xml version="1.0"?><!DOCTYPE PosReq_FC SYSTEM "PosReq_FC.dtd"><PosReq_FC><SPID val="123" /><ServID val="456" /><Time val="20110130-114424" /><UserInfo imei="355302043446609" imsi="460001933113172" UserAgent="htc_asia_wwe/htc_bravo" /><CellInfo mcc="460" mnc="00" lac="4577777" cid="3088" rss="-63" /><WLANIdentifier val="00:15:70:9f:62:64|00:25:86:4a:b9:6e|00:15:70:9f:72:0c|00:15:70:d0:52:60|00:23:cd:68:f6:d6|00:1b:11:a4:2d:c6|00:15:70:a6:a3:30|00:15:70:9f:62:66|00:15:70:9f:72:0e|00:15:70:d0:52:62|00:25:86:51:bd:54|00:15:70:a6:a3:32|00:1c:10:aa:c0:a8|00:11:b5:fd:76:d4" /><WLANMatcher val="-40|-61|-70|-72|-75|-85|-85|-40|-69|-72|-82|-84|-88|-59" /></PosReq_FC>"""
 #--------------------------fpp reqs--------------------------
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     #target['urlpath'] = target['urlpath'].lower() # compatible with local fpp urlpath.
     # urlpath & port for cmcc mobile naviwap test.
     #target['ip'] = '211.137.35.180'
-    #target['port'] = '9999'
+    #target['port'] = '8081'
     #target['urlpath'] = 'naviwap/MELocationAction.do'
     #target['req_data'] = req_uprecs
     url = 'http://%s:%s/%s' % (target['ip'], target['port'], target['urlpath'])

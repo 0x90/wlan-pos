@@ -4,7 +4,9 @@ import urllib2 as ul
 #import socket as sckt
 import simplejson as json
 #import ujson as json
+
 from wpp.util.net import connectRetry
+from wpp.config import GOOG_FAIL_LIMIT, GOOG_FAIL_CACHE_TIME
  
 
 def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
@@ -77,8 +79,26 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
     req_json = json.dumps(req)
     return req_json
 
+def fail_limit(f):
+    def dec(*args, **kw):
+        if not kw['macs'] and 'mc' in kw:
+            cell = kw['cellinfo']
+            mc = kw['mc']
+            key = 'fail_count:%s%s-%s%s' % (cell['mcc'],cell['mnc'],cell['lac'],cell['cid'])
+            fail_count = mc.get(key)
+            if fail_count and int(fail_count) > GOOG_FAIL_LIMIT: 
+                return []
+        loc = f(*args, **kw)
+        if not loc and not kw['macs'] and 'mc' in kw: 
+            mc.incr(key)
+            if not fail_count: 
+                mc.expire(key, GOOG_FAIL_CACHE_TIME)
+        return loc
+    return dec
+	
+@fail_limit
 @connectRetry(try_times=3)
-def googleLocation(macs=[], rsss=[], cellinfo=None):
+def googleLocation(macs=[], rsss=[], cellinfo=None, mc=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
     resp = ul.urlopen(req_url, req_content)
