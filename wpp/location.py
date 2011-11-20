@@ -88,10 +88,10 @@ def fixPos(posreq=None, has_google=False, mc=None):
         if need_google and has_google: # Try Google location, when wifi location failed && wifi info exists.
             loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0], mc=mc) 
             if loc_google:
-                lat1,lon1,h,ee1 = loc_google 
-                if not loc: lat,lon,ee=lat1,lon1,ee1; errinfo='OK'; errcode='100'
+                lat1,lon1,h,ee_goog = loc_google 
+                if not loc: lat,lon,ee=lat1,lon1,ee_goog; errinfo='OK'; errcode='100'
                 # wifi location import. TODO: make google loc import job async when it's *succeeded*.
-                if macs and ee1 <= GOOG_ERR_LIMIT:
+                if macs and ee_goog <= GOOG_ERR_LIMIT:
                     t = f('Time'); t = t[0]['val'] if t else ''
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
@@ -99,6 +99,7 @@ def fixPos(posreq=None, has_google=False, mc=None):
                     else: wpplog.error('Failed to add FP from Google!')
                 # Cell location import.
                 if cell and not celloc:
+                    if ee_goog <= GOOG_ERR_LIMIT: loc_google[-1] = 500
                     wppdb.addCellLocation(laccid=laccid, loc=loc_google)
                     wpplog.info('Added 1 Cell FP from Google')
             else: wpplog.error('Google location FAILED!')

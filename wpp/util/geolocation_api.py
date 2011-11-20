@@ -70,10 +70,11 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
     if 'lac' in cellinfo_keys and 'cid' in cellinfo_keys:
         lac = cellinfo['lac']; cid = cellinfo['cid']
         req['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac} ]
-        if 'rss' in cellinfo_keys: req['cell_towers'][0]['signal_strength'] = cellinfo['rss']
-    req['mobile_country_code'] = cellinfo['mcc'] if ('mcc' in cellinfo_keys) else 460 
-    req['mobile_network_code'] = cellinfo['mnc'] if ('mnc' in cellinfo_keys) else 0
-    if len(macs): req['wifi_towers'] = [{'mac_address':m, 'signal_strength':rsss[i]} for i,m in enumerate(macs)]
+        if 'rss' in cellinfo_keys: req['cell_towers'][0]['signal_strength'] = int(cellinfo['rss'])
+    req['mobile_country_code'] = int(cellinfo['mcc']) if ('mcc' in cellinfo_keys) else 460 
+    req['mobile_network_code'] = int(cellinfo['mnc']) if ('mnc' in cellinfo_keys) else 0
+    if len(macs): 
+        req['wifi_towers'] = [{'mac_address':m, 'signal_strength':int(rsss[i])} for i,m in enumerate(macs)]
     req['version'] = '1.1.0'
     if atoken: req['access_token'] = atoken
     req_json = json.dumps(req)
@@ -83,10 +84,14 @@ def fail_limit(f):
     def dec(*args, **kw):
         if not kw['macs'] and 'mc' in kw:
             cell = kw['cellinfo']
+            mcc = cell['mcc']; mnc = cell['mnc'] 
+            lac = cell['lac']; cid = cell['cid']
+            if int(mcc) != 460 or int(lac) <= 0 or int(cid) <= 0: 
+                return []
             mc = kw['mc']
-            key = 'fail_count:%s%s-%s%s' % (cell['mcc'],cell['mnc'],cell['lac'],cell['cid'])
+            key = 'failcnt:%s%s_%s_%s' % (mcc, mnc, lac, cid)
             fail_count = mc.get(key)
-            if fail_count and int(fail_count) > GOOG_FAIL_LIMIT: 
+            if fail_count and int(fail_count) >= GOOG_FAIL_LIMIT:
                 return []
         loc = f(*args, **kw)
         if not loc and not kw['macs'] and 'mc' in kw: 
@@ -194,7 +199,9 @@ if __name__ == "__main__":
     #latlon = (31.984866, 120.509039)
     #latlon = (36.216297, 113.086912) # weird geocoding results.
     #latlon = (22.797012, 113.757158)
-    latlon = (28.832358, 121.628340)
+    #latlon = (28.832358, 121.628340)
+    #latlon = (41.794252, 123.395062)
+    latlon = (41.772399, 123.410308)
     geoaddr = googleAreaLocation(latlon)
     geoaddr = '>'.join(geoaddr)
     print geoaddr

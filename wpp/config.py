@@ -16,7 +16,7 @@ RADIUS = 6372797 #meter
 MAX_AREA_TRY=200
 CRAWL_LIMIT=5000
 GOOG_ERR_LIMIT=300
-GOOG_FAIL_LIMIT=20
+GOOG_FAIL_LIMIT=40
 GOOG_FAIL_CACHE_TIME=3600*24
 
 # Logging related cfg.
@@ -36,7 +36,7 @@ if not os.path.isfile(logfile):
             print "Failed to mkdir: %s, %s!" % (logdir, str(errmsg))
             sys.exit(99)
     open(logfile, 'w').close()
-loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 80) # Rotate after 20M, keep 50 old copies.
+loghandler = cLogRotateFileHandler(logfile, "a", 20*1024*1024, 100) # Rotate after 20M, keep 50 old copies.
 loghandler.setFormatter(logfmt)
 wpplog.addHandler(loghandler)
 
