@@ -244,11 +244,15 @@ class WppDB(object):
         table_name = 'wpp_cellarea'
         level = len(geoaddr)
         need_allname = False
+        char_feature = [ x.decode('utf8') for x in ('区','县','市') ]
+        try:
+            geoaddr = [ x.decode('utf8') for x in geoaddr ]
+        except UnicodeEncodeError:
+            pass
         if level == 3:
             prov, city, district = geoaddr
             # ASCII: 1 chinese word = 1 char, Unicode: 1 chinese word = 3 char.
-            if not district[-1] in [x.decode('utf8') for x in ('区','县','市')]: 
-                #district += '区'.decode('utf8')
+            if not district[-1] in char_feature or len(district) < 3: 
                 district = '%%%s%%' % district
                 need_allname = True
             # FIXME: more than 1 code returned by getAreaCode(). 
@@ -262,7 +266,7 @@ class WppDB(object):
             else: return None
         elif level == 2:
             prov, city = geoaddr
-            if not city[-1] in [x.decode('utf8') for x in ('区','县','市')]: 
+            if not city[-1] in char_feature: 
                 city += '市'.decode('utf8')
             code_city = self.getAreaCode(area=city, level='city')
             if code_city:

@@ -271,3 +271,6 @@
 2011-09-07
     1) Fix 'Time' attrib val interpretation in PosReq xmlnodes for location.fixPos()
     2) Mod Error limit up to 8000 in util.geolocation_api.googleLocation
+2011-12-11
+    1) Fix area name/code query err in db.addAreaLocation() when district name has 2 chars and chinese word qu in the end
+    2) Mod default port to be 8080 in wpp.web.wpp_server __main__ section
