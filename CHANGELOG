@@ -274,3 +274,6 @@
 2011-12-09
     1) Fix to add area_try by 1 whenever the google area location was ok or not in offline module.
     2) Fix WLAN FP location for new office building.
+2011-12-11
+    1) Fix area name/code query err in db.addAreaLocation() when district name has 2 chars and chinese word qu in the end
+    2) Mod default port to be 8080 in wpp.web.wpp_server __main__ section

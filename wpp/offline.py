@@ -270,7 +270,8 @@ def crawlAreaLocData():
                     if not area_location:
                         if not laccid in fail_history: 
                             fail_history[laccid] = geoaddr 
-                        print 'Failed to add area location for cell[%s] in %s' % (laccid, geoaddr[-1].encode('utf8'))
+                        print 'Failed to add area location: [%s] for cell[%s]' % \
+                              (geoaddr[-1].encode('utf8'), laccid)
                         continue
                     # area_ok = 1 & quit.
                     wppdb.setUprecsAreaStatus(status=1, time=time)
