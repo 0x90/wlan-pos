@@ -25,7 +25,7 @@
                                 padding:10px 0px;
                                 font-size: 14px;
                                 width:520px;
-                                text-align: right;
+                                text-align: left;
                         }
                         #content{
                                 padding-left:5px;
@@ -33,12 +33,12 @@
                                 color:#666;
                         }
                 </style>
-                <script src="/static/jquery.min.js"></script>
+                <script src="/chatbox/static/jquery.min.js"></script>
                 <script>
                         function poll(){
                                 $.ajax({
                                         type:'POST',
-                                        url:'/poll',
+                                        url:'/chatbox/poll',
                                         async:true,
                                         cache:false,
                                         timeout:100000,
@@ -60,7 +60,7 @@
                                                 if(''==$('#input').val()){
                                                         return;
                                                 }
-                                                $.post('/put',{'message':$('#input').val()},function (d){
+                                                $.post('/chatbox/put',{'message':$('#input').val()},function (d){
                                                         if(d == 'OK'){
                                                                 $('#input').val('');
                                                         }

@@ -10,25 +10,25 @@ from bottle import jinja2_view as view
 cache = []
 new_message_event = Event()
 
-@route('/')
+@route('/chatbox')
 @view('index')
 def index():
     return {'messages': cache}
 
-@post('/put')
+@post('/chatbox/put')
 def put_message():
     message = request.forms.get('message','')
-    cache.append('{0} - {1}'.format(time.strftime('%m-%d %X'),message.encode('utf-8')))
+    cache.append( '[%s]: %s' % (time.strftime('%Y/%m/%d %X'), message.decode('utf-8')) )
     new_message_event.set()
     new_message_event.clear()
     return 'OK'
 
-@post('/poll')
+@post('/chatbox/poll')
 def poll_message():
     new_message_event.wait()
     return dict(data=[cache[-1]])
 
-@route('/static/:filename', name='static')
+@route('/chatbox/static/:filename', name='static')
 def static_files(filename):
     return static_file(filename, root='./static/')
 
