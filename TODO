@@ -3,6 +3,7 @@ FIX  Clustering null mac FPs into |clusteridaps| in fingerprint module.
 FIX  Delete redundant FP data in wpp_cfps, which slows positioning badly.
 Add  MCC-MNC field in |wpp_celloc| & |wpp_cellarea|.
 Add  Cell location takes RSS into account.
+Add  Central logging aggregation, enabling query, analysis of collected log data.
 --------
 Mod  Move google area location crawling logic from crawlAreaData() to main().
 Mod  Import mc directly from config module instead of passed thru function.
