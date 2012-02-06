@@ -1,0 +1,19 @@
+#!/bin/bash
+# colorizing wpp tail -f log.
+
+WPP_LOG=~/tmp/log/wpp.log
+WPP_ROOT=~/wpp
+WPP_COLORIZE=$WPP_ROOT/wpp/util/colorize
+
+OPT_ERRINFO=-u18:ERROR
+OPT_POSERR=+l71:ErrCode=\\\"102\\\"
+
+OPT_UA=+l34:UserAgent=\\\".*?\\\"
+
+OPT_GOOGLE=-u38:Added
+
+
+OPTS="$OPT_POSERR $OPT_ERRINFO $OPT_UA $OPT_GOOGLE"
+
+#echo "tailf $WPP_LOG | $WPP_COLORIZE $OPTS"
+tailf $WPP_LOG | $WPP_COLORIZE $OPTS #+:"UserAgent=\".*?\""
