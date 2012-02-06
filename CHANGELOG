@@ -277,3 +277,6 @@
 2011-12-11
     1) Fix area name/code query err in db.addAreaLocation() when district name has 2 chars and chinese word qu in the end
     2) Mod default port to be 8080 in wpp.web.wpp_server __main__ section
+2012-02-06
+    1) Fix doClusterIncr() with null-wifi FPs.
+    2) Add colorized logwatch for log tailf.

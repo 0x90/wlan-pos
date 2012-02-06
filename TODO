@@ -1,5 +1,4 @@
 MUST
-FIX  Clustering null mac FPs into |clusteridaps| in fingerprint module.
 FIX  Delete redundant FP data in wpp_cfps, which slows positioning badly.
 Add  MCC-MNC field in |wpp_celloc| & |wpp_cellarea|.
 Add  Cell location takes RSS into account.

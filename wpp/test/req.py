@@ -128,7 +128,7 @@ if __name__ == "__main__":
     else: 
         ip_src = ips_src['eth0']
 
-    target = targets['fpp_neu_js']
+    target = targets['wpp_local']
     #target['urlpath'] = target['urlpath'].lower() # compatible with local fpp urlpath.
     # urlpath & port for cmcc mobile naviwap test.
     #target['ip'] = '112.25.187.195'

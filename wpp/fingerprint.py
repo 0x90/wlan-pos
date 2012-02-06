@@ -67,6 +67,9 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
         widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
         pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
     for idx, wlanmacs in enumerate(topaps):
+        # drop FPs with no wlan info.
+        if not wlanmacs[0].strip() and len(wlanmacs) == 1:
+            continue
         #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
         fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
         #     cidcntseq: all query results from db: cid,count(cid),max(seq).
