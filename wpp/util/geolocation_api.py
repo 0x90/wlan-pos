@@ -82,6 +82,9 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
 
 def fail_limit(f):
     def dec(*args, **kw):
+		# FIXME: count failure for reqs with only cell info, ignoring
+		# wlan-enabled ones which should be monitered as well.
+		# TODO: failcnt_cell & failcnt_wlan.
         if not kw['macs'] and 'mc' in kw:
             cell = kw['cellinfo']
             mcc = cell['mcc']; mnc = cell['mnc'] 
@@ -102,7 +105,7 @@ def fail_limit(f):
     return dec
 	
 @fail_limit
-@connectRetry(try_times=3)
+@connectRetry(try_times=2, timeout=3)
 def googleLocation(macs=[], rsss=[], cellinfo=None, mc=None):
     req_content = genLocReq(macs=macs, rsss=rsss, cellinfo=cellinfo)
     req_url = "http://www.google.com/loc/json"
@@ -201,7 +204,8 @@ if __name__ == "__main__":
     #latlon = (22.797012, 113.757158)
     #latlon = (28.832358, 121.628340)
     #latlon = (41.794252, 123.395062)
-    latlon = (41.772399, 123.410308)
+    #latlon = (41.772399, 123.410308)
+    latlon = (22.863804, 113.296862)
     geoaddr = googleAreaLocation(latlon)
     geoaddr = '>'.join(geoaddr)
     print geoaddr
