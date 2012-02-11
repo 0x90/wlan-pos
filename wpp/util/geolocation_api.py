@@ -141,17 +141,30 @@ def parseGoogleGeocoding(geodict=None):
         if geodict['status'] == 'OK':
             results = geodict['results']
             addr_components = []
-            for res in results:
-                if res['types'][0] == 'sublocality':
-                    addr_components = res['address_components'][::-1][1:] 
-                    break
-                elif res['types'][0] in ('street_address','route'):
-                    for addr in res['address_components'][::-1]:
-                        if addr['types'][0] in ('administrative_area_level_1','locality','sublocality'):
-                            addr_components.append(addr)
-                        else: pass
-                    break
-                else: pass
+            # addrlvls: {'sublocality':0, 'route':2, 'street_address':1}
+            addrlvls = dict([ (res['types'][0],i) for i,res in enumerate(results) ])
+            if 'sublocality' in addrlvls:
+                res = results[ addrlvls['sublocality'] ]
+                addr_components = res['address_components'][::-1][1:] 
+            else:
+                for res in results:
+                    if res['types'][0] in ('street_address', 'route'):
+                        for addr in res['address_components'][::-1]:
+                            if addr['types'][0] in ('administrative_area_level_1','locality','sublocality'):
+                                addr_components.append(addr)
+                            else: pass
+                    else: pass
+            #for res in results:
+            #    if res['types'][0] == 'sublocality':
+            #        addr_components = res['address_components'][::-1][1:] 
+            #        break
+            #    elif res['types'][0] in ('street_address','route'):
+            #        for addr in res['address_components'][::-1]:
+            #            if addr['types'][0] in ('administrative_area_level_1','locality','sublocality'):
+            #                addr_components.append(addr)
+            #            else: pass
+            #        break
+            #    else: pass
                 #import pprint as pp
                 #pp.pprint(geodict)
             if addr_components:
@@ -205,7 +218,8 @@ if __name__ == "__main__":
     #latlon = (28.832358, 121.628340)
     #latlon = (41.794252, 123.395062)
     #latlon = (41.772399, 123.410308)
-    latlon = (22.863804, 113.296862)
+    #latlon = (22.863804, 113.296862)
+    latlon = (29.896468, 121.494344) # google has no result.
     geoaddr = googleAreaLocation(latlon)
     geoaddr = '>'.join(geoaddr)
     print geoaddr
