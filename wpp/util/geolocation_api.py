@@ -111,11 +111,14 @@ def googleLocation(macs=[], rsss=[], cellinfo=None, mc=None):
     req_url = "http://www.google.com/loc/json"
     resp = ul.urlopen(req_url, req_content)
     ret_content = dict( eval(resp.read()) )
-    if not 'location' in ret_content: return []
+    if not 'location' in ret_content: 
+        return []
     gloc = ret_content['location'] 
-    if gloc['accuracy'] > 8000: return []
+    accuracy = gloc['accuracy']
+    if accuracy > 8000: 
+        return []
     gh = gloc['altitude'] if ('altitude' in gloc) else 0
-    return [ gloc['latitude'], gloc['longitude'], gh, gloc['accuracy'] ]
+    return [ gloc['latitude'], gloc['longitude'], gh, accuracy ]
 
 
 @connectRetry(try_times=1)

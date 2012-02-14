@@ -8,18 +8,19 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-from time import strftime, ctime
+from time import strftime, ctime, sleep
 from numpy import array as np_array, append as np_append
 from pprint import pprint, PrettyPrinter
 from bz2 import BZ2File
 from ftplib import FTP
 
-from wpp.config import DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG#, \
-        #DATPATH, RAWSUFFIX, RMPSUFFIX, CLUSTERKEYSIZE
+from wpp.config import DB_OFFLINE, sqls, dbsvrs, mailcfg, errmsg, FTPCFG, \
+        DATPATH, RAWSUFFIX#, RMPSUFFIX, CLUSTERKEYSIZE
 from wpp.db import WppDB
 from wpp.fingerprint import doClusterIncr, doClusterAll#, genFPs
 from wpp.util.net import getIP, sendMail
 from wpp.util.geolocation_api import googleAreaLocation
+from wpp.util.wlan import scanWLAN_RE
 
 
 def usage():
@@ -33,16 +34,17 @@ option:
     -a --areacrawl         :  Crawl laccid~area location data from google api.
     -c --cluster=<type id> :  Fingerprints clustering, type_id: 1-All,2-Incr.
     -d --db=<dbfiles>      :  Specify the db files to upload.
-    -f --fake [for test]   :  Fake GPS scan results in case of bad GPS reception.
+    -f --floor             :  Floor number for indoor scan.
     -h --help              :  Show this help.
     -i --spid=<spid>       :  Sampling point id.
     -k --kml=<cfprints.tbl>:  Generate KML format from cfprints table file.
     -m --mode=<mode id>    :  Indicate the processing mode: 1-all; 2-incr.
     -n --no-dump           :  No data dumping to file.
-    -r --rawdata=<rawfile> :  Load rawdata into WppDB, including algo related tables. 
-                              1) db.initTables(); db.updateIndexes(); 2)doClusterIncr(),
-                              under certain mode(specify with -m, default=all).
-    -s --raw-scan=<times>  :  Scan for <times> times and log in raw file. 
+    -r --rawdata=<rawfile> :  Load rawdata into WppDB, including algo tables. 
+                              1)db.initTables(), db.updateIndexes(); 
+                              2)doClusterIncr(), under certain mode(specify
+                              with -m, default=all).
+    -s --scan              :  Scan FP data and write to certain storage(file,db). 
     -t --to-rmp=<rawfile>  :  Process the given raw data to radio map. 
     -u --updatedb=<mode>   :  Update algo data with synced rawdata from remote FTP.
     -v --verbose           :  Verbose mode.
@@ -70,38 +72,75 @@ def genKMLfile(cfpsfile):
         icon_types[type][1] = os.getcwd() + icon_types[type][1]
     genKML(cfps, kmlfile=kfile, icons=icon_types)
 
+def read_num(default=None, prompt='Input: '):
+    num = raw_input(prompt)
+    try:
+        num = int(num)
+    except ValueError:
+        num = default
+    return num
 
-def getRaw():
+def collectFPs():
     """
-    Collecting scanning results for WLAN & GPS.
-    *return: rawdata=[ time, lat, lon, mac1|mac2, rss1|rss2 ]
+    Collecting FPs consist of WLAN scanning data & Coordinate.
+    *return: fp = [ iac, h, time, mac1|mac2, rss1|rss2 ]
     """
-    from wpp.util.wlan import scanWLAN_RE
-    from wpp.util.gps import getGPS
-    #FIXME:exception handling
-    if fake: rawdata = [ 39.9229416667, 116.472673167 ]
-    else: rawdata = getGPS(); 
-    timestamp = strftime('%Y%m%d-%H%M%S')
-    rawdata.insert(0,timestamp)
+    # Indoor scan when floor is not False
+    indoor = True
+    if floor is False:
+        from wpp.util.gps import getGPS
+        indoor = False
 
-    #FIXME:exception handling
-    wlan = scanWLAN_RE()
-    #wlan = [ [ '00:0B:6B:3C:75:34','-89' ] , [ '00:25:86:23:A4:48','-86' ] ]
-    #wlan = [ [] ]
-    # judging whether the number of scanned wlan APs more than 4 is for clustering.
-    #if wlan and (len(wlan) >= CLUSTERKEYSIZE): num_fields = len(wlan[0])
-    if wlan: num_fields = len(wlan[0])
-    else: return rawdata
+    while True:
+        print '='*50
+        try:
+            iac = raw_input('IAC: ')
+        except KeyboardInterrupt:
+            print '\nBye.'
+            sys.exit(0)
+        loops = read_num(default=40, prompt='Loops(default 40): ')
+        delay = read_num(default=1, prompt='Delay(default 1s): ')
+        fps = []
+        for i in range(loops):
+            if indoor:
+                fp = [ iac, floor ]
+            else:
+                fp = getGPS()
+            fp.append( strftime('%Y%m%d-%H%M%S') )
 
-    # Raw data: time, lat, lon, mac1|mac2, rss1|rss2
-    # aps: [ [mac1, mac2], [rss1, rss2] ]
-    # aps_raw: [ mac1|mac2, rss1|rss2 ]
-    if not num_fields == 0:
-        aps = [ [ ap[i] for ap in wlan ] for i in range(num_fields) ]
-        aps_raw = [ '|'.join(ap) for ap in aps ]
-        rawdata.extend(aps_raw)
+            # wlan: [ [ mac1, rss1 ], [ mac2, rss2 ], ... ]
+            wlan = scanWLAN_RE()
+            print 'Scan %2s --> %s + %s APs' % (i+1, fp, len(wlan))
+            # Judging whether the number of scanned wlan APs more than 4 is for clustering.
+            #if wlan and (len(wlan) >= CLUSTERKEYSIZE): num_fields = len(wlan[0])
+            if wlan: num_fields = len(wlan[0])
+            else: return fp
 
-    return rawdata
+            # Raw data: time, lat, lon, mac1|mac2, rss1|rss2
+            # aps: [ [mac1, mac2], [rss1, rss2] ]
+            # aps_raw: [ mac1|mac2, rss1|rss2 ]
+            if not num_fields == 0:
+                aps = [ [ ap[i] for ap in wlan ] for i in range(num_fields) ]
+                aps_raw = [ '|'.join(ap) for ap in aps ]
+                fp.extend(aps_raw)
+
+            fps.append(fp)
+            sleep(1)
+        # Raw data dumping to file.
+        if nodump is False:
+            if not os.path.isdir(DATPATH):
+                try:
+                    os.umask(0) #linux system default umask: 022.
+                    os.mkdir(DATPATH,0777)
+                    #os.chmod(DATPATH,0777)
+                except OSError, errmsg:
+                    print "Failed: %d" % str(errmsg)
+                    sys.exit(99)
+            date = strftime('%Y-%m%d')
+            fp_filename = DATPATH + 'rawfp_' + date + RAWSUFFIX
+            dumpCSV(fp_filename, fps)
+    # Scan Summary.
+    #print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
 
 
 def dumpCSV(csvfile, content):
@@ -226,11 +265,11 @@ def updateAlgoData():
             # Send alert email to admin.
             _func = sys._getframe().f_code.co_name
             subject = "[!]WPP ERROR: %s->%s, ver: [%s]" % (_file, _func, ','.join(alerts['vers']))
-            #body = ( errmsg['db'] % (tab_rd,'insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
+            body = ( errmsg['db'] % (tab_rd,'insert',alerts['details'],getIP()['eth0'],ctime()) ).decode('utf-8')
             print alerts['details']
             print subject#, body
             print 'Sending alert email -> %s' % mailcfg['to']
-            #sendMail(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
+            sendMail(mailcfg['from'],mailcfg['userpwd'],mailcfg['to'],subject,body)
 
 def crawlAreaLocData():
     """
@@ -316,9 +355,9 @@ def loadRawdata(rawfile=None, updbmode=1):
 def main():
     import getopt
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ac:fhi:k:m:nr:s:t:uv",
-            ["areacrawl","cluster","fake","help","spid=","kml=","mode=","no-dump",
-             "rawdata","raw-scan=","to-rmp=","updatedb","verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "ac:f:hi:k:m:nr:st:uv",
+            ["areacrawl","cluster","floor=","help","spid=","kml=","mode=","no-dump",
+             "rawdata","scan","to-rmp=","updatedb","verbose"])
     except getopt.GetoptError:
         usage()
         sys.exit(99)
@@ -326,11 +365,11 @@ def main():
     if not opts: usage(); sys.exit(0)
 
     # global vars init.
-    crawl_area=False; updatedb=False; doLoadRawdata=False 
-    #spid=0; times=0; tormp=False; tfail=0; dokml=False; 
+    crawl_area=False; updatedb=False; doLoadRawdata=False; scan=False
+    #spid=0; tormp=False; tfail=0; dokml=False; 
     rawfile=None; docluster=False; updbmode=1
-    global verbose,pp,fake#,nodump
-    verbose=False; pp=None; nodump=False; fake=False
+    global verbose,pp,floor,nodump
+    verbose=False; pp=None; nodump=False; floor=False
 
     for o,a in opts:
         if o in ("-a", "--areacrawl"):
@@ -368,11 +407,8 @@ def main():
             else: 
                 doLoadRawdata = True
                 rawfile = a
-        #elif o in ("-s", "--raw-scan"):
-        #    if a.isdigit(): times = int(a)
-        #    else: 
-        #        print '\nError: "-s/--raw-scan" should be followed by an INTEGER!'
-        #        usage(); sys.exit(99)
+        elif o in ("-s", "--scan"):
+            scan = True
         #elif o in ("-t", "--to-rmp"):
         #    if not os.path.isfile(a):
         #        print 'Raw data file NOT exist: %s' % a
@@ -389,8 +425,12 @@ def main():
         #        cfpsfile = a
         #elif o in ("-n", "--no-dump"):
         #    nodump = True
-        elif o in ("-f", "--fake"):
-            fake = True
+        elif o in ("-f", "--floor"):
+            if a.isdigit(): 
+                floor = int(a)
+            else:
+                print '\nfloor: %s should be an INTEGER!\n' % str(a)
+                usage(); sys.exit(99)
         elif o in ("-u", "--updatedb"):
             updatedb = True
         elif o in ("-v", "--verbose"):
@@ -451,42 +491,9 @@ def main():
     #        else: print fingerprint
     #        sys.exit(0)
 
-    ## WLAN & GPS scan for raw data collection.
-    #if not times == 0:
-    #    for i in range(times):
-    #        print "Survey: %d" % (i+1)
-    #        rawdata = getRaw()
-    #        rawdata.insert(0, spid)
-    #        # Rawdata Integrity check,
-    #        # Format: spid, time, lat, lon, mac1|mac2, rss1|rss2
-    #        print rawdata
-    #        if len(rawdata) == 6: 
-    #            if verbose: 
-    #                pp.pprint(rawdata)
-    #            else:
-    #                print 'Calibration at sampling point %d ... OK!' % spid
-    #        else: 
-    #            # wlan scanned APs less than CLUSTERKEYSIZE:4.
-    #            tfail += 1
-    #            print 'Time: %s\nError: Raw integrity check failed! Next!' % rawdata[1]
-    #            print '-'*65
-    #            continue
-    #        # Raw data dumping to file.
-    #        if nodump is False:
-    #            if not os.path.isdir(DATPATH):
-    #                try:
-    #                    os.umask(0) #linux system default umask: 022.
-    #                    os.mkdir(DATPATH,0777)
-    #                    #os.chmod(DATPATH,0777)
-    #                except OSError, errmsg:
-    #                    print "Failed: %d" % str(errmsg)
-    #                    sys.exit(99)
-    #            date = strftime('%Y-%m%d')
-    #            rfilename = DATPATH + date + ('-%06d' % spid) + RAWSUFFIX
-    #            dumpCSV(rfilename, rawdata)
-    #        print '-'*50
-    #    #Scan Summary
-    #    print '\nOK/Total:%28d/%d\n' % (times-tfail, times)
+    # WLAN scan for FP raw data collection.
+    if scan:
+        collectFPs()
 
 
 if __name__ == "__main__":

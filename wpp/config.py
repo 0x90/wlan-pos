@@ -5,7 +5,7 @@ import redis
 
 DATPATH = 'dat/'
 LOCPATH = DATPATH+ 'loc/'
-RAWSUFFIX = '.raw'
+RAWSUFFIX = '.rfp'
 RMPSUFFIX = '.rmp'
 LOCSUFFIX = '.loc'
 #INTERSIZE = 10
@@ -18,6 +18,23 @@ CRAWL_LIMIT = 5000
 GOOG_ERR_LIMIT = 300
 GOOG_FAIL_LIMIT = 25
 GOOG_FAIL_CACHE_TIME = 3600*24
+IP_CACHE_REDIS = '192.168.109.56'
+PORT_CACHE_REDIS = 6379
+# CSV format config.
+CSV_CFG_RFP = {
+    14 : { 'idx_lat'  : 8, 
+           'idx_lon'  : 9, 
+           'idx_h'    : 10,
+           'idx_macs' : 11, 
+           'idx_rsss' : 12,
+           'idx_time' : 13, },
+    16 : { 'idx_lat'  : 11, 
+           'idx_lon'  : 12, 
+           'idx_h'    : 13,
+           'idx_macs' : 14, 
+           'idx_rsss' : 15,
+           'idx_time' : 2, },
+}
 
 # Logging related cfg.
 from logging import getLogger, Formatter, INFO, DEBUG
@@ -40,7 +57,7 @@ loghandler = cLogRotateFileHandler(logfile, "a", 30*1024*1024, 200) # Rotate aft
 loghandler.setFormatter(logfmt)
 wpplog.addHandler(loghandler)
 
-mc = redis.Redis(host='localhost', port=6379, db=0)
+mc = redis.Redis(host=IP_CACHE_REDIS, port=PORT_CACHE_REDIS, db=0)
 
 # PosResp msg fmt.
 POS_RESP_FULL="""<?xml version="1.0" encoding="UTF-8"?>

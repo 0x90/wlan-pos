@@ -7,7 +7,7 @@ import numpy as np
 from pprint import pprint,PrettyPrinter
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker
 
-from wpp.config import CLUSTERKEYSIZE
+from wpp.config import CSV_CFG_RFP, CLUSTERKEYSIZE
 
 
 def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
@@ -27,21 +27,21 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     csvdat = csv.reader(fd_csv)
     try:
         rawrmp = np.array([ fp for fp in csvdat ])
-        num_rows,num_cols = np.shape(rawrmp)
+        num_rows, num_cols = np.shape(rawrmp)
     except csv.Error, e:
         sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     # CSV format judgement.
     print 'Parsing FPs for Incr clustering: [%s]' % num_rows
-    if num_cols == 16:
-        idx_macs = 14; idx_rsss = 15
-        idx_lat = 11; idx_lon = 12; idx_h = 13
-        idx_time = 2
-    elif num_cols == 14:
-        idx_macs = 11; idx_rsss = 12
-        idx_lat = 8; idx_lon = 9; idx_h = 10
-        idx_time = 13
-    else:
+    try:
+        csv_cols = CSV_CFG_RFP[num_cols]
+    except KeyError:
         sys.exit('\nERROR: Unsupported csv format!\n')
+    idx_macs = csv_cols['idx_macs']
+    idx_rsss = csv_cols['idx_rsss']
+    idx_lat  = csv_cols['idx_lat']
+    idx_lon  = csv_cols['idx_lon']
+    idx_h    = csv_cols['idx_h']
+    idx_time = csv_cols['idx_time']
     #print 'CSV format: %d fields' % num_cols
         
     # topaps: array of splited aps strings for all fingerprints.
@@ -255,17 +255,16 @@ def doClusterAll(fd_csv=None):
     except csv.Error, e:
         sys.exit('\nERROR: line %d: %s!\n' % (csvdat.line_num, e))
     print 'All Clustering -> %s FPs' % num_rows
-    # CSV format judgement.
-    if num_cols == 14:
-        idx_macs = 11; idx_rsss = 12
-        idx_lat = 8; idx_lon = 9; idx_h = 10
-        idx_time = 13
-    elif num_cols == 16:
-        idx_macs = 14; idx_rsss = 15
-        idx_lat = 11; idx_lon = 12; idx_h = 13
-        idx_time = 2
-    else:
+    try:
+        csv_cols = CSV_CFG_RFP[num_cols]
+    except KeyError:
         sys.exit('\nERROR: Unsupported csv format!\n')
+    idx_macs = csv_cols['idx_macs']
+    idx_rsss = csv_cols['idx_rsss']
+    idx_lat  = csv_cols['idx_lat']
+    idx_lon  = csv_cols['idx_lon']
+    idx_h    = csv_cols['idx_h']
+    idx_time = csv_cols['idx_time']
     print 'CSV format: %d fields' % num_cols
         
     # topaps: array of splited aps strings for all fingerprints.
