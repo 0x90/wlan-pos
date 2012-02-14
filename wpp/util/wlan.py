@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-import struct
-import array
-import errno
-import fcntl
-import socket
-import time
-import re
-import sys
+#import struct
+#import array
+#import errno
+#import fcntl
+#import socket
+#import time
+#import sys
 #import os
+import re
 from subprocess import Popen, PIPE
 
 
@@ -201,10 +201,12 @@ def scanWLAN_OS(ifname='wlan0'):
 if __name__ == "__main__":
     try:
         import psyco
-        psyco.bind(pack_wrq)
-        psyco.bind(syscall)
-        psyco.bind(parse_all)
-        psyco.bind(scanWLAN_OS)
+        psyco.bind(Run)
+        psyco.bind(scanWLAN_RE)
+        #psyco.bind(pack_wrq)
+        #psyco.bind(syscall)
+        #psyco.bind(parse_all)
+        #psyco.bind(scanWLAN_OS)
         #psyco.profile()
         #psyco.full(0.1)
     except ImportError:
@@ -213,9 +215,18 @@ if __name__ == "__main__":
     wlan = scanWLAN_RE(pmode=2)
     #time.sleep(2)
     #wlan = scanWLAN_OS()
-    if wlan == errno.EPERM: sys.exit(99)
+    #if wlan == errno.EPERM: sys.exit(99)
 
-    from pprint import pprint
+    import chardet as cd
     print 'visible APs: %d' % len(wlan)
-    pprint(wlan)
-
+    print
+    print '%-18s %3s %5s %-4s %-6s' % ('MAC (BSSID)', 'RSS', 'Noise', 'Key', 'ESSID')
+    print '-' * 50
+    wlan = dict([ (ap[1], ap) for ap in wlan ])
+    sorted_rss = sorted(wlan)
+    for rss in sorted_rss:
+        mac, rss, noise, key, essid = wlan[rss]
+        enc = cd.detect(essid)['encoding']
+        if not enc is None:
+            essid = essid.decode(enc)
+        print '%-18s %3s %5s %-4s %-20s' % (mac, rss, noise, key, essid)

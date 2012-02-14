@@ -280,3 +280,6 @@
 2012-02-06
     1) Fix doClusterIncr() with null-wifi FPs.
     2) Add colorized logwatch for log tailf.
+2012-02-12
+    1) Add logwatch support for indoor FP collection routine.
+    2) Mod wlan print format to be more tabular.
