@@ -36,14 +36,18 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
         csv_cols = CSV_CFG_RFP[num_cols]
     except KeyError:
         sys.exit('\nERROR: Unsupported csv format!\n')
+    try:
+        idx_lat = csv_cols['idx_lat']
+        idx_lon = csv_cols['idx_lon']
+    except KeyError:
+        idx_iac = csv_cols['idx_iac']
     idx_macs = csv_cols['idx_macs']
     idx_rsss = csv_cols['idx_rsss']
-    idx_lat  = csv_cols['idx_lat']
-    idx_lon  = csv_cols['idx_lon']
     idx_h    = csv_cols['idx_h']
     idx_time = csv_cols['idx_time']
     #print 'CSV format: %d fields' % num_cols
         
+    # Rearrange & truncate(consists of CLUSTERKEYSIZE ones) MACs & RSSs in rawrmp by descending order.
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('Selecting MACs for clustering ... ')
     topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
@@ -62,16 +66,20 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
 
     # Clustering heuristics.
     #print 'Executing Incr clustering: '
+    if 'idx_lat' in csv_cols:
+        idxs_fp = [ idx_lat, idx_lon, idx_h, idx_rsss, idx_time ]
+    else:
+        idxs_fp = [ idx_iac, idx_h, idx_time, idx_rsss ]
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
     if verb: 
         widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
         pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
     for idx, wlanmacs in enumerate(topaps):
-        # drop FPs with no wlan info.
+        # Drop FPs with no wlan info.
         if not wlanmacs[0].strip() and len(wlanmacs) == 1:
             continue
         #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
-        fps = rawrmp[idx,[idx_lat,idx_lon,idx_h,idx_rsss,idx_time]]
+        fps = rawrmp[ idx, idxs_fp ]
         #     cidcntseq: all query results from db: cid,count(cid),max(seq).
         # cidcntseq_max: query results with max count(cid).
         cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
