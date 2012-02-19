@@ -285,3 +285,5 @@
     2) Mod wlan print format to be more tabular.
 2012-02-14
     1) Add indoor FP collection routine.
+2012-02-19
+    1) Fix incr-clustering error introduced by whitespace in MACS, RSSs, and time fields.

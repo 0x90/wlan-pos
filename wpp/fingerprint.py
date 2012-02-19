@@ -50,8 +50,8 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     # Rearrange & truncate(consists of CLUSTERKEYSIZE ones) MACs & RSSs in rawrmp by descending order.
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('Selecting MACs for clustering ... ')
-    topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
-    toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
+    topaps = np.char.array(rawrmp[:,idx_macs]).replace(' ','').split('|')
+    toprss = np.char.array(rawrmp[:,idx_rsss]).replace(' ','').split('|')
     joinaps = []
     for i in xrange(len(topaps)):
         macs = np.array(topaps[i])
@@ -106,6 +106,8 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
                 if cids_belong[1] == len(wlanmacs):
                     found_cluster = True
         #sys.stdout.write('Cluster searching ... ')
+        # Strip time content.
+        fps[-1] = fps[-1].replace(' ','')
         if not found_cluster:
             #print 'Failed!'
             # insert into cidaps/cfps with a new clusterid.

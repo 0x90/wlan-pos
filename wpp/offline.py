@@ -329,8 +329,8 @@ def loadRawdata(rawfile=None, updbmode=1):
 
     Init *algo* tables with rawdata csv(16 columns) -- SLOW if csv is big, 
         try offline.doClusterAll(rawdata) -> db.loadClusteredData() instead.
-    1) db.initTables(): init db tables.
-    2) db.updateIndexes(): update tables indexes.
+    1) db.initTables(): init db tables if update all the db data.
+    2) db.updateIndexes(): update tables indexes, drop old idxs if only update db incrementally.
     3) offline.doClusterIncr(): incremental clustering.
     """
     dbips = DB_OFFLINE
@@ -348,7 +348,8 @@ def loadRawdata(rawfile=None, updbmode=1):
         n_inserts = doClusterIncr(fd_csv=file(rawfile), wppdb=wppdb)
         print 'Added: [%s] clusters, [%s] FPs' % (n_inserts['n_newcids'], n_inserts['n_newfps'])
         # Init ver_uprecs in |wpp_uprecsver| if it's empty.
-        if wppdb.getRawdataVersion() is None: wppdb.setRawdataVersion('0')
+        if wppdb.getRawdataVersion() is None: 
+            wppdb.setRawdataVersion('0')
         wppdb.close()
 
 
