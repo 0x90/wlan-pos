@@ -44,62 +44,85 @@ example:
 def fixPos(posreq=None, has_google=False, mc=None):
     xmlnodes = xmlparser(posreq).getchildren()
     # Parameters default vals init.
-    lat,lon,ee=39.9055,116.3914,5000; errinfo='AccuTooBad'; errcode='102'
+    lat, lon, ee = 39.9055, 116.3914, 5000 
+    errinfo = 'AccuTooBad'; errcode = '102'
     # logic control switch init.
     pos_area = pos_pt = False # Default *PosLevel* is Point if not specified.
     # WppDB connection init.
-    dbsvr = dbsvrs[DB_ONLINE]; wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
+    dbsvr = dbsvrs[DB_ONLINE] 
+    wppdb = WppDB(dsn=dbsvr['dsn'], dbtype=dbsvr['dbtype'])
     # lambda func init.
     f = lambda x : [ node.attrib for node in xmlnodes if node.tag == x ] 
     plevel = f('PosLevel')
     # Area location related parameters interpretation & default vals init.
-    plevel = plevel[0]['val'] if plevel else 'Point'; acode = ''; addr = ''
+    plevel = plevel[0]['val'] if plevel else 'Point' 
+    acode = addr = ''
     if plevel == 'Hybrid': pos_area = pos_pt = True
     elif plevel == 'Area': pos_area = True
-    else: pos_pt = True; plevel = 'Point' # PosLevel default *Point*.
+    else: 
+        pos_pt = True 
+        plevel = 'Point' # PosLevel default *Point*.
     if pos_area: # Area location.
         cell = f('CellInfo')
         if cell: 
             laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
             acode_addr = wppdb.areaLocation(laccid)
-            if acode_addr: acode,addr=acode_addr; errinfo='OK'; errcode='100'
+            if acode_addr: 
+                acode, addr = acode_addr 
+                errinfo='OK'; errcode='100'
             lat = lon = ee = ''
     if pos_pt: # Point location, which returns 3d coordinates.
         macs = f('WLANIdentifier'); rsss = f('WLANMatcher'); need_google = False; 
         if macs and rsss:
-            macs = macs[0]['val'].split('|'); rsss = rsss[0]['val'].split('|')
-            INTERSET = min(CLUSTERKEYSIZE, len(macs)); idxs_max = argsort(rsss)[:INTERSET]
+            macs = macs[0]['val'].split('|') 
+            rsss = rsss[0]['val'].split('|')
+            INTERSET = min(CLUSTERKEYSIZE, len(macs)) 
+            idxs_max = argsort(rsss)[:INTERSET]
             macsrsss = vstack((macs, rsss))[:,idxs_max]
             wlanloc = fixPosWLAN(INTERSET, macsrsss, wppdb)
-            if not wlanloc: need_google = True
+            if not wlanloc: 
+                need_google = True
         else: wlanloc = []
         if not wlanloc: 
             if not pos_area: cell = f('CellInfo')
             if cell:
-                if not pos_area: laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
+                if not pos_area: 
+                    laccid = '%s-%s' % (cell[0]['lac'], cell[0]['cid'])
                 celloc = wppdb.laccidLocation(laccid)
-                if not celloc: need_google=True; wpplog.error('Cell location FAILED!')
-                elif celloc[2]>GOOG_ERR_LIMIT: need_google=False  # googleLocation err too big for wlanloc.
+                if not celloc: 
+                    need_google = True 
+                    wpplog.error('Cell location FAILED!')
+                elif celloc[2] > GOOG_ERR_LIMIT: 
+                    need_google = False  # googleLocation err too big for wlanloc.
                 else: pass
             else: celloc = []
         loc = wlanloc or celloc
-        if loc: lat,lon,ee = loc; errinfo='OK'; errcode='100'
+        if loc: 
+            lat, lon, ee = loc
+            errinfo = 'OK'; errcode = '100'
         # TODO: make googleLocation async job when wlanloc fails & celloc succeeds.
-        if need_google and has_google: # Try Google location, when wifi location failed && wifi info exists.
+        # Try Google location, when wifi location failed && wifi info exists.
+        if need_google and has_google: 
             loc_google = googleLocation(macs=macs, rsss=rsss, cellinfo=cell[0], mc=mc) 
             if loc_google:
-                lat1,lon1,h,ee_goog = loc_google 
-                if not loc: lat,lon,ee=lat1,lon1,ee_goog; errinfo='OK'; errcode='100'
+                lat1, lon1, h, ee_goog = loc_google 
+                if not loc:
+                    lat, lon, ee = lat1, lon1, ee_goog
+                    errinfo = 'OK'; errcode = '100'
                 # wifi location import. TODO: make google loc import job async when it's *succeeded*.
                 if macs and ee_goog <= GOOG_ERR_LIMIT:
-                    t = f('Time'); t = t[0]['val'] if t else ''
+                    t = f('Time')
+                    t = t[0]['val'] if t else ''
                     fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
-                    if n['n_newfps'] == 1: wpplog.info('Added 1 WLAN FP from Google')
-                    else: wpplog.error('Failed to add FP from Google!')
+                    if n['n_newfps'] == 1: 
+                        wpplog.info('Added 1 WLAN FP from Google')
+                    else: 
+                        wpplog.error('Failed to add FP from Google!')
                 # Cell location import.
                 if cell and not celloc:
-                    if ee_goog <= GOOG_ERR_LIMIT: loc_google[-1] = 500
+                    if ee_goog <= GOOG_ERR_LIMIT: 
+                        loc_google[-1] = 500
                     wppdb.addCellLocation(laccid=laccid, loc=loc_google)
                     wpplog.info('Added 1 Cell FP from Google')
             else: wpplog.error('Google location FAILED!')
@@ -107,6 +130,7 @@ def fixPos(posreq=None, has_google=False, mc=None):
     if plevel == 'Hybrid': posresp = POS_RESP_FULL % (errcode, errinfo, lat, lon, ee, plevel, acode, addr)
     elif plevel == 'Area': posresp = POS_RESP_AREA % (errcode, errinfo, plevel, acode, addr)
     else: posresp = POS_RESP_PT % (errcode, errinfo, lat, lon, ee, plevel)
+
     return posresp
 
 

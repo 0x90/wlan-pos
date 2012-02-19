@@ -20,7 +20,7 @@ GOOG_FAIL_LIMIT = 25
 GOOG_FAIL_CACHE_TIME = 3600*24
 IP_CACHE_REDIS = '192.168.109.56'
 PORT_CACHE_REDIS = 6379
-# CSV format config.
+# Raw FP CSV format config.
 CSV_CFG_RFP = {
     14 : { 'idx_lat'  : 8, 
            'idx_lon'  : 9, 
@@ -33,6 +33,11 @@ CSV_CFG_RFP = {
            'idx_h'    : 13,
            'idx_macs' : 14, 
            'idx_rsss' : 15,
+           'idx_time' : 2, },
+     5 : { 'idx_iac'  : 0, 
+           'idx_h'    : 1,
+           'idx_macs' : 3, 
+           'idx_rsss' : 4,
            'idx_time' : 2, },
 }
 
