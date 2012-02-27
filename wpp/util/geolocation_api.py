@@ -66,19 +66,33 @@ def genLocReq(macs=None, rsss=None, cellinfo={}, atoken=None):
       "access_token": "2:k7j3G6LaL6u_lafw:4iXOeOpTh1glSXe"
     }
     """
-    req = {}; cellinfo_keys = cellinfo.keys()
-    if 'lac' in cellinfo_keys and 'cid' in cellinfo_keys:
-        lac = cellinfo['lac']; cid = cellinfo['cid']
-        req['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac } ]
-        if 'rss' in cellinfo_keys: req['cell_towers'][0]['signal_strength'] = int(cellinfo['rss'])
-    req['home_mobile_country_code'] = int(cellinfo['mcc']) if ('mcc' in cellinfo_keys) else 460 
-    req['home_mobile_network_code'] = int(cellinfo['mnc']) if ('mnc' in cellinfo_keys) else 0
+    req = {} 
+    # lac, cid, rss
+    try:
+        lac = cellinfo['lac'] 
+        cid = cellinfo['cid']
+        if int(lac) != 0 and int(cid) != 0:
+            req['cell_towers'] = [ { 'cell_id':cid, 'location_area_code':lac } ]
+            req['cell_towers'][0]['signal_strength'] = int(cellinfo['rss'])
+    except KeyError: pass
+    # mcc
+    try:
+        req['home_mobile_country_code'] = int(cellinfo['mcc'])
+    except KeyError:
+        req['home_mobile_country_code'] = 460 
+    # mnc
+    try:
+        req['home_mobile_network_code'] = int(cellinfo['mnc'])
+    except KeyError:
+        req['home_mobile_country_code'] = 0 
+    # wifi
     if len(macs): 
         req['wifi_towers'] = [{'mac_address':m, 'signal_strength':int(rsss[i])} for i,m in enumerate(macs)]
     req['version'] = '1.1.0'
     if atoken: req['access_token'] = atoken
     req_json = json.dumps(req)
     return req_json
+
 
 def fail_limit(f):
     def dec(*args, **kw):
