@@ -1,6 +1,7 @@
 #!/bin/bash
 
 opt=$1
+target_files=~/tmp/log/wpp.log*
 
 #day_str="2 days ago"
 day_str="now"
@@ -10,7 +11,10 @@ mon_str="now"
 day_end=`date -d "$day_str" "+%d"`
 if [ "$opt" == "today" ]; then
 	#just for today.
-	day_start=$day_end  
+	day_start=$day_end
+    date_today=`date +%Y-%m-%d`
+    target_files=`ls $target_files -tr --full-time |grep $date_today |awk '{print $NF}'`
+    echo $target_files
 else
 	#from the beginning of this month.
 	day_start=1         
@@ -23,7 +27,7 @@ for day in $(seq $day_start $day_end)
 do
     d=`printf "%02d" $day`
     date_tmp="$date_year-$date_mon-$d"
-    hits=`grep -nr 'PosReq' ~/tmp/log/wpp.log* |grep "$date_tmp" |wc -l` 
+    hits=`grep -nr 'PosReq' $target_files |grep "$date_tmp" |wc -l` 
     day_of_week=`date -d "$date_tmp" +%u`
     printf '%-10s_%s,%8d\n' $date_tmp $day_of_week $hits
 done
