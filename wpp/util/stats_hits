@@ -14,7 +14,6 @@ if [ "$opt" == "today" ]; then
 	day_start=$day_end
     date_today=`date +%Y-%m-%d`
     target_files=`ls $target_files -tr --full-time |grep $date_today |awk '{print $NF}'`
-    echo $target_files
 else
 	#from the beginning of this month.
 	day_start=1         
