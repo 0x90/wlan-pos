@@ -182,6 +182,16 @@ class WppDB(object):
             self.insertMany(table_name=table_name, indat=indat)
         else: sys.exit('\nERROR: Unsupported DB type: %s!' % self.dbtype)
 
+    def getClusterMACs(self, cid=None):
+        """ 
+        Get key MACs in seq ascending order for a cluster(cid).
+        """
+        table_name = 'wpp_clusteridaps'
+        table_inst = self.tables[table_name]
+        self.cur.execute( 'SELECT keyaps FROM %s WHERE clusterid=%s ORDER BY seq' % (table_inst, cid) )
+        cluster_macs = [ x[0] for x in self.cur.fetchall() ]
+        return cluster_macs
+
     def _getNewCid(self, table_inst=None):
         self.cur.execute( self.sqls['SQL_SELECT'] % ('max(clusterid)', table_inst) )
         cur_cid = self.cur.fetchone()[0]
@@ -386,22 +396,19 @@ class WppDB(object):
         if not num_macs: sys.exit('Null macs!')
         # fetch id(s) of best cluster(s).
         cidcnt = self._getBestCIDMaxNI(macs)
-        if not cidcnt.any(): return [0,None]
-        maxNI = cidcnt[0,1]
+        if not cidcnt.any(): 
+            return [ 0, None ]
+        maxNI = cidcnt[0, 1]
         idx_maxNI = cidcnt[:,1].tolist().count(maxNI)
         best_clusters = cidcnt[:idx_maxNI,0]
-        #print best_clusters
         cfps = self._getFPs(cids=best_clusters)
-        #print cfps
         aps = self._getKeyMACs(cids=best_clusters)
-        #print aps
         cids = aps[:,0].tolist()
         keys = []
         for i,cid in enumerate(best_clusters):
-            keyaps  = [ x[1] for x in aps if x[0]==str(cid) ]
-            keycfps = [ x for x in cfps if x[0]==cid ]
+            keyaps  = [ x[1] for x in aps if str(x[0])==str(cid) ]
+            keycfps = [ x for x in cfps if str(x[0])==str(cid) ]
             keys.append([keyaps, keycfps])
-        #print keys
         return [maxNI, keys]
 
 

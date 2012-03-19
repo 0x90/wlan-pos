@@ -8,48 +8,53 @@ LOCPATH = DATPATH+ 'loc/'
 RAWSUFFIX = '.rfp'
 RMPSUFFIX = '.rmp'
 LOCSUFFIX = '.loc'
-#INTERSIZE = 10
 CLUSTERKEYSIZE = 4
 KNN = 4
 KWIN = 1.25
-RADIUS = 6372797 #meter
+RADIUS = 6372797  # meter
 MAX_AREA_TRY = 200
 CRAWL_LIMIT = 5000
+GOOG_AVAIL = True
 GOOG_ERR_LIMIT = 300
 GOOG_FAIL_LIMIT = 25
 GOOG_FAIL_CACHE_TIME = 3600*24
 IP_CACHE_REDIS = '192.168.109.56'
 PORT_CACHE_REDIS = 6379
-# Raw FP CSV format config.
+
+# Raw FP CSV column config.
 CSV_CFG_RFP = {
-    14 : { 'idx_lat'  : 8, 
-           'idx_lon'  : 9, 
-           'idx_h'    : 10,
-           'idx_macs' : 11, 
-           'idx_rsss' : 12,
-           'idx_time' : 13, },
-    16 : { 'idx_lat'  : 11, 
-           'idx_lon'  : 12, 
-           'idx_h'    : 13,
-           'idx_macs' : 14, 
-           'idx_rsss' : 15,
-           'idx_time' : 2, },
-     5 : { 'idx_iac'  : 0, 
-           'idx_h'    : 1,
-           'idx_macs' : 3, 
-           'idx_rsss' : 4,
-           'idx_time' : 2, },
+    14 : { 'lat'  : 8, 
+           'lon'  : 9, 
+           'h'    : 10,
+           'macs' : 11, 
+           'rsss' : 12,
+           'time' : 13, },
+    16 : { 'lat'  : 11, 
+           'lon'  : 12, 
+           'h'    : 13,
+           'macs' : 14, 
+           'rsss' : 15,
+           'time' : 2, },
+     6 : { 'iac'  : 0, 
+           'h'    : 1,
+           'bid'  : 2,
+           'time' : 3, 
+           'macs' : 4, 
+           'rsss' : 5, },
 }
 
 # Logging related cfg.
 from logging import getLogger, Formatter, INFO, DEBUG
-from logging.handlers import SysLogHandler
 from cloghandler import ConcurrentRotatingFileHandler as cLogRotateFileHandler
+WPPLOG_FMT = '[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s'  # Outdoor.
+#WPPLOG_FMT = '[%(asctime)s][%(levelname)s] %(message)s'                # Indoor.
+WPPLOG_FILE = 'wpp.log'        # Outdoor.
+#WPPLOG_FILE = 'wpp_indoor.log'  # Indoor.
 wpplog = getLogger('wpp')
 wpplog.setLevel(DEBUG)
-logfmt = Formatter('[%(asctime)s][P:%(process)s][%(levelname)s] %(message)s')
+logfmt = Formatter(WPPLOG_FMT)
 logdir = '%s/tmp/log' % os.environ['HOME']
-logfile = '%s/wpp.log' % logdir #TODO: dynamic path instead of ugly static path.
+logfile = '%s/%s' % (logdir, WPPLOG_FILE)
 if not os.path.isfile(logfile):
     if not os.path.isdir(logdir):
         try:
@@ -134,42 +139,70 @@ WPP@%s
 %s""",
 }
 # DB related configuration.
-#DB_ONLINE = 'local_pg'
-DB_ONLINE = '192.168.109.54'
-#DB_OFFLINE = ( 'local_pg', ) 
-DB_OFFLINE = ( '192.168.109.54', ) 
-#DB_UPLOAD = ( 'local_pg', )
-DB_UPLOAD = ( '192.168.109.54', )
+DB_CFG = {
+    'wpp_cmri': {
+        'online' : '192.168.109.54',
+        'offline' : ( '192.168.109.54', ),
+        'upload' : ( '192.168.109.54', ),
+    },
+    'wpp_local': {
+        'online' : 'local_pg',
+        'offline' : ( 'local_pg', ),
+        'upload' : ( 'local_pg', ),
+    },
+    'wpp_cmri_indoor': {
+        'online' : 'cmri_pg_indoor',
+        'offline' : ( 'cmri_pg_indoor', ),
+        'upload' : ( 'cmri_pg_indoor', ),
+    },
+    'wpp_local_indoor': {
+        'online' : 'local_pg_indoor',
+        'offline' : ( 'local_pg_indoor', ),
+        'upload' : ( 'local_pg_indoor', ),
+    },
+}
+#DB = DB_CFG['wpp_local']
+DB = DB_CFG['wpp_cmri']
+DB_ONLINE  = DB['online']
+DB_OFFLINE = DB['offline']
+DB_UPLOAD  = DB['upload']
+# dsn config.
+dsn_local_pg = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
+#dsn_local_pg_indoor = "host=localhost dbname=wppdb_indoor user=wpp password=wpp port=5432"
+#dsn_cmri_pg_indoor = "host=192.168.109.54 dbname=wppdb_indoor user=wpp password=wpp port=5432"
+dsn_cmri_pg = "host=192.168.109.54 dbname=wppdb user=wpp password=wpp port=5432"
+#dsn_vance_pg = "host=192.168.109.49 dbname=wppdb user=mwlan password=mwlan_pw port=5432"
 #dsn_local_ora = "yxt/yxt@localhost:1521/XE"
 #dsn_vance_ora = "mwlan/mwlan_pw@192.168.35.202/wlandb"
 #dsn_vance_pg_mic = "host=192.168.19.132 dbname=wpp user=mwlan password=mwlan_pw port=5432"
-dsn_local_pg  = "host=localhost dbname=wppdb user=wpp password=wpp port=5432"
-dsn_vance_pg = "host=192.168.109.49 dbname=wppdb user=mwlan password=mwlan_pw port=5432"
-dsn_moto_pg = "host=192.168.109.54 dbname=wppdb user=wpp password=wpp port=5432"
 #dbtype_ora = 'oracle' 
 #dbtype_my  = 'mysql'
 dbtype_pg  = 'postgresql'
 dbsvrs = {
           '192.168.109.54':{
-            'dsn':dsn_moto_pg,
+            'dsn':dsn_cmri_pg,
             'dbtype':dbtype_pg,
            },
-          '192.168.109.49':{
-            'dsn':dsn_vance_pg,
+          'local_pg':{
+            'dsn':dsn_local_pg,
             'dbtype':dbtype_pg,
            },
-          #'192.168.35.202':{
-          #  'dsn':dsn_vance_ora,
-          #  'dbtype':dbtype_ora,
+          #'cmri_pg_indoor':{
+          #  'dsn':dsn_cmri_pg_indoor,
+          #  'dbtype':dbtype_pg,
+          # },
+          #'local_pg_indoor':{
+          #  'dsn':dsn_local_pg_indoor,
+          #  'dbtype':dbtype_pg,
+          # },
+          #'192.168.109.49':{
+          #  'dsn':dsn_vance_pg,
+          #  'dbtype':dbtype_pg,
           # },
           #'local_ora':{
           #  'dsn':dsn_local_ora,
           #  'dbtype':dbtype_ora,
           # },
-          'local_pg':{
-            'dsn':dsn_local_pg,
-            'dbtype':dbtype_pg,
-           },
         }
 #db_config_my = {
 #            'hostname' : 'localhost',
@@ -360,6 +393,8 @@ sqls = { 'SQL_SELECT' : "SELECT %s FROM %s",
                         LINES TERMINATED BY '\\n' 
                         %s""" }
 
+# Test input csv file
+TESTFILE = os.path.dirname(__file__) + '/../dat/test.csv'
 # Text colors
 termtxtcolors = {
         'red':'\033[91m%s\033[0m',
@@ -493,6 +528,19 @@ WLAN_FAKE = {
         35: # bigerr 791
             [ ['00:17:7b:0f:0f:58', '-78'], ['00:b0:0c:0f:3e:98', '-86'],
               ['00:17:7b:0f:7a:b0', '-90'], ['1c:af:f7:a7:ba:b4', '-91'] ],
+        36: # Indoor: cluster #6, full match, 3 fps.
+            [ ['5C:63:BF:62:6D:32', '-28'], ['54:E6:FC:1F:DD:02', '-66'],
+              ['5C:63:BF:A8:D7:56', '-70'], ['F4:EC:38:22:5F:7E', '-81'] ],
+        37: # Indoor: cluster #8, full match, 1 fps.
+            [ ['5C:63:BF:62:6D:32', '-28'], ['54:E6:FC:1F:DD:02', '-66'],
+              ['5C:63:BF:A8:D7:56', '-70'], ['B0:48:7A:66:8B:6A', '-77'] ],
+        38: # Indoor: cluster #2, #6, #8, part match(3), 34 fps.
+            [ ['5C:63:BF:62:6D:32', '-28'], ['54:E6:FC:1F:DD:02', '-66'],
+              ['5C:63:BF:A8:D7:56', '-70'], ],
+        39: # Indoor
+            [ ['00:11:b5:fd:8e:f6', '-28'], ['38:83:45:6a:55:2c', '-66'],
+              ['d2:73:56:c0:ea:7d', '-70'], ],
+
             
 }
 icon_types = { 'on': [ '"encrypton"',  '/kml/icons/encrypton.png'],

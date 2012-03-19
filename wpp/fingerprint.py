@@ -4,7 +4,6 @@ from __future__ import division
 import os, sys
 import csv
 import numpy as np
-from pprint import pprint,PrettyPrinter
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker
 
 from wpp.config import CSV_CFG_RFP, CLUSTERKEYSIZE
@@ -20,8 +19,8 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     
     Returns
     -------
-    n_inserts: { svrip : (n_newcids, n_newfps) }, in which n_newcids,n_newfps stand for:
-            n_newcids: New clusters added.
+    n_inserts : { 'n_newcids':0, 'n_newfps':0 },
+            n_newcids: New clusters added,
             n_newfps: New FPs added.
     """
     csvdat = csv.reader(fd_csv)
@@ -37,21 +36,24 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     except KeyError:
         sys.exit('\nERROR: Unsupported csv format!\n')
     try:
-        idx_lat = csv_cols['idx_lat']
-        idx_lon = csv_cols['idx_lon']
+        col_lat = csv_cols['lat']
+        col_lon = csv_cols['lon']
     except KeyError:
-        idx_iac = csv_cols['idx_iac']
-    idx_macs = csv_cols['idx_macs']
-    idx_rsss = csv_cols['idx_rsss']
-    idx_h    = csv_cols['idx_h']
-    idx_time = csv_cols['idx_time']
+        col_iac = csv_cols['iac']
+        col_bid = csv_cols['bid']
+        # Modify wppdb.tbl_field to support indoor wpp db schema.
+        wppdb.tbl_field['wpp_cfps'] = ('clusterid', 'iac', 'h', 'building_id', 'time', 'rsss')
+    col_macs = csv_cols['macs']
+    col_rsss = csv_cols['rsss']
+    col_h    = csv_cols['h']
+    col_time = csv_cols['time']
     #print 'CSV format: %d fields' % num_cols
         
     # Rearrange & truncate(consists of CLUSTERKEYSIZE ones) MACs & RSSs in rawrmp by descending order.
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('Selecting MACs for clustering ... ')
-    topaps = np.char.array(rawrmp[:,idx_macs]).replace(' ','').split('|')
-    toprss = np.char.array(rawrmp[:,idx_rsss]).replace(' ','').split('|')
+    topaps = np.char.array(rawrmp[:,col_macs]).replace(' ','').split('|')
+    toprss = np.char.array(rawrmp[:,col_rsss]).replace(' ','').split('|')
     joinaps = []
     for i in xrange(len(topaps)):
         macs = np.array(topaps[i])
@@ -60,68 +62,91 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
         topaps[i] = macs[idxs_max]
         joinaps.append('|'.join(topaps[i]))
         toprss[i] = '|'.join(rsss[idxs_max])
-    rawrmp[:,idx_macs] = np.array(joinaps)
-    rawrmp[:,idx_rsss] = np.array(toprss)
+    rawrmp[:,col_macs] = np.array(joinaps)
+    rawrmp[:,col_rsss] = np.array(toprss)
     print 'Done'
 
     # Clustering heuristics.
-    #print 'Executing Incr clustering: '
-    if 'idx_lat' in csv_cols:
-        idxs_fp = [ idx_lat, idx_lon, idx_h, idx_rsss, idx_time ]
+    if 'lat' in csv_cols:
+        idxs_fp = [ col_lat, col_lon, col_h, col_rsss, col_time ]
+        idx_time = 4
+        idx_rsss = 3
     else:
-        idxs_fp = [ idx_iac, idx_h, idx_time, idx_rsss ]
+        idxs_fp = [ col_iac, col_h, col_bid, col_time, col_rsss ]
+        idx_time = 3
+        idx_rsss = 4
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
-    if verb: 
+    if verb:
         widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
         pbar = ProgressBar(widgets=widgets, maxval=num_rows*10).start()
     for idx, wlanmacs in enumerate(topaps):
         # Drop FPs with no wlan info.
         if not wlanmacs[0].strip() and len(wlanmacs) == 1:
             continue
-        #print '%s %s %s' % ('-'*17, idx+1, '-'*15)
-        fps = rawrmp[ idx, idxs_fp ]
-        #     cidcntseq: all query results from db: cid,count(cid),max(seq).
-        # cidcntseq_max: query results with max count(cid).
-        cidcntseq = wppdb.getCIDcntMaxSeq(macs=wlanmacs)
-        found_cluster = False
-        if cidcntseq:
-            # find out the most queried cluster /w the same AP count:
-            # cid count = max seq
-            cidcntseq = np.array(cidcntseq)
-            cidcnt = cidcntseq[:,1]
-            #print cidcntseq
-            idxs_sortdesc = np.argsort(cidcnt).tolist()
-            idxs_sortdesc.reverse()
-            #print idxs_sortdesc
-            cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
-            cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
-            #print cidcntseq_max
-            idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
-            #print idx_belong
-            if sum(idx_belong):
-                # cids_belong: [clusterid, number of keyaps]
-                cids_belong = cidcntseq_max[idx_belong,[0,2]]
-                #print cids_belong
-                cid = cids_belong[0]
-                if cids_belong[1] == len(wlanmacs):
-                    found_cluster = True
-        #sys.stdout.write('Cluster searching ... ')
-        # Strip time content.
-        fps[-1] = fps[-1].replace(' ','')
+        fp = rawrmp[ idx, idxs_fp ]
+        found_cluster, result = search_cluster(macs=wlanmacs, fp=fp, wppdb=wppdb)
+        fp = result['fp']
+        # Strip time & rsss field.
+        fp[idx_time] = fp[idx_time].replace(' ','')
+        fp[idx_rsss] = fp[idx_rsss].replace(' ','')
         if not found_cluster:
-            #print 'Failed!'
-            # insert into cidaps/cfps with a new clusterid.
-            new_cid = wppdb.addCluster(wlanmacs)
-            wppdb.addFps(cid=new_cid, fps=[fps])
+            # Insert into cidaps/cfps with a new clusterid.
+            new_cid = wppdb.addCluster(result['fp_macs'])
+            wppdb.addFps(cid=new_cid, fps=[fp])
             n_inserts['n_newcids'] += 1
         else:
-            #print 'Found: (cid: %d)' % cid
-            # insert fingerprints into the same cluserid in table cfps.
-            wppdb.addFps(cid=cid, fps=[fps])
+            # Insert fingerprints into the found cluster.
+            # Re-arrange FP rsss according to the ascending seq order of |clusteridaps| keyaps.
+            fp_rsss = fp[idx_rsss].split('|')
+            fp_macs = result['fp_macs'].tolist()
+            cluster_macs = result['cluster_macs']
+            fp[idx_rsss] = '|'.join([ fp_rsss[fp_macs.index(m)] for m in cluster_macs ])
+            wppdb.addFps(cid=result['cid'], fps=[fp])
         n_inserts['n_newfps'] += 1
         if verb: pbar.update(10*idx+1)
     if verb: pbar.finish()
     return n_inserts
+
+
+def search_cluster(macs=None, fp=None, wppdb=None):
+    """
+    1) Search for best matched cluster, or create a new one.
+    2) Filtering MACs thru decorators.
+    """
+    found = False
+    result = {'fp': fp, 'fp_macs': macs}
+    # Filter out the duplicated macs & rsss.
+    if len(macs) != len(set(macs)):
+        new_wifi = np.array([ ( x, fp[-1].split('|')[list(macs).index(x)]) for x in set(macs) ])
+        idx_sortbyrss = np.argsort(new_wifi[:,1])
+        new_wifi = new_wifi[idx_sortbyrss, :]
+        result['fp'][-1] = '|'.join(new_wifi[:,1])
+        result['fp_macs'] = new_wifi[:,0]
+    #     cidcntseq: all query results from db: cid,count(cid),max(seq).
+    # cidcntseq_max: query results with max count(cid).
+    cidcntseq = wppdb.getCIDcntMaxSeq(macs=macs)
+    if cidcntseq:
+        # find out the most queried cluster /w the same AP count:
+        # cid count = max seq
+        cidcntseq = np.array(cidcntseq)
+        cidcnt = cidcntseq[:,1]
+        #print cidcntseq
+        idxs_sortdesc = np.argsort(cidcnt).tolist()
+        idxs_sortdesc.reverse()
+        #print idxs_sortdesc
+        cnt_max = cidcnt.tolist().count(cidcnt[idxs_sortdesc[0]])
+        cidcntseq_max = cidcntseq[idxs_sortdesc[:cnt_max],:]
+        #print cidcntseq_max
+        idx_belong = cidcntseq_max[:,1].__eq__(cidcntseq_max[:,2])
+        #print idx_belong
+        if sum(idx_belong):
+            # cids_belong: [clusterid, number of keyaps]
+            cids_belong = cidcntseq_max[idx_belong,[0,2]]
+            result['cid'] = cids_belong[0]
+            if cids_belong[1] == len(macs):
+                found = True
+                result['cluster_macs'] = wppdb.getClusterMACs(cid=result['cid'])
+    return (found, result)
 
 
 def genFPs(rawfile):
@@ -269,19 +294,19 @@ def doClusterAll(fd_csv=None):
         csv_cols = CSV_CFG_RFP[num_cols]
     except KeyError:
         sys.exit('\nERROR: Unsupported csv format!\n')
-    idx_macs = csv_cols['idx_macs']
-    idx_rsss = csv_cols['idx_rsss']
-    idx_lat  = csv_cols['idx_lat']
-    idx_lon  = csv_cols['idx_lon']
-    idx_h    = csv_cols['idx_h']
-    idx_time = csv_cols['idx_time']
+    col_macs = csv_cols['macs']
+    col_rsss = csv_cols['rsss']
+    col_lat  = csv_cols['lat']
+    col_lon  = csv_cols['lon']
+    col_h    = csv_cols['h']
+    col_time = csv_cols['time']
     print 'CSV format: %d fields' % num_cols
         
     # topaps: array of splited aps strings for all fingerprints.
     sys.stdout.write('\nSelecting MACs for clustering ... ')
     #print
-    topaps = np.char.array(rawrmp[:,idx_macs]).split('|') 
-    toprss = np.char.array(rawrmp[:,idx_rsss]).split('|')
+    topaps = np.char.array(rawrmp[:,col_macs]).split('|') 
+    toprss = np.char.array(rawrmp[:,col_rsss]).split('|')
     joinaps = []
     for i in xrange(len(topaps)):
         macs = np.array(topaps[i])
@@ -292,10 +317,10 @@ def doClusterAll(fd_csv=None):
         toprss[i] = '|'.join(rsss[idxs_max])
         #print toprss[i]
     #print
-    rawrmp[:,idx_macs] = np.array(joinaps)
-    rawrmp[:,idx_rsss] = np.array(toprss)
-    #pp.pprint(rawrmp[:,idx_macs])
-    #pp.pprint(rawrmp[:,idx_rsss])
+    rawrmp[:,col_macs] = np.array(joinaps)
+    rawrmp[:,col_rsss] = np.array(toprss)
+    #pp.pprint(rawrmp[:,col_macs])
+    #pp.pprint(rawrmp[:,col_rsss])
     print 'Done'
 
     # sets_keyaps: a list of AP sets for fingerprints clustering in raw radio map,
@@ -344,7 +369,7 @@ def doClusterAll(fd_csv=None):
     sys.stdout.write('Constructing clusterid-keymacs mapping table ... ')
     # cid_aps: array that mapping clusterid and keyaps for cid_aps.tbl. [cid,aps,seq].
     cidaps_idx = [ idxs[0] for idxs in idxs_keyaps ]
-    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [idx_macs]]) ])
+    cid_aps = np.array([ [str(k+1),v] for k,v in enumerate(rawrmp[cidaps_idx, [col_macs]]) ])
     # For optimized table structure of cidaps: cid, keyap, seq(start from 1).
     cid_aps_tmp = []
     for rec in cid_aps:
@@ -369,11 +394,11 @@ def doClusterAll(fd_csv=None):
         # j,fpdata: jth fp data in ith cluster. 
         for j,fpdata in enumerate(cr):
             rssnew = []
-            macold = fpdata[idx_macs+1].split('|')
+            macold = fpdata[col_macs+1].split('|')
             #print 'macold: %s' % macold
-            rssold = fpdata[idx_rsss+1].split('|')
+            rssold = fpdata[col_rsss+1].split('|')
             rssnew = [ rssold[macold.index(mac)] for mac in macsref ]
-            cr[j][idx_rsss+1] = '|'.join(rssnew) 
+            cr[j][col_rsss+1] = '|'.join(rssnew) 
         if end > len(crmp)-1: crmp[start:] = cr
         else: crmp[start:end] = cr
         start = end
@@ -381,7 +406,7 @@ def doClusterAll(fd_csv=None):
 
     # cfprints: array for cfprints.tbl, [cid,lat,lon,h,rsss,time].
     sys.stdout.write('Constructing clustered fingerprint table ... ')
-    cfprints = crmp[:,[0,idx_lat+1,idx_lon+1,idx_h+1,idx_rsss+1,idx_time+1]]
+    cfprints = crmp[:,[0,col_lat+1,col_lon+1,col_h+1,col_rsss+1,col_time+1]]
     print 'Done'
 
     if verbose:
