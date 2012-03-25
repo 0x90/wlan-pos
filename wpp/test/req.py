@@ -20,7 +20,8 @@ from wpp.util.net import getIP
 #req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000101" /><Time val="20110725-141421" /><UserInfo imei="012682003400042" imsi="460007316414690" UserAgent="SEMC/LT15i_1247-1052" /><CellInfo mcc="460" mnc="00" lac="1015" cid="28837" rss="-63" /><WLANIdentifier val="00:21:27:61:16:36|00:23:cd:3f:2d:b6" /><WLANMatcher val="-88|-98" /><PosLevel val="Hybrid" /></PosReq>"""
 #req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000112" /><Time val="20111113-083933" /><UserInfo imei="352284040778213" imsi="460001343119748" UserAgent="Samsung/OMAP_SS" /><CellInfo mcc="460" mnc="00" lac="4141" cid="30472" rss="-49" /><WLANIdentifier val="00:17:7b:0f:7a:b0|fc:75:16:1f:19:7a|00:17:7b:0f:0f:58|54:e6:fc:41:72:26|40:16:9f:d2:db:0e|00:14:5a:01:55:8f|74:ea:3a:1a:62:c8|00:14:5a:01:53:ae|38:e7:d8:b2:06:c1|f0:7d:68:4d:6f:aa" /><WLANMatcher val="-70|-78|-80|-87|-88|-88|-89|-90|-91|-93" /><PosLevel val="Point" /></PosReq>"""
 #req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000112" /><Time val="20111208-092935" /><UserInfo imei="352284040778213" imsi="460001343119748" UserAgent="Samsung/OMAP_SS" /><CellInfo mcc="460" mnc="00" lac="4141" cid="26390" rss="-49" /><WLANIdentifier val="3c:e5:a6:93:88:f0|00:23:89:f3:a0:10|c4:ca:d9:01:77:c0|c4:ca:d9:01:82:f0|3c:e5:a6:93:d8:30|b4:b3:62:49:bf:ab|3c:e5:a6:93:b7:50|00:23:89:f3:2f:50|c4:ca:d9:01:6d:c0|c4:ca:d9:01:79:70" /><WLANMatcher val="-39|-52|-54|-65|-70|-75|-76|-78|-79|-82" /><PosLevel val="Point" /></PosReq>"""
-req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000112" /><Time val="20120116-144044" /><UserInfo imei="358000048640591" imsi="460001994912200" UserAgent="twm_tw/htc_vivo" /><CellInfo mcc="460" mnc="00" lac="37357" cid="55062" rss="-71" /><PosLevel val="Point" /></PosReq>"""
+#req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000112" /><Time val="20120116-144044" /><UserInfo imei="358000048640591" imsi="460001994912200" UserAgent="twm_tw/htc_vivo" /><CellInfo mcc="460" mnc="00" lac="37357" cid="55062" rss="-71" /><PosLevel val="Point" /></PosReq>"""
+req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000112" /><Time val="20120325-080717" /><UserInfo imei="860727012085269" imsi="460016007635314" UserAgent="Huawei/U8660" /><CellInfo mcc="460" mnc="01" lac="42475" cid="27465316" rss="-81" /><WLANIdentifier val="14:e6:e4:d0:fb:d6|f4:ec:38:39:2d:48|f4:ec:38:39:2d:48" /><WLANMatcher val="-74|-81|-81" /><PosLevel val="Point" /></PosReq>"""
 # cell invalid for fail_count test.
 #req_wpp = """<?xml version='1.0' encoding='UTF-8' standalone='no' ?><!DOCTYPE PosReq SYSTEM "PosReq.dtd"><PosReq><SPID val="1000" /><ServID val="1000101" /><Time val="20110725-141421" /><UserInfo imei="012682003400042" imsi="460007316414690" UserAgent="SEMC/LT15i_1247-1052" /><CellInfo mcc="460" mnc="00" lac="1011111111" cid="28837" rss="-63" /><PosLevel val="Point" /></PosReq>"""
 # WPP OK, PosLevel Null.
@@ -69,7 +70,7 @@ urlpath_fpp_moto = 'fpp/servlet'
 urlpath_wpp = 'wlan/distribution'
 
 targets = {
-        'wpp_py':{
+        'wpp_cmri':{
                   'ip':ip_wpp_cmri, 
                 'port':port_wpp_cmri, 
              'urlpath':urlpath_wpp,

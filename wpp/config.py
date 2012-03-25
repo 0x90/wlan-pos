@@ -15,6 +15,7 @@ RADIUS = 6372797  # meter
 MAX_AREA_TRY = 200
 CRAWL_LIMIT = 5000
 GOOG_AVAIL = True
+DEBUG_ALGO = False
 GOOG_ERR_LIMIT = 300
 GOOG_FAIL_LIMIT = 25
 GOOG_FAIL_CACHE_TIME = 3600*24
@@ -41,6 +42,10 @@ CSV_CFG_RFP = {
            'time' : 3, 
            'macs' : 4, 
            'rsss' : 5, },
+}
+FP_FIELD_NAMES = {
+    'outdoor' : [ 'lat', 'lon', 'h', 'rsss', 'time' ],
+     'indoor' : [ 'iac', 'h', 'bid', 'time', 'rsss' ]
 }
 
 # Logging related cfg.

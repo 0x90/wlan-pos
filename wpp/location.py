@@ -15,7 +15,7 @@ import logging
 wpplog = logging.getLogger('wpp')
 
 from wpp.config import (dbsvrs, DB_ONLINE, KNN, CLUSTERKEYSIZE, KWIN,
-        POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT, GOOG_ERR_LIMIT)
+        POS_RESP_FULL, POS_RESP_AREA, POS_RESP_PT, GOOG_ERR_LIMIT, DEBUG_ALGO)
 from wpp.db import WppDB
 from wpp.util.geo import dist_km
 from wpp.util.geolocation_api import googleLocation
@@ -79,7 +79,7 @@ def fixPos(posreq=None, has_google=False, mc=None):
             INTERSET = min(CLUSTERKEYSIZE, len(macs)) 
             idxs_max = argsort(rsss)[:INTERSET]
             macsrsss = vstack((macs, rsss))[:,idxs_max]
-            wlanloc = fixPosWLAN(INTERSET, macsrsss, wppdb)
+            wlanloc = fixPosWLAN(INTERSET, macsrsss, wppdb, DEBUG_ALGO)
             if not wlanloc: 
                 need_google = True
         else: wlanloc = []
@@ -113,7 +113,8 @@ def fixPos(posreq=None, has_google=False, mc=None):
                 if macs and ee_goog <= GOOG_ERR_LIMIT:
                     t = f('Time')
                     t = t[0]['val'] if t else ''
-                    fp = '2,4,%s%s%s,%s,%s,%s,%s' % (t,','*9,lat1,lon1,h,'|'.join(macs),'|'.join(rsss))
+                    fp = '1000, 1000101, %s%s%s, %s, %s, %s, %s' % \
+                            (t,','*9,lat1, lon1, h, '|'.join(macs), '|'.join(rsss))
                     n = doClusterIncr(fd_csv=StringIO(fp), wppdb=wppdb, verb=False)
                     if n['n_newfps'] == 1: 
                         wpplog.info('Added 1 WLAN FP from Google')

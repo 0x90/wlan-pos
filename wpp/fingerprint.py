@@ -6,7 +6,7 @@ import csv
 import numpy as np
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker
 
-from wpp.config import CSV_CFG_RFP, CLUSTERKEYSIZE
+from wpp.config import CSV_CFG_RFP, FP_FIELD_NAMES, CLUSTERKEYSIZE
 
 
 def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
@@ -67,14 +67,10 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     print 'Done'
 
     # Clustering heuristics.
-    if 'lat' in csv_cols:
-        idxs_fp = [ col_lat, col_lon, col_h, col_rsss, col_time ]
-        idx_time = 4
-        idx_rsss = 3
-    else:
-        idxs_fp = [ col_iac, col_h, col_bid, col_time, col_rsss ]
-        idx_time = 3
-        idx_rsss = 4
+    fp_field_names = FP_FIELD_NAMES['outdoor']  if 'lat' in csv_cols else FP_FIELD_NAMES['indoor'] 
+    idxs_fp = [ csv_cols[col] for col in fp_field_names ]
+    idx_time = fp_field_names.index('time')
+    idx_rsss = fp_field_names.index('rsss')
     n_inserts = { 'n_newcids':0, 'n_newfps':0 }
     if verb:
         widgets = ['Incr-Clustering: ',Percentage(),' ',Bar(marker=RotatingMarker())]
@@ -84,7 +80,7 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
         if not wlanmacs[0].strip() and len(wlanmacs) == 1:
             continue
         fp = rawrmp[ idx, idxs_fp ]
-        found_cluster, result = search_cluster(macs=wlanmacs, fp=fp, wppdb=wppdb)
+        found_cluster, result = search_cluster(macs=wlanmacs, fp=fp, wppdb=wppdb, idx_rsss=idx_rsss)
         fp = result['fp']
         # Strip time & rsss field.
         fp[idx_time] = fp[idx_time].replace(' ','')
@@ -108,7 +104,7 @@ def doClusterIncr(fd_csv=None, wppdb=None, verb=True):
     return n_inserts
 
 
-def search_cluster(macs=None, fp=None, wppdb=None):
+def search_cluster(macs=None, fp=None, wppdb=None, **kw):
     """
     1) Search for best matched cluster, or create a new one.
     2) Filtering MACs thru decorators.
@@ -117,11 +113,12 @@ def search_cluster(macs=None, fp=None, wppdb=None):
     result = {'fp': fp, 'fp_macs': macs}
     # Filter out the duplicated macs & rsss.
     if len(macs) != len(set(macs)):
-        new_wifi = np.array([ ( x, fp[-1].split('|')[list(macs).index(x)]) for x in set(macs) ])
+        idx_rsss = kw['idx_rsss']
+        new_wifi = np.array([ ( x, fp[idx_rsss].split('|')[list(macs).index(x)]) for x in set(macs) ])
         idx_sortbyrss = np.argsort(new_wifi[:,1])
         new_wifi = new_wifi[idx_sortbyrss, :]
-        result['fp'][-1] = '|'.join(new_wifi[:,1])
-        result['fp_macs'] = new_wifi[:,0]
+        result['fp'][idx_rsss] = '|'.join(new_wifi[:,1])
+        result['fp_macs'] = macs = new_wifi[:,0]
     #     cidcntseq: all query results from db: cid,count(cid),max(seq).
     # cidcntseq_max: query results with max count(cid).
     cidcntseq = wppdb.getCIDcntMaxSeq(macs=macs)

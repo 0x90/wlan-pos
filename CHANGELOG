@@ -287,3 +287,7 @@
     1) Add indoor FP collection routine.
 2012-02-19
     1) Fix incr-clustering error introduced by whitespace in MACS, RSSs, and time fields.
+2012-02-25
+    1) Fix *macs* value err when FP has duplicate MACs in fingerprint.search_cluster().
+    2) Fix outdoor FP field(time, rsss) index error in fingerprint.doClusterIncr().
+    3) Add algo debug switch in config.
